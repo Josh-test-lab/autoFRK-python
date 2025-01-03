@@ -10,6 +10,20 @@ Reference: Tzeng S, Huang H, Wang W, Nychka D, Gillespie C (2021). _autoFRK: Aut
 import numpy as np
 
 ### function
+def ncol(data):
+    """
+    Convert `ncol` in R to Python
+    """
+    data = np.asarray(data)
+    return data.shape[1] if data.ndim != 1 else None
+
+def NCOL(data):
+    """
+    Convert `NCOL` in R to Python
+    """
+    data = np.asarray(data)
+    return data.shape[1] if data.ndim != 1 else 1
+
 def eigenDecomposeInDecreasingOrder(mat):
     """
     Internal function: eigen-decomposition in decreasing order.
@@ -20,10 +34,10 @@ def eigenDecomposeInDecreasingOrder(mat):
     Returns: 
     A dictionary with 'value' (eigenvalues) and 'vector' (eigenvectors).
     """
-    value, vector = np.linalg.eigh(mat)
-    #value, vector = np.linalg.eig(mat)
-    obj_value = value[::-1]
-    obj_vector = vector[:, ::-1]
+    value, vector = np.linalg.eig(mat)
+    increase_index = np.argsort(value)[::-1]
+    obj_value = value[increase_index]
+    obj_vector = vector[:, increase_index]
     
     return {'value': obj_value, 'vector': obj_vector}
 
@@ -49,22 +63,77 @@ def computeLikelihood(data, Fk, M, s, Depsilon):
     Internal function: compute a negative log-likelihood (-2*log(likelihood))
 
     Parameters:
-    data: An \emph{n} by \emph{T} data matrix (NA allowed) with \eqn{z[t]} as the \emph{t}-th column.
-    Fk: An \emph{n} by \emph{K} matrix of basis function values with each column being a basis function taken values at \code{loc}.
-    M: A \emph{K} by \emph{K} symmetric matrix.
-    s: A scalar.
-    Depsilon: An \emph{n} by \emph{n} diagonal matrix.
+    data (np.ndarray): An n x T data matrix (NA allowed) with z[t] as the t-th column.
+    Fk (np.ndarray): An n x K matrix of basis function values.
+    M (np.ndarray): A K x K symmetric matrix.
+    s (float): A scalar.
+    Depsilon (np.ndarray): An n x n diagonal matrix.
     
     Returns:
     A numeric.
     """
     data = np.asarray(data)
     non_missing_points_matrix = ~np.isnan(data)
-    num_columns = data.shape[1]
+    num_columns = NCOL(data)
 
-    
+    n2loglik = np.sum(non_missing_points_matrix) * np.log(2 * np.pi)
+    R = toSparseMatrix(s * Depsilon)
+    eg = eigenDecompose(M)
 
+    K = NCOL(Fk)
+    L = Fk @ eg['vector'] @ np.diag(np.sqrt(np.maximum(eg['vector'], 0)), K) @ eg['vector'].T
+
+    if num_columns == 1:
+        zt = data[non_missing_points_matrix]
+        Rt = np.diag(R[non_missing_points_matrix, non_missing_points_matrix], 0)
+        Lt = L[non_missing_points_matrix, :]
+        n2loglik += calculateLogDeterminant(Rt, Lt, K) + np.sum(zt * invCz(Rt, Lt, zt))
+    else:
+        for t in range(num_columns):
+            zt = data[non_missing_points_matrix[:, t], t]
+            Rt = R[np.ix_(non_missing_points_matrix[:, t], non_missing_points_matrix[:, t])]
+            Lt = L[non_missing_points_matrix[:, t], :]
+            n2loglik += calculateLogDeterminant(Rt, Lt, K) + np.sum(zt * invCz(Rt, Lt, zt))
+        
     return n2loglik
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

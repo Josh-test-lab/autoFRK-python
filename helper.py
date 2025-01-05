@@ -10,7 +10,9 @@ Reference: Tzeng S, Huang H, Wang W, Nychka D, Gillespie C (2021). _autoFRK: Aut
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
+import scipy.sparse as sp
 from scipy.sparse import csr_matrix
+import warnings
 
 ### function
 def transfor_to_matrix(data):
@@ -144,7 +146,7 @@ def selectBasis(data, loc, D = None, maxit = 50, avgtol = 1e-6, max_rank = None,
         if (np.all(K <= d)):
             raise ValueError('Not valid sequence_rank!')
         elif (np.any(K < (d + 1))):
-            print(f'\033[93mWarning: The minimum of sequence_rank can not less than {d + 1}. Too small values will be ignored\033[0m.')
+            warnings.warn(f'The minimum of sequence_rank can not less than {d + 1}. Too small values will be ignored.')
         K = K[K > d]
     else:
         K = np.unique(np.round(np.arange(d + 1, max_rank + 1, max_rank ** (1 / 3) * d)))
@@ -450,18 +452,18 @@ def fetchNonZeroIndexs(mat):
     if not isinstance(mat, (np.ndarray, csr_matrix)):
         raise TypeError(f'Wrong matrix format, but got {type(mat)}')
     if isinstance(mat, csr_matrix):
-        row_indices, col_indices = mat.nonzero()
+        row_indexs, col_indexs = mat.nonzero()
     else:
-        row_indices, col_indices = np.nonzero(mat)
+        row_indexs, col_indexs = np.nonzero(mat)
 
-    row_indices, col_indices = np.nonzero(mat)
-    sorted_col_indices = np.argsort(col_indices)
+    row_indexs, col_indexs = np.nonzero(mat)
+    sorted_col_indexs = np.argsort(col_indexs)
     nr, nc = mat.shape
-    linear_indices = (col_indices[sorted_col_indices]) * nr + row_indices[sorted_col_indices]
+    linear_indexs = (col_indexs[sorted_col_indexs]) * nr + row_indexs[sorted_col_indexs]
     
-    return linear_indices
+    return linear_indexs
 
-def toSparseMatrix(mat, verbose = FALSE):
+def toSparseMatrix(mat, verbose = False):
     """
     Internal function: convert to a sparse matrix
 
@@ -472,7 +474,25 @@ def toSparseMatrix(mat, verbose = FALSE):
     Returns:
     sparse matrix
     """
+    if isinstance(mat, sp.spmatrix):
+        if verbose:
+            print("The input is already a sparse matrix")
+        return mat
+    if not isinstance(mat, (np.ndarray, pd.DataFrame)):
+        raise ValueError(f"Wrong format for to_sparse_matrix, but got {type(mat)}")
+    if isinstance(mat, pd.DataFrame):
+        mat = transfor_to_matrix(mat)
 
+    if len(mat) > 1e8:
+        warnings.warn("Use sparse matrix as input instead; otherwise it could take a very long time!")
+        non_zero_indexs = fetchNonZeroIndexs(mat)
+    else:
+        non_zero_indexs = np.where(mat != 0)
+    matrix_dim = mat.shape
+    sparse_matrix = sp.lil_matrix((matrix_dim[0], matrix_dim[1]))
+    sparse_matrix[non_zero_indexs] = mat[non_zero_indexs]
+
+    return sparse_matrix
 
 
 

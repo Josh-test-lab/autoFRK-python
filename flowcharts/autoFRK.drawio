@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="10" border="30">
     <diagram id="XuQJfIB-7gxwj8ibH9eZ" name="autoFRK">
-        <mxGraphModel dx="985" dy="546" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="468" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -24,12 +24,19 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="HuzXmJv5sS0txFyE4GGA-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="method" target="em" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="HuzXmJv5sS0txFyE4GGA-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="method" target="HuzXmJv5sS0txFyE4GGA-2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="567" y="575" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="550" y="485"/>
+                            <mxPoint x="550" y="660"/>
+                            <mxPoint x="384" y="660"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="HuzXmJv5sS0txFyE4GGA-14" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="HuzXmJv5sS0txFyE4GGA-11" vertex="1" connectable="0">
                     <mxGeometry x="0.1972" y="-2" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
+                        <mxPoint x="31" y="-108" as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="method" value="Check if method is &quot;fast&quot;" style="rhombus;whiteSpace=wrap;html=1;" parent="1" vertex="1">
@@ -41,12 +48,6 @@
                 <mxCell id="knn" value="kNN Imputation" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="304" y="575" width="160" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="HuzXmJv5sS0txFyE4GGA-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="em" target="HuzXmJv5sS0txFyE4GGA-2" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="em" value="EM Algorithm" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="487" y="575" width="160" height="60" as="geometry"/>
-                </mxCell>
                 <mxCell id="return" value="Return FRK Object" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="324" y="1040" width="120" height="60" as="geometry"/>
                 </mxCell>
@@ -54,7 +55,7 @@
                 <mxCell id="e2" parent="1" target="basis" edge="1"/>
                 <mxCell id="e3" parent="1" source="basis" target="method" edge="1"/>
                 <mxCell id="e6" parent="1" source="knn" edge="1"/>
-                <mxCell id="e7" parent="1" source="em" edge="1"/>
+                <mxCell id="e7" parent="1" edge="1"/>
                 <mxCell id="e8" parent="1" target="return" edge="1"/>
                 <mxCell id="HuzXmJv5sS0txFyE4GGA-4" style="edgeStyle=none;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="_ZZOISUhHl57izTDcXxa-2" target="HuzXmJv5sS0txFyE4GGA-1" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
@@ -130,49 +131,34 @@
         </mxGraphModel>
     </diagram>
     <diagram id="aRreUktds2WmTYsilnNn" name="selectBasis">
-        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="522" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="start" value="Start" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="324" y="150" width="120" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="input" value="Input Parameter Handling" style="whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="294" y="260" width="180" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="basis" value="Basis Function Selection" style="whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="280" y="590" width="180" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="method" value="Is method 'fast'?" style="rhombus;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="310" y="710" width="120" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="knn" value="kNN Imputation" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="290" y="815" width="160" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="em" value="EM Algorithm" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="486" y="815" width="160" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="fitting" value="Model Fitting" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="280" y="920" width="180" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="return" value="Return FRK Object" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="310" y="1030" width="120" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="e1" style="edgeStyle=none;html=1;" parent="1" source="start" target="input" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="e3" style="edgeStyle=none;html=1;" parent="1" source="basis" target="method" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" parent="1" source="method" target="knn" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" parent="1" source="method" target="em" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
                 <mxCell id="e6" style="edgeStyle=none;html=1;" parent="1" source="knn" target="fitting" edge="1"/>
                 <mxCell id="e7" style="edgeStyle=none;html=1;" parent="1" source="em" target="fitting" edge="1"/>
                 <mxCell id="e8" style="edgeStyle=none;html=1;" parent="1" source="fitting" target="return" edge="1"/>
+                <mxCell id="jLoHngao0kp7c7VUhMfY-1" value="&lt;pre&gt;selectBasis&lt;/pre&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="354" y="50" width="120" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="jLoHngao0kp7c7VUhMfY-3" value="&lt;pre&gt;&lt;span style=&quot;font-family: Helvetica;&quot;&gt;Return Object&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="354" y="515" width="120" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="7rqQExzHisvwuX145bWU-2" value="Knots Selection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="180" y="280" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="7rqQExzHisvwuX145bWU-3" value="Knots Selection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="190" y="290" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="7rqQExzHisvwuX145bWU-4" value="Knots Selection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="300" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="7rqQExzHisvwuX145bWU-5" value="Knots Selection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="210" y="310" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="7rqQExzHisvwuX145bWU-6" value="Rank Determination" style="rounded=0;whiteSpace=wrap;html=1;fillColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="190" y="170" width="120" height="60" as="geometry"/>
+                </mxCell>
             </root>
         </mxGraphModel>
     </diagram>

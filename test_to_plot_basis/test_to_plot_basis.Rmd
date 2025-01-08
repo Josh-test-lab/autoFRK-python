@@ -36,14 +36,25 @@ result
 
 ```{r}
 # plot
-plot(x = s, y = result[1, ], xlim = c(0, 1), ylim = c(0, 1), col = 1, main = "basis function", xlab = "S", ylab = "f(s)", cex = 0.05)
+plot(x = s, y = result[1, ], xlim = c(0, 1), ylim = c(0, 1), col = 1, main = "basis function", xlab = "S", ylab = "f(s)", type = "l")
 for (k in 2:K) {
   lines(x = s, y = result[k, ], col = k)
 }
 legend("topright", legend = paste("k = ", 1:K), col = 1:K, lty = 1, cex = 0.8)
 ```
 
+```{r}
+# initial value
+M = diag(c(17, 14, 11, 8, 5, 2))
+f0 = as.matrix(result)
+C = t(f0) %*% M %*% f0
+```
 
+```{r}
+# image plot
+library(fields)
+image.plot(C)
+```
 
 
 

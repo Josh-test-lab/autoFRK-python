@@ -12,9 +12,14 @@ rk = 0.5
 ```
 
 ```{r}
+# bk function
+bk <- function(k){
+  return(0.2 * (k - 1))
+}
+
 # basis function
 basis_function <- function(s, bk, rk){
-  (1 - ((s - bk)^2) / (rk^2))^2 * (abs(s - bk) < rk)
+  return((1 - ((s - bk)^2) / (rk^2))^2 * (abs(s - bk) < rk))
 }
 ```
 
@@ -22,20 +27,29 @@ basis_function <- function(s, bk, rk){
 # sample points
 result = data.frame(matrix(rep(NA, n), ncol = n))
 for (k in 1:K) {
-  bk = 0.2 * (k - 1)
-  result = rbind(result, basis_function(s, bk, rk))
+  bk_value = bk(k)
+  result = rbind(result, basis_function(s, bk_value, rk))
 }
 result = result[-1, ]
+result
 ```
 
 ```{r}
 # plot
-plot(x = s, y = result[1, ], xlim = c(0, 1), ylim = c(0, 1), col = 1, main = "basis function", xlab = "S", ylab = "f(s)")
+plot(x = s, y = result[1, ], xlim = c(0, 1), ylim = c(0, 1), col = 1, main = "basis function", xlab = "S", ylab = "f(s)", cex = 0.05)
 for (k in 2:K) {
   lines(x = s, y = result[k, ], col = k)
 }
 legend("topright", legend = paste("k = ", 1:K), col = 1:K, lty = 1, cex = 0.8)
 ```
+
+
+
+
+
+
+
+
 
 
 

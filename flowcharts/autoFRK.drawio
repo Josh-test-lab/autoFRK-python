@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="10" border="30">
     <diagram id="XuQJfIB-7gxwj8ibH9eZ" name="autoFRK">
-        <mxGraphModel dx="530" dy="344" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="1306" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -123,7 +123,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="aRreUktds2WmTYsilnNn" name="selectBasis">
-        <mxGraphModel dx="817" dy="344" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="1306" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -177,22 +177,92 @@
         </mxGraphModel>
     </diagram>
     <diagram id="3pTyqowcQ0qrrl-noSCV" name="subknot">
-        <mxGraphModel dx="817" dy="344" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="1306" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
                 <mxCell id="CThHsccOmE13GqcXq22x-1" value="Return" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="364" y="660" width="120" height="80" as="geometry"/>
+                    <mxGeometry x="390" y="870" width="120" height="80" as="geometry"/>
                 </mxCell>
                 <mxCell id="KoS8r8EQmCqWaWnkX8SZ-1" value="&lt;pre&gt;subknot&lt;/pre&gt;" style="ellipse;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="364" y="50" width="120" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="tVw5SPcxrdUam6l_ZDlP-1" value="&lt;div&gt;loc, nknot&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
-                    <mxGeometry x="90" y="50" width="120" height="60" as="geometry"/>
+                <mxCell id="tVw5SPcxrdUam6l_ZDlP-1" value="&lt;div&gt;loc, nknot(max_knot or \(10\sqrt{N}\))&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="57.5" width="240" height="55" as="geometry"/>
                 </mxCell>
                 <mxCell id="6eG5CVUU4YMqPwt04Q-m-1" value="Sampling Knots" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
-                    <mxGeometry x="560" y="670" width="120" height="60" as="geometry"/>
+                    <mxGeometry x="586" y="880" width="120" height="60" as="geometry"/>
                 </mxCell>
+                <mxCell id="mBb73VJZR0kTC3nxWF7U-1" value="Computing the Range of each Dimention" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="354" y="160" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="mBb73VJZR0kTC3nxWF7U-2" value="Adjusting the Number of Bins&amp;nbsp;for each Dimension based on the Range" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="317" y="260" width="214" height="60" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="wIj73q1Jm2dgMqNFZTkG" name="knn">
+        <mxGraphModel dx="1306" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-7" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="N-l98P9uiy0kUpZy9LFo-1" target="qROJpRJ2Irsp9gfD2Nkj-4">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="N-l98P9uiy0kUpZy9LFo-1" value="For Loop visit each column of \(\texttt{data}\)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="303" y="160" width="245" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-9" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="qROJpRJ2Irsp9gfD2Nkj-3" target="qROJpRJ2Irsp9gfD2Nkj-5">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-3" value="Find index where na is" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="380" width="190" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-8" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" target="qROJpRJ2Irsp9gfD2Nkj-3">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="425" y="340" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-15" value="Yes" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="qROJpRJ2Irsp9gfD2Nkj-8">
+                    <mxGeometry x="-0.3582" y="3" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-11" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;rounded=0;curved=0;" edge="1" parent="1" source="qROJpRJ2Irsp9gfD2Nkj-4" target="N-l98P9uiy0kUpZy9LFo-1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="550" y="315" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="620" y="315"/>
+                            <mxPoint x="620" y="195"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-13" value="No" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="qROJpRJ2Irsp9gfD2Nkj-11">
+                    <mxGeometry x="-0.0194" y="1" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-4" value="is.na()" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="385" y="290" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-10" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="qROJpRJ2Irsp9gfD2Nkj-5" target="qROJpRJ2Irsp9gfD2Nkj-6">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-5" value="Find the neighbor for each na index" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="315" y="500" width="220" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="qROJpRJ2Irsp9gfD2Nkj-6" value="Fill in the na with mean of neighbor" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="320.5" y="620" width="210" height="60" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="Cjwr7dhfozOuazh2cz59" name="indeML">
+        <mxGraphModel dx="1306" dy="607" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
             </root>
         </mxGraphModel>
     </diagram>

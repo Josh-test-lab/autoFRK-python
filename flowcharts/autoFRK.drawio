@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="10" border="30">
     <diagram id="XuQJfIB-7gxwj8ibH9eZ" name="autoFRK">
-        <mxGraphModel dx="670" dy="663" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="673" dy="663" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -232,8 +232,11 @@
                 <mxCell id="bpHLP-9_zHgBgCd2wX9J-6" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="bpHLP-9_zHgBgCd2wX9J-1" target="ro59zbX6YaddssftbMEb-3">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="bpHLP-9_zHgBgCd2wX9J-1" value="&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;AIC(&lt;/span&gt;&lt;font style=&quot;scrollbar-color: light-dark(#e2e2e2, #4b4b4b)&lt;br/&gt;&#x9;&#x9;&#x9;&#x9;&#x9;light-dark(#fbfbfb, var(--dark-panel-color));&quot; face=&quot;Courier New&quot;&gt;K&lt;/font&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;) =&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;color: rgb(63, 63, 63); font-family: &amp;quot;Comic Sans MS&amp;quot;; background-color: transparent;&quot;&gt;negloglik&lt;/span&gt;&lt;span style=&quot;color: rgb(63, 63, 63); background-color: transparent;&quot;&gt;&amp;nbsp;+ 2*df&lt;/span&gt;&lt;font face=&quot;Courier New&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;font face=&quot;Courier New&quot;&gt;Kopt&lt;/font&gt; = argmin{AIC(&lt;font face=&quot;Courier New&quot;&gt;K&lt;/font&gt;)}" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                <mxCell id="bpHLP-9_zHgBgCd2wX9J-1" value="&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;Compute &lt;font face=&quot;Courier New&quot;&gt;df&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;AIC(&lt;/span&gt;&lt;font style=&quot;scrollbar-color: light-dark(#e2e2e2, #4b4b4b)&lt;br/&gt;&#x9;&#x9;&#x9;&#x9;&#x9;light-dark(#fbfbfb, var(--dark-panel-color));&quot; face=&quot;Courier New&quot;&gt;K&lt;/font&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;) =&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;color: rgb(63, 63, 63); font-family: &amp;quot;Comic Sans MS&amp;quot;; background-color: transparent;&quot;&gt;negloglik&lt;/span&gt;&lt;span style=&quot;color: rgb(63, 63, 63); background-color: transparent;&quot;&gt;&amp;nbsp;+ 2*&lt;font face=&quot;Courier New&quot;&gt;df&lt;/font&gt;&lt;/span&gt;&lt;font face=&quot;Courier New&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;font face=&quot;Courier New&quot;&gt;Kopt&lt;/font&gt; = argmin{AIC(&lt;font face=&quot;Courier New&quot;&gt;K&lt;/font&gt;)}" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
                     <mxGeometry x="334" y="920" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="29mD_8cHD30p5_ELKmPZ-1" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;kNN Imputation&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;if there has missing value&lt;/span&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="572.5" y="706.25" width="145" height="47.5" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
@@ -340,7 +343,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="wIj73q1Jm2dgMqNFZTkG" name="knn">
-        <mxGraphModel dx="397" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="471" dy="464" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>

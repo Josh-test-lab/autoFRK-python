@@ -1,0 +1,122 @@
+---
+title: "basisFuncCheck"
+output: html_document
+date: "2025-06-03"
+---
+
+Reference: <https://egpivo.github.io/autoFRK/reference/autoFRK.html>
+
+# single realization simulation example
+
+#### generating data from two eigenfunctions
+
+```{r}
+originalPar <- par(no.readonly = TRUE)
+set.seed(0)
+n <- 150
+s <- 5
+
+grid1 <- grid2 <- seq(0, 1, l = 30)
+grids <- expand.grid(grid1, grid2)
+
+fn <- matrix(0, 900, 2)
+fn[, 1] <- cos(sqrt((grids[, 1] - 0)^2 + (grids[, 2] - 1)^2) * pi)
+fn[, 2] <- cos(sqrt((grids[, 1] - 0.75)^2 + (grids[, 2] - 0.25)^2) * 2 * pi)
+```
+
+#### single realization simulation example
+
+```{r}
+set.seed(0)
+w <- c(rnorm(1, sd = 5), rnorm(1, sd = 3))
+y <- fn %*% w
+obs <- sample(900, n)
+
+z <- y[obs] + rnorm(n) * sqrt(s) # values
+X <- grids[obs, ] # location
+plot(X) # regular
+
+write.csv(X, "loc.csv", row.names = FALSE)
+```
+
+#### method1: automatic selection and prediction
+
+```{r}
+library(autoFRK)
+one.imat <- autoFRK(data = z, loc = X, maxK = 15)
+yhat <- predict(one.imat, newloc = grids)
+```
+
+#### method2: user-specified basis functions
+
+```{r}
+G <- mrts(X, 20)
+Gpred <- predict(G, newx = grids)
+one.usr <- autoFRK(data = z, loc = X, G = G)
+yhat2 <- predict(one.usr, newloc = grids, basis = Gpred)
+```
+
+#### method3: user-specified basis functions with remake mrts function
+
+```{r}
+F_output <- read.csv("F_output.csv", header = TRUE)
+UZ_output <- read.csv("UZ_output.csv", header = TRUE)
+BBBH_output <- read.csv("BBBH_output.csv", header = TRUE)
+nconst <- sqrt(apply(X, 2, var) * (nrow(X) - 1) / nrow(X))
+
+F_output <- unname(as.matrix(F_output))
+UZ_output <- unname(as.matrix(UZ_output))
+BBBH_output <- unname(as.matrix(BBBH_output))
+nconst <- unname(nconst)
+Xu <- as.matrix(X)
+dimnames(Xu) <- list(NULL, NULL) # 清除所有層級的名稱
+attr(Xu, "out.attrs") <- NULL # 移除 expand.grid() 產生的 out.attrs
+
+attr(F_output, "UZ") <- UZ_output
+attr(F_output, "Xu") <- Xu
+attr(F_output, "nconst") <- nconst
+attr(F_output, "BBBH") <- BBBH_output
+attr(F_output, "class") <- c("matrix", "mrts")
+class(F_output) <- "mrts"
+
+F_output_pred <- predict(F_output, newx = grids)
+one.usr <- autoFRK(data = z, loc = X, G = F_output)
+yhat3 <- predict(one.usr, newloc = grids, basis = F_output_pred)
+```
+
+##### Debugging the mrts object
+
+```{r}
+View(attr(G, "Xu"))
+View(attr(F_output, "Xu"))
+```
+
+在 `mrts` 物件中，`UZ` 是一個矩陣，包含了基礎函數的係數。這些係數可以用來計算預測值。
+然而，當我們使用 `predict` 函數時，可能會遇到一些問題，例如預測結果與預期不符。
+以下可見，與 `F_output` 的 `UZ` 屬性相比，`G` 的 `UZ` 屬性有些不同，不同的欄位剛好在eigenvector 差一個負號的欄位。
+
+BBBH 差異也很大。
+
+nconst, Xu 一樣。
+
+```{r}
+# G_matrix <- predict(G, newx = X)
+apply(attr(G, "UZ") - attr(F_output, "UZ"), 2,  function(x) round(mean(x^2)))
+apply(G_matrix - F_output, 2,  function(x) round(mean(x^2)))
+```
+
+#### plot the predict result
+
+```{r}
+library(fields)
+par(mfrow = c(2, 2))
+image.plot(matrix(y, 30, 30), main = "True")
+points(X, cex = 0.5, col = "grey")
+image.plot(matrix(yhat2$pred.value, 30, 30), main = "Predicted")
+points(X, cex = 0.5, col = "grey")
+image.plot(matrix(yhat3$pred.value, 30, 30), main = "Predicted (remake)")
+points(X, cex = 0.5, col = "grey")
+plot(yhat2$pred.value, yhat3$pred.value, mgp = c(2, 0.5, 0))
+par(originalPar)
+```
+

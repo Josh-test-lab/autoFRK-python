@@ -108,6 +108,7 @@ selectBasis <- function(data,
   loc <- as.matrix(loc)
   d <- NCOL(loc)
   is_data_with_missing_values <- any(is.na(data))
+
   na_rows <- which(rowSums(as.matrix(!is.na(data))) == 0)
   pick <- 1:NROW(data)
   if (length(na_rows) > 0) {
@@ -116,6 +117,10 @@ selectBasis <- function(data,
     pick <- pick[-na_rows]
     is_data_with_missing_values <- any(is.na(data))
   }
+  
+
+
+
   
   N <- length(pick)
   klim <- min(N, round(10 * sqrt(N)))

@@ -117,11 +117,7 @@ selectBasis <- function(data,
     pick <- pick[-na_rows]
     is_data_with_missing_values <- any(is.na(data))
   }
-  
 
-
-
-  
   N <- length(pick)
   klim <- min(N, round(10 * sqrt(N)))
   if (N < max_knot) {

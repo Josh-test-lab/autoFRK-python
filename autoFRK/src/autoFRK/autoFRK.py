@@ -76,7 +76,7 @@ class autoFRK(nn.Module):
         if self.G is not None:
             Fk = self.G.to(self.device)
         else:
-            Fk = select_basis(data, 
+            Fk = selectBasis(data, 
                               loc, 
                               self.D, 
                               self.maxit, 

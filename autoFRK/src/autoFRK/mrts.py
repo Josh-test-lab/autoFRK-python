@@ -262,12 +262,12 @@ class MRTS(nn.Module):
 
         # Eigen-decomposition
         G = Q @ Phi @ Q
-        #eigenvalues, eigenvectors = torch.linalg.eigh(G)  # ascending order
+        eigenvalues, eigenvectors = torch.linalg.eigh(G)  # ascending order
         
-        G = G.detach().cpu().numpy()
-        eigenvalues, eigenvectors = eigsh(G, k=self.k - self.d - 1, which='LM')  # 'LM': Largest Magnitude, max k < N
-        eigenvalues = torch.from_numpy(eigenvalues).to(self.device) 
-        eigenvectors = torch.from_numpy(eigenvectors).to(self.device)
+        # G = G.detach().cpu().numpy()
+        # eigenvalues, eigenvectors = eigsh(G, k=self.k - self.d - 1, which='LM')  # 'LM': Largest Magnitude, max k < N
+        # eigenvalues = torch.from_numpy(eigenvalues).to(self.device) 
+        # eigenvectors = torch.from_numpy(eigenvectors).to(self.device)
 
         # Filter out near-zero eigenvalues and sort descending
         #valid = eigenvalues > 1e-10

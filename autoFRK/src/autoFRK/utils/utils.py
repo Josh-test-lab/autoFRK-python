@@ -12,10 +12,11 @@ LOGGER = setup_logger()
 
 # fast mode KNN for missing data imputation, using in autoFRK
 # Its have OpenMP issue, set environment variable OMP_NUM_THREADS=1 to avoid it, or use sklearn version below
-def fast_mode_knn(data: torch.Tensor,
-                  loc: torch.Tensor, 
-                  n_neighbor: int = 3
-                  ) -> torch.Tensor:
+def fast_mode_knn(
+    data: torch.Tensor,
+    loc: torch.Tensor, 
+    n_neighbor: int = 3
+) -> torch.Tensor:
     """
     The fast mode for autoFRK by using KNN for missing data imputation.
 
@@ -69,10 +70,11 @@ def fast_mode_knn(data: torch.Tensor,
     return torch.tensor(data, dtype=dtype, device=device)
 
 # fast mode KNN for missing data imputation, using in autoFRK, sklearn version
-def fast_mode_knn_sklearn(data: torch.Tensor,
-                          loc: torch.Tensor,
-                          n_neighbor: int = 3
-                          ) -> torch.Tensor:
+def fast_mode_knn_sklearn(
+    data: torch.Tensor,
+    loc: torch.Tensor,
+    n_neighbor: int = 3
+) -> torch.Tensor:
     dtype = data.dtype
     device = data.device
 
@@ -103,20 +105,21 @@ def fast_mode_knn_sklearn(data: torch.Tensor,
     return torch.tensor(data, dtype=dtype, device=device)
 
 # select basis function for autoFRK, using in autoFRK
-def selectBasis(data: torch.Tensor,
-                 loc: torch.Tensor,
-                 D: torch.Tensor = None,
-                 maxit: int = 50,
-                 avgtol: float = 1e-6,
-                 max_rank: int = None,
-                 sequence_rank: torch.Tensor = None,
-                 method: str = "fast",
-                 num_neighbors: int = 3,
-                 max_knot: int = 5000,
-                 DfromLK: dict = None,
-                 Fk: torch.Tensor = None,
-                 device: Optional[Union[torch.device, str]] = 'cpu'
-                 ) -> torch.Tensor:
+def selectBasis(
+    data: torch.Tensor,
+    loc: torch.Tensor,
+    D: torch.Tensor = None,
+    maxit: int = 50,
+    avgtol: float = 1e-6,
+    max_rank: int = None,
+    sequence_rank: torch.Tensor = None,
+    method: str = "fast",
+    num_neighbors: int = 3,
+    max_knot: int = 5000,
+    DfromLK: dict = None,
+    Fk: torch.Tensor = None,
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> torch.Tensor:
     # 去除全為 NaN 的欄位
     not_all_nan = ~torch.isnan(data).all(dim=0)
     data = data[:, not_all_nan]
@@ -147,7 +150,10 @@ def selectBasis(data: torch.Tensor,
     if N < max_knot:
         knot = loc[pick, :]
     else:
-        knot = subKnot(loc[pick, :], min(max_knot, klim))
+        knot = subKnot(x=loc[pick, :],
+                       nknot=min(max_knot, klim),
+                       device=device
+                       ).to(device=device)
 
     # 處理 K 值
     if max_rank is not None:
@@ -219,13 +225,12 @@ def selectBasis(data: torch.Tensor,
             tmp = torch.matmul(ihFiD, data)
             matrix_JSJ = torch.matmul(tmp, tmp.T) / num_data_columns
             matrix_JSJ = (matrix_JSJ + matrix_JSJ.T) / 2
-            AIC_list[k] = cMLE(
-                Fk=Fk_k,
-                num_columns=num_data_columns,
-                sample_covariance_trace=sample_covariance_trace,
-                inverse_square_root_matrix=inverse_square_root_matrix,
-                matrix_JSJ=matrix_JSJ
-            )["negloglik"]
+            AIC_list[k] = cMLE(Fk=Fk_k,
+                               num_columns=num_data_columns,
+                               sample_covariance_trace=sample_covariance_trace,
+                               inverse_square_root_matrix=inverse_square_root_matrix,
+                               matrix_JSJ=matrix_JSJ
+                               )["negloglik"]
 
     # 計算 AIC 並選出最佳 K 值
     df = torch.where(
@@ -245,6 +250,526 @@ def get_inverse_square_root_matrix(left_matrix, right_matrix):
     eigvals, eigvecs = torch.linalg.eigh(mat)
     inv_sqrt_eigvals = torch.diag(torch.clamp(eigvals, min=1e-10).rsqrt())
     return eigvecs @ inv_sqrt_eigvals @ eigvecs.T
+
+# subset knot selection for autoFRK, using in selectBasis
+# check = ok
+def subKnot(
+    x: torch.Tensor, 
+    nknot: int, 
+    xrng: torch.Tensor = None, 
+    nsamp: int = 1, 
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> torch.Tensor:
+    x = x.to(device)
+    x = torch.sort(x, dim=0).values
+    xdim = x.shape  # (N, D)
+
+    if xrng is None:
+        xrng = torch.stack([x.min(dim=0).values, x.max(dim=0).values], dim=0)
+
+    rng = torch.sqrt(xrng[1] - xrng[0])
+    if (rng == 0).any():
+        rng[rng == 0] = rng[rng > 0].min() / 5
+    rng = rng * 10 / rng.min()
+    rng_max_index = torch.argmax(rng).item()
+
+    log_rng = torch.log(rng)
+    nmbin = torch.round(torch.exp(log_rng * torch.log(torch.tensor(nknot, dtype=torch.float32)) / log_rng.sum())).int()
+    nmbin = torch.clamp(nmbin, min=2)
+
+    while torch.prod(nmbin).item() < nknot:
+        nmbin[rng_max_index] += 1
+
+    gvec = torch.ones(xdim[0], dtype=torch.int64, device=device)
+    cnt = 0
+    while len(torch.unique(gvec)) < nknot:
+        nmbin += cnt
+        kconst = 1
+        gvec = torch.ones(xdim[0], dtype=torch.int64, device=device)
+        for kk in range(xdim[1]):
+            delta = xrng[1, kk] - xrng[0, kk]
+            if delta == 0:
+                grp = torch.zeros(xdim[0], dtype=torch.int64, device=device)
+            else:
+                grp = ((nmbin[kk] - 1) * (x[:, kk] - xrng[0, kk]) / delta).round().int()
+                grp = torch.clamp(grp, max=nmbin[kk] - 1)
+
+            if len(torch.unique(grp)) < nmbin[kk]:
+                brk = torch.tensor(np.quantile(x[:, kk].cpu().numpy(), np.linspace(0, 1, nmbin[kk] + 1)), device=device)
+                brk[0] -= 1e-8
+                grp = torch.bucketize(x[:, kk], brk) - 1
+            gvec += kconst * grp
+            kconst *= nmbin[kk]
+
+        cnt += 1
+
+    gvec_np = gvec.cpu().numpy()
+    index = []
+    for g in np.unique(gvec_np):
+        idx = np.where(gvec_np == g)[0]
+        if len(idx) == 1:
+            index.append(idx[0])
+        else:
+            np.random.seed(int(np.mean(idx)))
+            index.extend(np.random.choice(idx, size=min(nsamp, len(idx)), replace=False))
+
+    index = torch.tensor(index, device=device)
+    return x[index]
+
+# compute negative log likelihood for autoFRK, using in selectBasis
+def cMLE(
+    Fk: torch.Tensor,
+    num_columns: int,
+    sample_covariance_trace: float,
+    inverse_square_root_matrix: torch.Tensor,
+    matrix_JSJ: torch.Tensor,
+    s: float = 0,
+    ldet: float = 0,
+    wSave: bool = False,
+    onlylogLike: bool = None,
+    vfixed: float = None,
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> dict:
+    """
+    Internal function: maximum likelihood estimate with the likelihood
+
+    Parameters:
+        Fk: (N, K) torch.Tensor, basis functions.
+        num_columns: (int) Number of columns in the data.
+        sample_covariance_trace: (float) Trace of the sample covariance matrix.
+        inverse_square_root_matrix: (N, K) torch.Tensor, inverse square root matrix.
+        matrix_JSJ: (K, K) torch.Tensor, covariance-like matrix.
+        s: (float) Effective sample size, default is 0.
+        ldet: (float) Log determinant of the transformation matrix, default is 0.
+        wSave: (bool) Whether to save the L matrix, default is False.
+        onlylogLike: (bool) If True, only return the negative log likelihood.
+        vfixed: (float, optional) Fixed noise variance, if provided.
+        device: (str) 'cpu' or 'cuda'.
+
+    Returns:
+        dict: {
+            'v': (float) Estimated noise variance,
+            'M': (torch.Tensor) Matrix M,
+            's': (int) Effective sample size,
+            'negloglik': (float) Negative log likelihood,
+            'L': (torch.Tensor, optional) L matrix if wSave is True.
+        }
+    """
+    nrow_Fk = Fk.shape[0]
+
+    likelihood_object = computeNegativeLikelihood(
+        nrow_Fk=nrow_Fk,
+        ncol_Fk=Fk.shape[1],
+        s=s,
+        p=num_columns,
+        matrix_JSJ=matrix_JSJ,
+        sample_covariance_trace=sample_covariance_trace,
+        vfixed=vfixed,
+        ldet=ldet,
+        device=device
+    )
+
+    negative_log_likelihood = likelihood_object['negative_log_likelihood']
+
+    if onlylogLike:
+        return {'negloglik': negative_log_likelihood}
+
+    P = likelihood_object['P']
+    d_hat = likelihood_object['d_hat']
+    v = likelihood_object['v']
+    M = inverse_square_root_matrix @ P @ (d_hat * P.T) @ inverse_square_root_matrix
+
+    if not wSave:
+        L = None
+    elif d_hat[0] != 0:
+        L = Fk @ ((torch.sqrt(d_hat) * P.T) @ inverse_square_root_matrix)
+        L = L[:, d_hat > 0]
+    else:
+        L = torch.zeros((nrow_Fk, 1), dtype=Fk.dtype, device=Fk.device)
+
+    return {
+        'v': v,
+        'M': M,
+        's': s,
+        'negloglik': negative_log_likelihood,
+        'L': L
+    }
+
+# compute negative log likelihood for autoFRK, using in cMLE
+def computeNegativeLikelihood(
+    nrow_Fk: int,
+    ncol_Fk: int,
+    s: int,
+    p: int,
+    matrix_JSJ: torch.Tensor,
+    sample_covariance_trace: float,
+    vfixed: float = None,
+    ldet: float = 0.0,
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> dict:
+    """
+    Compute negative log-likelihood.
+    
+    Parameters:
+        nrow_Fk: (int) Number of rows in basis matrix Fk.
+        ncol_Fk: (int) Number of basis functions (columns of Fk).
+        s: (int) Effective sample size.
+        p: (int) Number of variables (e.g. number of spatial points).
+        matrix_JSJ: (torch.Tensor) Covariance-like matrix (should be symmetric).
+        sample_covariance_trace: (float) Trace of sample covariance matrix.
+        vfixed: (float, optional) Fixed noise variance (if provided).
+        ldet: (float, optional) Log determinant of transformation matrix.
+        device: (str) 'cpu' or 'cuda'.
+
+    Returns:
+        dict: {
+            'negative_log_likelihood': float,
+            'P': torch.Tensor (eigenvectors),
+            'v': float,
+            'd_hat': torch.Tensor
+        }
+    """
+    matrix_JSJ = matrix_JSJ.to(device)
+
+    if not torch.allclose(matrix_JSJ, matrix_JSJ.T, atol=1e-10):
+        err_msg = f'Please input a symmetric matrix'
+        LOGGER.error(err_msg)
+        raise ValueError(err_msg)
+
+    if matrix_JSJ.size(1) < ncol_Fk:
+        err_msg = f'Please input the rank of a matrix larger than ncol_Fk = {ncol_Fk}'
+        LOGGER.error(err_msg)
+        raise ValueError(err_msg)
+
+    eigenvalues_JSJ, eigenvectors_JSJ = torch.linalg.eigh(matrix_JSJ)
+    idx = torch.argsort(eigenvalues_JSJ, descending=True)
+    eigenvalues_JSJ = eigenvalues_JSJ[idx][:ncol_Fk]
+    eigenvectors_JSJ = eigenvectors_JSJ[:, idx][:, :ncol_Fk]
+
+    if vfixed is None:
+        v = estimateV(d=eigenvalues_JSJ, 
+                      s=s, 
+                      sample_covariance_trace=sample_covariance_trace, 
+                      n=nrow_Fk
+                      )
+    else:
+        v = vfixed
+
+    d = torch.clamp(eigenvalues_JSJ, min=0)
+    d_hat = estimateEta(d, s, v)
+
+    negative_log_likelihood = neg2llik(d=d, 
+                                       s=s, 
+                                       v=v, 
+                                       sample_covariance_trace=sample_covariance_trace, 
+                                       sample_size=nrow_Fk
+                                       ) * p + ldet * p
+
+    return {
+        "negative_log_likelihood": negative_log_likelihood,
+        "P": eigenvectors_JSJ,
+        "v": v,
+        "d_hat": d_hat
+    }
+
+# estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
+def estimateV(
+    d: torch.Tensor, 
+    s: float, 
+    sample_covariance_trace: float, 
+    n: int
+) -> float:
+    """
+    Estimate the v parameter.
+
+    Parameters:
+        d: (torch.Tensor) 1D tensor of nonnegative eigenvalues (length k)
+        s: (float) A positive numeric constant
+        sample_covariance_trace: (float) Trace of sample covariance
+        n: (int) Sample size
+
+    Returns:
+        v: (float) Estimated noise variance
+    """
+    if torch.max(d) < max(sample_covariance_trace / n, s):
+        return max(sample_covariance_trace / n - s, 0.0)
+
+    k = d.shape[0]
+    cumulative_d_values = torch.cumsum(d, dim=0)
+    ks = torch.arange(1, k + 1, device=d.device)
+    if k == n:
+        ks[n - 1] = n - 1
+
+    eligible_indices = torch.where(d > (sample_covariance_trace - cumulative_d_values) / (n - ks))[0]
+    L = torch.max(eligible_indices).item()
+    if L >= n:
+        L = n - 1
+
+    v_hat = (sample_covariance_trace - cumulative_d_values[L]) / (n - L) - s
+    return max(v_hat.item(), 0.0)
+
+# estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
+def estimateEta(
+    d: torch.Tensor, 
+    s: float, 
+    v: float
+) -> torch.Tensor:
+    """
+    Estimate the eta parameter.
+
+    Parameters:
+        d: (torch.Tensor) 1D tensor of nonnegative values (eigenvalues)
+        s: (float) A positive numeric
+        v: (float) A positive numeric
+
+    Returns:
+        torch.Tensor: A tensor of estimated eta values
+    """
+    return torch.clamp(d - s - v, min=0.0)
+
+# compute the negative log likelihood, using in computeNegativeLikelihood
+def neg2llik(
+    d: torch.Tensor,
+    s: float,
+    v: float,
+    sample_covariance_trace: float,
+    sample_size: int
+) -> float:
+    """
+    Estimate the negative log-likelihood (up to constant)
+
+    Parameters:
+        d: Tensor of nonnegative values (eigenvalues)
+        s: A positive scalar
+        v: A positive scalar
+        sample_covariance_trace: Scalar trace value
+        sample_size: Number of samples (int)
+
+    Returns:
+        Scalar negative log-likelihood value
+    """
+    k = d.shape[0]
+    eta = estimateEta(d, s, v)
+
+    if torch.max(eta / (s + v)) > 1e20:
+        return float("inf")
+    
+    log_det_term = torch.sum(torch.log(eta + s + v))
+    log_sv_term = torch.log(s + v) * (sample_size - k)
+    trace_term = sample_covariance_trace / (s + v)
+    eta_term = torch.sum(d * eta / (eta + s + v)) / (s + v)
+
+    return sample_size * torch.log(2 * torch.pi) + log_det_term + log_sv_term + trace_term - eta_term
+
+# independent maximum likelihood estimation for autoFRK, using in selectBasis
+def indeMLE(
+    data: torch.Tensor,
+    Fk: torch.Tensor,
+    D: Optional[torch.Tensor] = None,
+    maxit: int = 50,
+    avgtol: float = 1e-6,
+    wSave: bool = False,
+    DfromLK: Optional[torch.Tensor] = None,
+    vfixed: Optional[float] = None,
+    verbose: bool = True,
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> dict:
+    """
+    
+    """
+    device = torch.device(device)
+    data = data.to(device)
+    Fk = Fk.to(device)
+    
+    n, TT = data.shape
+    # 判斷是否有缺失值
+    withNA = torch.isnan(data).any().item()
+    
+    # 刪除所有 col 為全 NA
+    valid_cols = (~torch.isnan(data)).any(dim=0)
+    data = data[:, valid_cols]
+    TT_valid = data.shape[1]
+    
+    # 刪除全列為 NA 的樣本
+    valid_rows = (~torch.isnan(data)).any(dim=1)
+    idx_pick = torch.nonzero(valid_rows).flatten()
+    data = data[idx_pick]
+    Fk = Fk[idx_pick]
+    n = data.shape[0]
+    
+    # 處理 D
+    if D is None:
+        D = torch.eye(n, device=device)
+    else:
+        D = D.to(device)
+    
+    # 若無缺失值
+    if not withNA:
+        if DfromLK is None and torch.allclose(D, torch.diag(torch.diagonal(D))):
+            # equivalent of cMLEimat
+            out = cMLEimat(Fk, data, s=vfixed or 0, wSave=wSave)
+        elif DfromLK is None:
+            out = cMLEsp(Fk, data, D, wSave=wSave)
+        else:
+            out = cMLElk(Fk, data, D, wSave=wSave, DfromLK=DfromLK, vfixed=vfixed)
+        
+        if wSave:
+            # 重建完整 w 矩陣
+            full_w = torch.zeros((Fk.shape[1], TT), device=device)
+            full_w[:, valid_cols] = out['w']
+            out['w'] = full_w
+        return out
+    else:
+        out = EM0miss(Fk, data, D, maxit=maxit, avgtol=avgtol,
+                      wSave=wSave, external=False,
+                      DfromLK=DfromLK, vfixed=vfixed, verbose=verbose)
+        if wSave:
+            full_w = torch.zeros((Fk.shape[1], TT), device=device)
+            full_w[:, valid_cols] = out['w']
+            out['w'] = full_w
+        return out
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

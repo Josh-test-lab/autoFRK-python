@@ -20,7 +20,7 @@ def fast_mode_knn(
     """
     The fast mode for autoFRK by using KNN for missing data imputation.
 
-    Args:
+    Parameters:
         data: (N, T) or (samples, time_points) tensor.
         loc: (N, spatial_dim) tensor, e.g., 2D space N x 2.
         n_neighbor: Number of neighbors to use for KNN.
@@ -75,6 +75,7 @@ def fast_mode_knn_sklearn(
     loc: torch.Tensor,
     n_neighbor: int = 3
 ) -> torch.Tensor:
+    
     dtype = data.dtype
     device = data.device
 
@@ -580,63 +581,319 @@ def indeMLE(
     device = torch.device(device)
     data = data.to(device)
     Fk = Fk.to(device)
-    
-    n, TT = data.shape
-    # 判斷是否有缺失值
+
     withNA = torch.isnan(data).any().item()
-    
-    # 刪除所有 col 為全 NA
-    valid_cols = (~torch.isnan(data)).any(dim=0)
-    data = data[:, valid_cols]
-    TT_valid = data.shape[1]
-    
-    # 刪除全列為 NA 的樣本
-    valid_rows = (~torch.isnan(data)).any(dim=1)
-    idx_pick = torch.nonzero(valid_rows).flatten()
-    data = data[idx_pick]
-    Fk = Fk[idx_pick]
-    n = data.shape[0]
-    
-    # 處理 D
+
+    TT = data.shape[1]
+    empty = torch.isnan(data).all(dim=0)
+    notempty = (~empty).nonzero(as_tuple=True)[0]
+    if empty.any():
+        data = data[:, notempty]
+
+    del_rows = torch.isnan(data).all(dim=1).nonzero(as_tuple=True)[0]
+    pick = torch.arange(data.shape[0], device=device)
+
     if D is None:
-        D = torch.eye(n, device=device)
+        D = torch.eye(data.shape[0], device=device).to_sparse()
+
+    if not torch.allclose(D, torch.diag(torch.diagonal(D))):
+        D0 = toSparseMatrix(mat=D)
     else:
-        D = D.to(device)
-    
-    # 若無缺失值
-    if not withNA:
-        if DfromLK is None and torch.allclose(D, torch.diag(torch.diagonal(D))):
-            # equivalent of cMLEimat
-            out = cMLEimat(Fk, data, s=vfixed or 0, wSave=wSave)
-        elif DfromLK is None:
-            out = cMLEsp(Fk, data, D, wSave=wSave)
+        D0 = torch.diag(torch.diag(D)).to_sparse()
+
+    if withNA and len(del_rows) > 0:
+        pick = pick[~torch.isin(pick, del_rows)]
+        data = data[~torch.isin(torch.arange(data.shape[0], device=device), del_rows), :]
+        Fk = Fk[~torch.isin(torch.arange(Fk.shape[0], device=device), del_rows), :]
+        if not torch.allclose(D, torch.diag(torch.diagonal(D))):
+            D = D[~torch.isin(torch.arange(D.shape[0], device=device), del_rows)][:, ~torch.isin(torch.arange(D.shape[1], device=device), del_rows)]
         else:
-            out = cMLElk(Fk, data, D, wSave=wSave, DfromLK=DfromLK, vfixed=vfixed)
-        
-        if wSave:
-            # 重建完整 w 矩陣
-            full_w = torch.zeros((Fk.shape[1], TT), device=device)
-            full_w[:, valid_cols] = out['w']
-            out['w'] = full_w
-        return out
+            keep_mask = ~torch.isin(torch.arange(D.shape[0], device=device), del_rows)
+            full_diag = torch.zeros(D.shape[0], device=device)
+            full_diag[keep_mask] = torch.diagonal(D)[keep_mask]
+            D = torch.diag(full_diag)
+        withNA = torch.isnan(data).any().item()
+
+    N = data.shape[0]
+    K = Fk.shape[1]
+    Depsilon = toSparseMatrix(mat=D)
+    is_diag = torch.allclose(D, torch.diag(torch.diagonal(D)))
+    mean_diag = torch.mean(torch.diagonal(D))
+    isimat = is_diag and torch.allclose(torch.diagonal(Depsilon), mean_diag.repeat(N), atol=1e-12)
+
+    if not withNA:
+        if isimat and DfromLK is None:
+            sigma = 0  # we cannot find `.Option$sigma_FRK` in the R code # need fix
+            out = cMLEimat(Fk, 
+                           data, 
+                           s=sigma, 
+                           wSave=wSave
+                           )
+            if out['v'] is not None:
+                out['s'] = out['v'] if sigma == 0 else sigma
+                del out['v']
+            if wSave:
+                w = torch.zeros((K, TT), device=device)
+                w[:, notempty] = out['w']
+                out['w'] = w
+                out['pinfo'] = {'D': D0, 
+                                'pick': pick
+                                }
+            return out
+        elif DfromLK is None:
+            out = cMLEsp(Fk, 
+                         data, 
+                         Depsilon, 
+                         wSave
+                         )
+            if wSave:
+                w = torch.zeros((K, TT), device=device)
+                w[:, notempty] = out['w']
+                out['w'] = w
+                out['pinfo'] = {'D': D0, 
+                                'pick': pick
+                                }
+            return out
+        else:
+            out = cMLElk(Fk, 
+                         data, 
+                         Depsilon, 
+                         wSave, 
+                         DfromLK, 
+                         vfixed
+                         )
+            if wSave:
+                w = torch.zeros((K, TT), device=device)
+                w[:, notempty] = out['w']
+                out['w'] = w
+            return out
     else:
-        out = EM0miss(Fk, data, D, maxit=maxit, avgtol=avgtol,
-                      wSave=wSave, external=False,
-                      DfromLK=DfromLK, vfixed=vfixed, verbose=verbose)
+        out = EM0miss(Fk, 
+                      data, 
+                      Depsilon, 
+                      maxit, 
+                      avgtol, 
+                      wSave, 
+                      external=False, 
+                      DfromLK=DfromLK, 
+                      vfixed=vfixed, 
+                      verbose=verbose
+                      )
         if wSave:
-            full_w = torch.zeros((Fk.shape[1], TT), device=device)
-            full_w[:, valid_cols] = out['w']
-            out['w'] = full_w
+            w = torch.zeros((K, TT), device=device)
+            w[:, notempty] = out['w']
+            out['w'] = w
+            if DfromLK is None:
+                out['pinfo'] = {'D': D0,
+                                'pick': pick
+                                }
         return out
 
+# convert dense tensor to sparse matrix, using in indeMLE
+def toSparseMatrix(
+    mat: torch.Tensor, 
+    verbose: bool=False
+) -> torch.Tensor:
+    """
+    
+    """
+    if not torch.is_tensor(mat):
+        warn_msg = f'Expected tensor, but got {type(mat)}'
+        LOGGER.warning(warn_msg)
+        mat = torch.tensor(mat)
+    
+    if mat.is_sparse:
+        if verbose:
+            info_msg = f'The input is already a sparse tensor'
+            LOGGER.info(info_msg)
+        return mat
 
+    if verbose:
+        return mat.to_sparse()
 
+def cMLEimat(
+    Fk: torch.Tensor,
+    data: torch.Tensor,
+    s: float,
+    wSave: bool = False,
+    S: Optional[torch.Tensor] = None,
+    onlylogLike: Optional[bool] = None,
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> dict:
 
+    if onlylogLike is None:
+        onlylogLike = not wSave
 
+    Fk = Fk.to(device)
+    data = data.to(device)
 
+    nrow_Fk, ncol_Fk = Fk.shape
+    num_columns = data.shape[1]
 
+    projection = computeProjectionMatrix(Fk, 
+                                         Fk, 
+                                         data, 
+                                         S, 
+                                         device=device
+                                         )
+    inverse_square_root_matrix = projection["inverse_square_root_matrix"]
+    matrix_JSJ = projection["matrix_JSJ"]
 
+    sample_covariance_trace = torch.sum(data ** 2) / num_columns
 
+    likelihood_object = computeNegativeLikelihood(nrow_Fk=nrow_Fk,
+                                                  ncol_Fk=ncol_Fk,
+                                                  s=s,
+                                                  p=num_columns,
+                                                  matrix_JSJ=matrix_JSJ,
+                                                  sample_covariance_trace=sample_covariance_trace,
+                                                  device=device
+                                                  )
+
+    negative_log_likelihood = likelihood_object["negative_log_likelihood"]
+
+    if onlylogLike:
+        return {"negloglik": negative_log_likelihood}
+
+    P = likelihood_object["P"]
+    d_hat = likelihood_object["d_hat"]
+    v = likelihood_object["v"]
+
+    M = inverse_square_root_matrix @ P @ (d_hat * P.T) @ inverse_square_root_matrix
+
+    if not wSave:
+        return {"v": v, 
+                "M": M, 
+                "s": s, 
+                "negloglik": negative_log_likelihood
+                }
+
+    L = Fk @ ((torch.sqrt(d_hat) * P.T) @ inverse_square_root_matrix).T
+
+    if ncol_Fk > 2:
+        reduced_columns = torch.cat([
+            torch.tensor([0], device=device),
+            (d_hat[1:(ncol_Fk + 1)] > 0).nonzero(as_tuple=True)[0]
+        ])
+    else:
+        reduced_columns = torch.tensor([ncol_Fk - 1], device=device)
+
+    L = L[:, reduced_columns]
+
+    invD = torch.ones(nrow_Fk, device=device) / (s + v)
+    iDZ = invD[:, None] * data
+
+    right = L @ (torch.linalg.inv(torch.eye(L.shape[1], device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
+
+    INVtZ = iDZ - invD[:, None] * right
+    etatt = M @ Fk.T @ INVtZ
+
+    GM = Fk @ M
+
+    diag_matrix = (s + v) * torch.eye(nrow_Fk, device=device)
+    V = M - GM.T @ invCz(diag_matrix,
+                         L, 
+                         GM
+                         )
+
+    return {"v": v,
+            "M": M,
+            "s": s,
+            "negloglik": negative_log_likelihood,
+            "w": etatt,
+            "V": V
+            }
+
+# def getInverseSquareRootMatrix(Fk1, Fk2, device=None):
+#     """
+#     Mimics the behavior of Rcpp's getInverseSquareRootMatrix:
+#     Computes the inverse square root of Fk1.T @ Fk2
+#     """
+#     if device is None:
+#         device = Fk1.device
+
+#     AtB = Fk1.T @ Fk2  # K x K, assumed symmetric or forced to symmetric
+#     AtB = (AtB + AtB.T) / 2  # ensure symmetry
+
+#     # Eigen decomposition
+#     eigvals, eigvecs = torch.linalg.eigh(AtB.to(device))
+#     eigvals_clipped = torch.clamp(eigvals, min=1e-10)
+
+#     # Inverse square root
+#     inv_sqrt = eigvecs @ torch.diag(1.0 / torch.sqrt(eigvals_clipped)) @ eigvecs.T
+#     return inv_sqrt
+
+# def computeProjectionMatrix(Fk1, Fk2, data, S=None, device='cpu'):
+#     """
+#     對應 computeProjectionMatrix in R.
+#     Args:
+#         Fk1: (n x K) tensor
+#         Fk2: (n x K) tensor
+#         data: (n x T) tensor
+#         S: (n x n) tensor or None
+#         device: 'cpu' or 'cuda'
+#     Returns:
+#         dict with 'inverse_square_root_matrix', 'matrix_JSJ'
+#     """
+#     Fk1 = Fk1.to(device)
+#     Fk2 = Fk2.to(device)
+#     data = data.to(device)
+#     if S is not None:
+#         S = S.to(device)
+
+#     n, T = data.shape
+#     inv_sqrt_mat = getInverseSquareRootMatrix(Fk1, Fk2, device=device)
+#     inv_sqrt_on_Fk2 = inv_sqrt_mat @ Fk2.T  # (K x n)
+
+#     if S is None:
+#         # (K x T) @ (T x K) = K x K
+#         JSJ = (inv_sqrt_on_Fk2 @ data) @ (inv_sqrt_on_Fk2 @ data).T / T
+#     else:
+#         # (K x n) @ (n x n) @ (n x K)
+#         JSJ = inv_sqrt_on_Fk2 @ S @ inv_sqrt_on_Fk2.T
+
+#     JSJ = (JSJ + JSJ.T) / 2  # make symmetric
+
+#     return {
+#         "inverse_square_root_matrix": inv_sqrt_mat,
+#         "matrix_JSJ": JSJ
+#     }
+
+# def invCz(R: torch.Tensor, L: torch.Tensor, z: torch.Tensor, device=None) -> torch.Tensor:
+#     """
+#     Parameters:
+#         R: (p x p) positive definite matrix
+#         L: (p x K) matrix
+#         z: (p,) vector or (1 x p) row matrix
+#         device: 'cpu' or 'cuda', or torch.device
+
+#     Returns:
+#         (1 x p) tensor
+#     """
+#     R = R.to(device)
+#     L = L.to(device)
+#     z = z.to(device)
+
+#     # Step 1: Solve R^{-1}
+#     iR = torch.linalg.inv(R)
+
+#     # Step 2: Compute iR @ z
+#     iRZ = iR @ z.T  # shape: (p x 1)
+
+#     # Step 3: Compute M = I + L^T R^{-1} L
+#     Lt_iR = L.T @ iR  # shape: (K x p)
+#     M = torch.eye(L.shape[1], device=device) + Lt_iR @ L  # shape: (K x K)
+
+#     # Step 4: Solve M^{-1}
+#     Minv = torch.linalg.inv(M)
+
+#     # Step 5: Compute right = L M^{-1} L^T iRZ
+#     right = L @ (Minv @ (Lt_iR @ z.T))  # shape: (p x 1)
+
+#     # Step 6: Compute result = iRZ - iR @ right
+#     result = iRZ - iR @ right  # shape: (p x 1)
+
+#     return result.T  # shape: (1 x p)
 
 
 

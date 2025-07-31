@@ -282,10 +282,7 @@ indeMLE <- function(data,
   N <- NROW(data)
   K <- NCOL(Fk)
   Depsilon <- toSparseMatrix(D)
-  isimat <- isDiagonal(D) * (sum(abs(rep(mean(
-    diag(D)
-  ), N) -
-    diag(Depsilon))) < .Machine$double.eps)
+  isimat <- isDiagonal(D) * (sum(abs(rep(mean(diag(D)), N) - diag(Depsilon))) < .Machine$double.eps)
   
   if (!withNA) {
     if (isimat & is.null(DfromLK)) {

@@ -1,3 +1,5 @@
+import tempfile
+import os
 import torch
 import numpy as np
 import faiss
@@ -711,6 +713,7 @@ def toSparseMatrix(
     if verbose:
         return mat.to_sparse()
 
+# using in indeMLE
 def cMLEimat(
     Fk: torch.Tensor,
     data: torch.Tensor,
@@ -730,10 +733,10 @@ def cMLEimat(
     nrow_Fk, ncol_Fk = Fk.shape
     num_columns = data.shape[1]
 
-    projection = computeProjectionMatrix(Fk, 
-                                         Fk, 
-                                         data, 
-                                         S, 
+    projection = computeProjectionMatrix(Fk1=Fk, 
+                                         Fk2=Fk, 
+                                         data=data, 
+                                         S=S, 
                                          device=device
                                          )
     inverse_square_root_matrix = projection["inverse_square_root_matrix"]
@@ -791,10 +794,11 @@ def cMLEimat(
     GM = Fk @ M
 
     diag_matrix = (s + v) * torch.eye(nrow_Fk, device=device)
-    V = M - GM.T @ invCz(diag_matrix,
-                         L, 
-                         GM
-                         )
+    V = M - GM.T @ invCz(R=diag_matrix,
+                         L=L, 
+                         z=GM,
+                         device=device
+                         ).T
 
     return {"v": v,
             "M": M,
@@ -804,97 +808,297 @@ def cMLEimat(
             "V": V
             }
 
-# def getInverseSquareRootMatrix(Fk1, Fk2, device=None):
-#     """
-#     Mimics the behavior of Rcpp's getInverseSquareRootMatrix:
-#     Computes the inverse square root of Fk1.T @ Fk2
-#     """
-#     if device is None:
-#         device = Fk1.device
+# using in cMLEimat
+def computeProjectionMatrix(
+    Fk1: torch.Tensor, 
+    Fk2: torch.Tensor, 
+    data: torch.Tensor, 
+    S: torch.Tensor=None, 
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> dict:
+    """
+    Internal function: maximum likelihood estimate with the likelihood
 
-#     AtB = Fk1.T @ Fk2  # K x K, assumed symmetric or forced to symmetric
-#     AtB = (AtB + AtB.T) / 2  # ensure symmetry
+    Parameters:
+        Fk1 (torch.Tensor): (n, K) matrix
+        Fk2 (torch.Tensor): (n, K) matrix
+        data (torch.Tensor): (n, T) matrix
+        S (torch.Tensor or None): (n, n) matrix
+        device (str): "cpu" or "cuda"
+ 
+    Returns:
+        dict: {
+            'inverse_square_root_matrix': torch.Tensor,
+            'matrix_JSJ': torch.Tensor
+        }
+    """
+    Fk1 = Fk1.to(device)
+    Fk2 = Fk2.to(device)
+    data = data.to(device)
+    if S is not None:
+        S = S.to(device)
 
-#     # Eigen decomposition
-#     eigvals, eigvecs = torch.linalg.eigh(AtB.to(device))
-#     eigvals_clipped = torch.clamp(eigvals, min=1e-10)
+    num_columns = data.shape[1]
+    inverse_square_root_matrix = getInverseSquareRootMatrix(A=Fk1, 
+                                                            B=Fk2, 
+                                                            device=device
+                                                            )
+    inverse_square_root_on_Fk2 = inverse_square_root_matrix @ Fk2.T
 
-#     # Inverse square root
-#     inv_sqrt = eigvecs @ torch.diag(1.0 / torch.sqrt(eigvals_clipped)) @ eigvecs.T
-#     return inv_sqrt
+    if S is None:
+        matrix_JSJ = (inverse_square_root_on_Fk2 @ data) @ (inverse_square_root_on_Fk2 @ data).T / num_columns
+    else:
+        matrix_JSJ = (inverse_square_root_on_Fk2 @ S) @ inverse_square_root_on_Fk2.T
 
-# def computeProjectionMatrix(Fk1, Fk2, data, S=None, device='cpu'):
-#     """
-#     對應 computeProjectionMatrix in R.
-#     Args:
-#         Fk1: (n x K) tensor
-#         Fk2: (n x K) tensor
-#         data: (n x T) tensor
-#         S: (n x n) tensor or None
-#         device: 'cpu' or 'cuda'
-#     Returns:
-#         dict with 'inverse_square_root_matrix', 'matrix_JSJ'
-#     """
-#     Fk1 = Fk1.to(device)
-#     Fk2 = Fk2.to(device)
-#     data = data.to(device)
-#     if S is not None:
-#         S = S.to(device)
+    matrix_JSJ = (matrix_JSJ + matrix_JSJ.T) / 2
 
-#     n, T = data.shape
-#     inv_sqrt_mat = getInverseSquareRootMatrix(Fk1, Fk2, device=device)
-#     inv_sqrt_on_Fk2 = inv_sqrt_mat @ Fk2.T  # (K x n)
+    return {
+        "inverse_square_root_matrix": inverse_square_root_matrix,
+        "matrix_JSJ": matrix_JSJ
+    }
 
-#     if S is None:
-#         # (K x T) @ (T x K) = K x K
-#         JSJ = (inv_sqrt_on_Fk2 @ data) @ (inv_sqrt_on_Fk2 @ data).T / T
-#     else:
-#         # (K x n) @ (n x n) @ (n x K)
-#         JSJ = inv_sqrt_on_Fk2 @ S @ inv_sqrt_on_Fk2.T
+# using in computeProjectionMatrix
+def getInverseSquareRootMatrix(
+    A: torch.Tensor, 
+    B: torch.Tensor, 
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> torch.Tensor:
+    """
+    Compute inverse square root matrix of (A.T @ B), assuming it is symmetric.
+    
+    Parameters:
+        A: Tensor of shape (n, k)
+        B: Tensor of shape (n, k)
+        device: 'cpu' or 'cuda'
+        
+    Returns:
+        Inverse square root of (A.T @ B): Tensor of shape (k, k)
+    """
+    A = A.to(device)
+    B = B.to(device)
 
-#     JSJ = (JSJ + JSJ.T) / 2  # make symmetric
+    mat = A.T @ B
 
-#     return {
-#         "inverse_square_root_matrix": inv_sqrt_mat,
-#         "matrix_JSJ": JSJ
-#     }
+    eigenvalues, eigenvectors = torch.linalg.eigh(mat)
 
-# def invCz(R: torch.Tensor, L: torch.Tensor, z: torch.Tensor, device=None) -> torch.Tensor:
-#     """
-#     Parameters:
-#         R: (p x p) positive definite matrix
-#         L: (p x K) matrix
-#         z: (p,) vector or (1 x p) row matrix
-#         device: 'cpu' or 'cuda', or torch.device
+    eps = 1e-10
+    eigvals_clamped = torch.clamp(eigenvalues, min=eps)
+    inv_sqrt_eigvals = torch.diag(eigvals_clamped.rsqrt())
 
-#     Returns:
-#         (1 x p) tensor
-#     """
-#     R = R.to(device)
-#     L = L.to(device)
-#     z = z.to(device)
+    result = eigenvectors @ inv_sqrt_eigvals @ eigenvectors.T
 
-#     # Step 1: Solve R^{-1}
-#     iR = torch.linalg.inv(R)
+    return result
 
-#     # Step 2: Compute iR @ z
-#     iRZ = iR @ z.T  # shape: (p x 1)
+# using in cMLEimat
+def invCz(
+    R: torch.Tensor, 
+    L: torch.Tensor, 
+    z: torch.Tensor, 
+    device: Optional[Union[torch.device, str]]='cpu'
+) -> torch.Tensor:
+    """
 
-#     # Step 3: Compute M = I + L^T R^{-1} L
-#     Lt_iR = L.T @ iR  # shape: (K x p)
-#     M = torch.eye(L.shape[1], device=device) + Lt_iR @ L  # shape: (K x K)
 
-#     # Step 4: Solve M^{-1}
-#     Minv = torch.linalg.inv(M)
+    Parameters:
+        R: (p x p) positive definite matrix
+        L: (p x K) matrix
+        z: (p,) vector or (1 x p) row matrix
+        device: 'cpu' or 'cuda', or torch.device
 
-#     # Step 5: Compute right = L M^{-1} L^T iRZ
-#     right = L @ (Minv @ (Lt_iR @ z.T))  # shape: (p x 1)
+    Returns:
+        (1 x p) tensor
+    """
+    R = R.to(device)
+    L = L.to(device)
+    z = z.to(device)
 
-#     # Step 6: Compute result = iRZ - iR @ right
-#     result = iRZ - iR @ right  # shape: (p x 1)
+    if z.dim() == 1:
+        z = z.unsqueeze(1)
+    elif z.shape[0] == 1:
+        z = z.T
 
-#     return result.T  # shape: (1 x p)
+    K = L.shape[1]
+    iR = torch.linalg.inv(R)
+    iRZ = iR @ z
+    right = L @ torch.linalg.inv(torch.eye(K, device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
+    result = iRZ - iR @ right
 
+    return result.T
+
+# using in indeMLE
+def EM0miss(
+    Fk: torch.Tensor, 
+    data: torch.Tensor, 
+    Depsilon: torch.Tensor, 
+    maxit: int=100, 
+    avgtol: float=1e-4, 
+    wSave: bool=False, 
+    external: bool=False,
+    DfromLK: torch.Tensor=None,
+    vfixed: float=None,
+    verbose: bool=True,
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> dict:
+    """
+
+    """
+    Fk = Fk.to(device)
+    data = data.to(device)
+    Depsilon = Depsilon.to(device)
+
+    O = ~torch.isnan(data)
+    TT = data.shape[1]
+    ncol_Fk = Fk.shape[1]
+    tmpdir = tempfile.mkdtemp()
+    ftmp = [os.path.join(tmpdir, str(i + 1)) for i in range(TT)]
+    oldfile = os.path.join(tmpdir, "old_par.pt")
+
+    ziDz = torch.full((TT,), float('nan'), device=device)
+    ziDB = torch.full((TT, ncol_Fk), float('nan'), device=device)
+    db = []
+    D = toSparseMatrix(Depsilon)
+    iD = torch.linalg.inv(D)
+    diagD = isDiagonal(D)
+
+    if DfromLK is not None:
+        DfromLK = DfromLK.to(device=device)
+        pick = DfromLK.get("pick", None)
+        weights = torch.tensor(DfromLK["weights"], device=device)
+        if pick is None:
+            pick = torch.arange(len(weights), device=device)
+        else:
+            pick = torch.tensor(pick, dtype=torch.long, device=device)
+        weight = weights[pick]
+        DfromLK["wX"] = torch.tensor(DfromLK["wX"], device=device)[pick, :]
+        wwX = torch.diag(torch.sqrt(weight)) @ DfromLK["wX"]
+        lQ = DfromLK["lambda"] * torch.tensor(DfromLK["Q"], device=device)
+
+    for tt in range(TT):
+        if DfromLK is not None:
+            obs_idx = O[:, tt].bool()
+            iDt = None
+            if obs_idx.sum() == O.shape[0]:
+                G_inv = torch.linalg.inv(DfromLK["G"].to(device=device))
+                wXiG = wwX @ G_inv
+            else:
+                wX_obs = DfromLK["wX"][obs_idx, :].to(device)
+                G = wX_obs.T @ wX_obs + lQ.to(device)
+                wXiG = wwX[obs_idx, :] @ torch.linalg.inv(G)
+
+            Bt = Fk[obs_idx, :].to(device)
+            if Bt.ndim == 1:
+                Bt = Bt.unsqueeze(0)
+
+            iDBt = weight[obs_idx].unsqueeze(1) * Bt - wXiG @ (wwX[obs_idx, :].T @ Bt)
+
+            temp_z = wwX[obs_idx, :].T @ zt
+            ziDz[tt] = torch.sum(zt * (weight[obs_idx] * zt - (wXiG @ temp_z)))
+
+            ziDB[tt, :] = (zt @ iDBt).squeeze()
+            BiDBt = Bt.T @ iDBt
+
+        else:
+            if not diagD:
+                iDt = torch.linalg.inv(D[obs_idx][:, obs_idx].to(device))
+            else:
+                iDt = iD[obs_idx][:, obs_idx].to(device)
+
+            Bt = Fk[obs_idx, :].to(device)
+            if Bt.ndim == 1:
+                Bt = Bt.unsqueeze(0)
+
+            iDBt = iDt @ Bt
+            ziDz[tt] = torch.sum(zt * (iDt @ zt))
+            ziDB[tt, :] = (zt @ iDBt).squeeze()
+            BiDBt = Bt.T @ iDBt
+
+
+
+
+
+
+    Z0 = torch.where(Omega, data, torch.zeros_like(data))
+
+    # initial estimation of M and s
+    out = cMLEimat(Fk, Z0, s=0, wSave=wSave, device=device)
+    M = out["M"].clone()
+    s = out["s"]
+
+    V = out.get("V", None)  # Only if wSave = True
+
+    # Initialization for EM loop
+    iter = 0
+    diff = torch.tensor(float("inf"), device=device)
+    trvec = torch.zeros(maxit + 1, device=device)
+
+    while iter < maxit and diff > avgtol:
+        iter += 1
+
+        # Compute E[z_t z_t^T | y_t]
+        MtM = Fk @ M @ Fk.T + s * Depsilon
+        MtM_inv = torch.linalg.inv(MtM)
+
+        Z2 = torch.where(Omega, Z0, 0)  # initialize with Z0
+
+        Ezz = torch.zeros((K, K), device=device)
+        sum_trace = 0.0
+
+        for t in range(T):
+            obs_idx = Omega[:, t]
+            if obs_idx.sum() == n:  # no missing
+                Z2[:, t] = data[:, t]
+                Ft = Fk.T @ data[:, t]
+                Ezz += Ft.unsqueeze(1) @ Ft.unsqueeze(0)
+            else:
+                # subset
+                Fk_sub = Fk[obs_idx, :]
+                D_sub = Depsilon[obs_idx][:, obs_idx]
+                y_sub = data[obs_idx, t].unsqueeze(1)
+
+                # compute K = (Fk^T D^{-1} Fk + M^{-1})^{-1}
+                D_inv = torch.linalg.inv(D_sub)
+                Minv = torch.linalg.inv(M)
+                Kt_inv = Fk_sub.T @ D_inv @ Fk_sub + Minv
+                Kt = torch.linalg.inv(Kt_inv)
+
+                # E[z | y]
+                Ft = Kt @ Fk_sub.T @ D_inv @ y_sub
+                Z2[:, t] = Ft.squeeze()
+
+                # E[zz^T] = Cov[z|y] + E[z|y]E[z|y]^T
+                Ezz += Kt + Ft @ Ft.T
+
+                # estimate missing entries
+                y_hat = Fk[~obs_idx, :] @ Ft
+                Z2[~obs_idx, t] = y_hat.squeeze()
+
+                # trace term
+                sum_trace += torch.trace(Kt @ Minv)
+
+        M_new = Ezz / T
+        M_new = convertToPositiveDefinite(M_new)
+
+        Z0 = Z2.clone()
+        M_diff = torch.norm(M - M_new, p='fro') / (K**2)
+        diff = M_diff
+        M = M_new
+
+        trvec[iter] = sum_trace / T
+
+    # Final likelihood estimation
+    lik = computeLikelihood(Fk, Z0, M, Depsilon, device=device)
+
+    result = {
+        "M": M,
+        "s": lik["s"],
+        "negloglik": lik["negloglik"]
+    }
+
+    if wSave:
+        result["w"] = lik["w"]
+        result["V"] = lik["V"]
+
+    return result
 
 
 

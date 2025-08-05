@@ -1,8 +1,10 @@
 import tempfile
 import os
+import shutil
 import torch
 import numpy as np
 import faiss
+import gc
 from typing import Optional, Union
 from sklearn.neighbors import NearestNeighbors
 from autoFRK.utils.logger import setup_logger
@@ -990,10 +992,8 @@ def EM0miss(
                 Bt = Bt.unsqueeze(0)
 
             iDBt = weight[obs_idx].unsqueeze(1) * Bt - wXiG @ (wwX[obs_idx, :].T @ Bt)
-
-            temp_z = wwX[obs_idx, :].T @ zt
-            ziDz[tt] = torch.sum(zt * (weight[obs_idx] * zt - (wXiG @ temp_z)))
-
+            zt = data[obs_idx, tt].to(device=device)
+            ziDz[tt] = torch.sum(zt * (weight[obs_idx] * zt - wXiG @ (wwX[obs_idx, :].T @ zt)))
             ziDB[tt, :] = (zt @ iDBt).squeeze()
             BiDBt = Bt.T @ iDBt
 
@@ -1008,101 +1008,180 @@ def EM0miss(
                 Bt = Bt.unsqueeze(0)
 
             iDBt = iDt @ Bt
+            zt = data[obs_idx, tt]
             ziDz[tt] = torch.sum(zt * (iDt @ zt))
             ziDB[tt, :] = (zt @ iDBt).squeeze()
             BiDBt = Bt.T @ iDBt
 
+        if external:
+            db[tt] = dumpObjects(iDBt, 
+                                 zt, 
+                                 BiDBt, 
+                                 external, 
+                                 oldfile, 
+                                 dbName=ftmp[tt]
+                                 )
+        else:
+            db[tt] = {
+                "iDBt": iDBt,
+                "zt": zt,
+                "BiDBt": BiDBt,
+                "external": external,
+                "oldfile": oldfile,
+            }
 
+    del iDt, Bt, iDBt, zt, BiDBt
+    gc.collect()
+    torch.cuda.empty_cache()
 
+    dif = float("inf")
+    cnt = 0
+    Z0 = data.clone()
+    Z0[torch.isnan(Z0)] = 0
+    old = cMLEimat(Fk=Fk, 
+                   data=Z0, 
+                   s=0, 
+                   wSave=True,
+                   device=device
+                   )
+    if vfixed is None:
+        old["s"] = old["v"]
+    else:
+        old["s"] = vfixed.to(old["v"].device)
+    old["M"] = convertToPositiveDefinite(old["M"])
+    Ptt1 = old["M"]
+    if external:
+        with open(oldfile, "wb") as f:
+            torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
+    inv = torch.linalg.pinv
 
+    while (dif > (avgtol * (100 * (ncol_Fk ** 2)))) and (cnt < maxit):
+        etatt = torch.zeros((ncol_Fk, TT), device=device)
+        sumPtt = torch.zeros((ncol_Fk, ncol_Fk), device=device)
+        s1 = torch.zeros(TT, device=device)
 
+        if external:
+            saved = torch.load(oldfile)
+            old = saved["old"]
+            Ptt1 = saved["Ptt1"]
 
-    Z0 = torch.where(Omega, data, torch.zeros_like(data))
+        for tt in range(TT):
+            iDBt = db[tt]["iDBt"].to(device)
+            zt = db[tt]["zt"].to(device)
+            BiDBt = db[tt]["BiDBt"].to(device)
+            ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(Ptt1))
+            iP = convertToPositiveDefinite(ginv_Ptt1 + BiDBt / old["s"])
+            Ptt = torch.linalg.inv(iP)
+            Gt = (Ptt @ iDBt.T) / old["s"]
+            eta = Gt @ zt
+            s1kk = torch.diagonal(BiDBt @ (eta.unsqueeze(1) @ eta.unsqueeze(0) + Ptt))
 
-    # initial estimation of M and s
-    out = cMLEimat(Fk, Z0, s=0, wSave=wSave, device=device)
-    M = out["M"].clone()
-    s = out["s"]
+            sumPtt += Ptt
+            etatt[:, tt] = eta
+            s1[tt] = torch.sum(s1kk)
 
-    V = out.get("V", None)  # Only if wSave = True
+        if vfixed is None:
+            s = torch.max(
+                (torch.sum(ziDz) - 2 * torch.sum(ziDB * etatt.T) + torch.sum(s1)) / torch.sum(O),
+                torch.tensor(1e-8, device=ziDz.device)
+            )
+            new = {
+                "M": (etatt @ etatt.T + sumPtt) / TT,
+                "s": s,
+            }
+        else:
+            new = {
+                "M": (etatt @ etatt.T + sumPtt) / TT,
+                "s": vfixed.to(device),
+            }
 
-    # Initialization for EM loop
-    iter = 0
-    diff = torch.tensor(float("inf"), device=device)
-    trvec = torch.zeros(maxit + 1, device=device)
+        new["M"] = (new["M"] + new["M"].T) / 2
+        dif = torch.sum(torch.abs(new["M"] - old["M"])) + torch.abs(new["s"] - old["s"])
+        cnt += 1
+        old = new
+        Ptt1 = old["M"]
 
-    while iter < maxit and diff > avgtol:
-        iter += 1
+        if external:
+            torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
 
-        # Compute E[z_t z_t^T | y_t]
-        MtM = Fk @ M @ Fk.T + s * Depsilon
-        MtM_inv = torch.linalg.inv(MtM)
+    if verbose:
+        info_msg = f'Number of iteration: {cnt}'
+        LOGGER.info(info_msg)
+    shutil.rmtree(tmpdir, ignore_errors=True)
+    n2loglik = computeLikelihood(data,
+                                 Fk,
+                                 new["M"],
+                                 new["s"],
+                                 Depsilo,
+                                 device=device
+                                 )
 
-        Z2 = torch.where(Omega, Z0, 0)  # initialize with Z0
+    if not wSave:
+        return {
+            "M": new["M"],
+            "s": new["s"],
+            "negloglik": n2loglik
+        }
 
-        Ezz = torch.zeros((K, K), device=device)
-        sum_trace = 0.0
+    elif DfromLK is not None:
+        out = {
+            "M": new["M"],
+            "s": new["s"],
+            "negloglik": n2loglik,
+            "w": etatt,
+            "V": new["M"] - (etatt @ etatt.T) / TT
+        }
 
-        for t in range(T):
-            obs_idx = Omega[:, t]
-            if obs_idx.sum() == n:  # no missing
-                Z2[:, t] = data[:, t]
-                Ft = Fk.T @ data[:, t]
-                Ezz += Ft.unsqueeze(1) @ Ft.unsqueeze(0)
+        eigenvalues, eigenvectors = torch.linalg.eigh(new["M"])
+        L = Fk @ eigenvectors @ torch.diag(torch.sqrt(torch.clamp(eigenvalues, min=0.0)))
+
+        weight = DfromLK["weights"][pick]
+        wlk = torch.full((lQ.shape[0], TT), float("nan"), device=device)
+
+        for tt in range(TT):
+            obs_idx = O[:, tt].bool()
+            if torch.sum(obs_idx) == O.shape[0]:
+                wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], device=device))
             else:
-                # subset
-                Fk_sub = Fk[obs_idx, :]
-                D_sub = Depsilon[obs_idx][:, obs_idx]
-                y_sub = data[obs_idx, t].unsqueeze(1)
+                wX_tt = DfromLK["wX"][obs_idx]
+                G = wX_tt.T @ wX_tt + lQ
+                wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
 
-                # compute K = (Fk^T D^{-1} Fk + M^{-1})^{-1}
-                D_inv = torch.linalg.inv(D_sub)
-                Minv = torch.linalg.inv(M)
-                Kt_inv = Fk_sub.T @ D_inv @ Fk_sub + Minv
-                Kt = torch.linalg.inv(Kt_inv)
+            dat = data[obs_idx, tt]
+            Lt = L[obs_idx]
+            iDL = weight[obs_idx].unsqueeze(1) * Lt - wXiG @ (wwX[obs_idx].T @ Lt)
+            itmp = torch.linalg.solve(
+                torch.eye(L.shape[1], device=device) + (Lt.T @ iDL) / out["s"],
+                torch.eye(L.shape[1], device=device)
+            )
+            iiLiD = itmp @ (iDL.T / out["s"])
+            wlk[:, tt] = (wXiG.T @ dat - wXiG.T @ Lt @ (iiLiD @ dat)).squeeze()
 
-                # E[z | y]
-                Ft = Kt @ Fk_sub.T @ D_inv @ y_sub
-                Z2[:, t] = Ft.squeeze()
+        out["pinfo"] = {
+            "wlk": wlk, 
+            "pick": pick
+        }
+        out["missing"] = {
+            "miss": toSparseMatrix(1 - O), 
+            "maxit": maxit, 
+            "avgtol": avgtol
+        }
+        return out
 
-                # E[zz^T] = Cov[z|y] + E[z|y]E[z|y]^T
-                Ezz += Kt + Ft @ Ft.T
-
-                # estimate missing entries
-                y_hat = Fk[~obs_idx, :] @ Ft
-                Z2[~obs_idx, t] = y_hat.squeeze()
-
-                # trace term
-                sum_trace += torch.trace(Kt @ Minv)
-
-        M_new = Ezz / T
-        M_new = convertToPositiveDefinite(M_new)
-
-        Z0 = Z2.clone()
-        M_diff = torch.norm(M - M_new, p='fro') / (K**2)
-        diff = M_diff
-        M = M_new
-
-        trvec[iter] = sum_trace / T
-
-    # Final likelihood estimation
-    lik = computeLikelihood(Fk, Z0, M, Depsilon, device=device)
-
-    result = {
-        "M": M,
-        "s": lik["s"],
-        "negloglik": lik["negloglik"]
-    }
-
-    if wSave:
-        result["w"] = lik["w"]
-        result["V"] = lik["V"]
-
-    return result
-
-
-
-
+    else:
+        out = {
+            "M": new["M"],
+            "s": new["s"],
+            "negloglik": n2loglik,
+            "w": etatt,
+            "V": new["M"] - (etatt @ etatt.T) / TT
+        }
+        out["missing"] = {
+            "miss": toSparseMatrix(1 - O), 
+            "maxit": maxit, 
+            "avgtol": avgtol
+        }
+        return out
 
 
 

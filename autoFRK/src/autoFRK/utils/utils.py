@@ -1,3 +1,16 @@
+"""
+Title: Setup file of autoFRK-Python Project
+Author: Hsu, Yao-Chih
+Version: 1140807
+Reference:
+"""
+
+# development only
+import os
+import sys
+sys.path.append(os.path.abspath("./src"))
+
+# import modules
 import tempfile
 import os
 import shutil
@@ -9,7 +22,6 @@ from typing import Optional, Union
 from sklearn.neighbors import NearestNeighbors
 from autoFRK.utils.logger import setup_logger
 from autoFRK.mrts import MRTS
-
 
 # logger config
 LOGGER = setup_logger()
@@ -1183,7 +1195,30 @@ def EM0miss(
         }
         return out
 
+# using in EM0miss
+# check = ok
+def isDiagonal(
+    tensor: torch.Tensor,
+    tol=1e-12
+) -> bool:
+    """
+    Internal function: check if a numeric-like object is diagonal
 
+    Parameters:
+        tensor:
+        tol:
+    
+    Return:
+        bool: 
+    """
+    if tensor.numel() == 1:
+        return True
+
+    if tensor.ndim != 2 or tensor.shape[0] != tensor.shape[1]:
+        return False
+
+    diag = torch.diag(torch.diagonal(tensor))
+    return torch.allclose(tensor, diag, atol=tol)
 
 
 

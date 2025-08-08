@@ -28,6 +28,7 @@ LOGGER = setup_logger()
 
 # fast mode KNN for missing data imputation, using in autoFRK
 # Its have OpenMP issue, set environment variable OMP_NUM_THREADS=1 to avoid it, or use sklearn version below
+# check = ok
 def fast_mode_knn(
     data: torch.Tensor,
     loc: torch.Tensor, 
@@ -86,6 +87,7 @@ def fast_mode_knn(
     return torch.tensor(data, dtype=dtype, device=device)
 
 # fast mode KNN for missing data imputation, using in autoFRK, sklearn version
+# check = ok
 def fast_mode_knn_sklearn(
     data: torch.Tensor,
     loc: torch.Tensor,
@@ -635,7 +637,7 @@ def indeMLE(
     Depsilon = toSparseMatrix(mat=D)
     is_diag = torch.allclose(D, torch.diag(torch.diagonal(D)))
     mean_diag = torch.mean(torch.diagonal(D))
-    isimat = is_diag and torch.allclose(torch.diagonal(Depsilon), mean_diag.repeat(N), atol=1e-12)
+    isimat = is_diag and torch.allclose(torch.diagonal(Depsilon), mean_diag.repeat(N), atol=1e-10)
 
     if not withNA:
         if isimat and DfromLK is None:
@@ -969,7 +971,7 @@ def EM0miss(
 
     ziDz = torch.full((TT,), float('nan'), device=device)
     ziDB = torch.full((TT, ncol_Fk), float('nan'), device=device)
-    db = []
+    db = {}
     D = toSparseMatrix(Depsilon)
     iD = torch.linalg.inv(D)
     diagD = isDiagonal(D)
@@ -1025,22 +1027,13 @@ def EM0miss(
             ziDB[tt, :] = (zt @ iDBt).squeeze()
             BiDBt = Bt.T @ iDBt
 
-        if external:
-            db[tt] = dumpObjects(iDBt, 
-                                 zt, 
-                                 BiDBt, 
-                                 external, 
-                                 oldfile, 
-                                 dbName=ftmp[tt]
-                                 )
-        else:
-            db[tt] = {
-                "iDBt": iDBt,
-                "zt": zt,
-                "BiDBt": BiDBt,
-                "external": external,
-                "oldfile": oldfile,
-            }
+        db[tt] = {
+            "iDBt": iDBt,
+            "zt": zt,
+            "BiDBt": BiDBt,
+            "external": external,
+            "oldfile": oldfile,
+        }
 
     del iDt, Bt, iDBt, zt, BiDBt
     gc.collect()
@@ -1063,9 +1056,7 @@ def EM0miss(
     old["M"] = convertToPositiveDefinite(old["M"])
     Ptt1 = old["M"]
     if external:
-        with open(oldfile, "wb") as f:
-            torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
-    inv = torch.linalg.pinv
+        torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
 
     while (dif > (avgtol * (100 * (ncol_Fk ** 2)))) and (cnt < maxit):
         etatt = torch.zeros((ncol_Fk, TT), device=device)
@@ -1120,11 +1111,11 @@ def EM0miss(
         info_msg = f'Number of iteration: {cnt}'
         LOGGER.info(info_msg)
     shutil.rmtree(tmpdir, ignore_errors=True)
-    n2loglik = computeLikelihood(data,
-                                 Fk,
-                                 new["M"],
-                                 new["s"],
-                                 Depsilo,
+    n2loglik = computeLikelihood(data=data,
+                                 Fk=Fk,
+                                 M=new["M"],
+                                 S=new["s"],
+                                 Depsilon=Depsilon,
                                  device=device
                                  )
 
@@ -1199,7 +1190,7 @@ def EM0miss(
 # check = ok
 def isDiagonal(
     tensor: torch.Tensor,
-    tol=1e-12
+    tol=1e-10
 ) -> bool:
     """
     Internal function: check if a numeric-like object is diagonal
@@ -1220,16 +1211,165 @@ def isDiagonal(
     diag = torch.diag(torch.diagonal(tensor))
     return torch.allclose(tensor, diag, atol=tol)
 
+def convertToPositiveDefinite(
+    mat: torch.Tensor, 
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> torch.Tensor:
+    """
+    Internal function: convert a matrix to positive definite
 
+    Parameters:
+        mat (torch.Tensor): Input 2D matrix (square, symmetric or not).
+        device (torch.device): Device to perform computation on ("cpu" or "cuda").
 
+    Returns:
+        torch.Tensor: A positive-definite version of the input matrix.
+    """
+    mat = mat.to(device)
 
+    # Ensure symmetry
+    if not torch.allclose(mat, mat.T, atol=1e-10):
+        mat = (mat + mat.T) / 2
 
+    try:
+        # Compute eigenvalues only
+        eigenvalues = torch.linalg.eigvalsh(mat)
+        min_eigenvalue = torch.min(eigenvalues).item()
+    except RuntimeError:
+        # Fallback in case of numerical error
+        mat = (mat + mat.T) / 2
+        eigenvalues = torch.linalg.eigvalsh(mat)
+        min_eigenvalue = torch.min(eigenvalues).item()
 
+    if min_eigenvalue <= 0:
+        adjustment = abs(min_eigenvalue) + 1e-6
+        mat = mat + torch.eye(mat.shape[0], device=device) * adjustment
 
+    return mat
 
+# using in EM0miss
+def computeLikelihood(
+    data: torch.Tensor,
+    Fk: torch.Tensor,
+    M: torch.Tensor,
+    s: float,
+    Depsilon: torch.Tensor,
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> float:
+    """
+    Compute negative log-likelihood (-2 * log(likelihood)).
 
+    Parameters:
+        data (n x T): Observation matrix with possible NaNs.
+        Fk (n x K): Basis function matrix.
+        M (K x K): Symmetric matrix.
+        s (float): Scalar multiplier.
+        Depsilon (n x n): Diagonal matrix.
+        device: CPU or GPU.
 
+    Returns:
+        float: Negative log-likelihood value.
+    """
+    data = data.to(device)
+    Fk = Fk.to(device)
+    M = M.to(device)
+    Depsilon = Depsilon.to(device)
 
+    non_missing_points_matrix = ~torch.isnan(data)
+    num_columns = data.shape[1]
+
+    n2loglik = non_missing_points_matrix.sum() * torch.log(torch.tensor(2 * torch.pi, device=device))
+    R = toSparseMatrix(s * Depsilon)
+    eg = eigenDecompose(M,
+                        device=device
+                        )
+    K = Fk.shape[1]
+    L = Fk @ eg["vector"] @ torch.diag(torch.sqrt(torch.clamp(eg["value"], min=0.0))) @ eg["vector"].T
+    
+    for t in range(num_columns):
+        mask = non_missing_points_matrix[:, t]
+        zt = data[mask, t]
+
+        # skip all-missing column
+        if zt.numel() == 0:
+            continue
+
+        Rt = R[mask][:, mask]
+        Lt = L[mask]
+
+        log_det = calculateLogDeterminant(Rt, 
+                                          Lt, 
+                                          K, 
+                                          device=device
+                                          )
+        inv_cz_val = invCz(Rt, 
+                           Lt, 
+                           zt, 
+                           device=device
+                           )
+        n2loglik += log_det + torch.sum(zt * inv_cz_val)
+
+    return n2loglik.item()
+
+# using in computeLikelihood
+def eigenDecompose(
+    matrix: torch.Tensor,
+    device: Optional[Union[torch.device, str]] = 'cpu'
+) -> dict:
+    """
+    Internal function: Eigen-decompose a matrix
+
+    Parameters:
+        matrix (torch.Tensor): (K x K) symmetric matrix
+        device (str or torch.device): computation device
+
+    Returns:
+        dict with keys:
+            'value': (K,) tensor of eigenvalues
+            'vector': (K x K) tensor of eigenvectors (columns)
+    """
+    matrix = matrix.to(device)
+
+    # Use symmetric eigendecomposition
+    eigenvalues, eigenvectors = torch.linalg.eigh(matrix)
+
+    return {
+        'value': eigenvalues,
+        'vector': eigenvectors
+    }
+
+# using in computeLikelihood
+# check = 存在精度問題
+def calculateLogDeterminant(
+    R: torch.Tensor,
+    L: torch.Tensor,
+    K: int=None,
+    device: Optional[Union[str, torch.device]] = 'cpu'
+) -> float:
+    """
+    Internal function: calculate the log determinant for the likelihood use.
+
+    Parameters:
+        R (torch.Tensor): (p x p) positive-definite matrix
+        L (torch.Tensor): (p x K) matrix
+        K (int): A numeric
+        device (str or torch.device): computation device
+
+    Returns:
+        float: log-determinant value
+    """
+    R = R.to(device)
+    L = L.to(device)
+
+    if K is None:
+        K = L.shape[1]
+
+    first_part_determinant = torch.logdet(torch.eye(K, device=device) + L.T @ torch.linalg.solve(R, L))
+    second_part_determinant = torch.logdet(R)
+
+    return (first_part_determinant + second_part_determinant).item()
+
+# using in indeMLE
 
 
 

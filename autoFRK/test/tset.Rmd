@@ -8,12 +8,321 @@ library(autoFRK)
 ```
 
 ```{r}
+# calculateLogDeterminant
+R <- matrix(c(
+  4.0, 1.0, 0.5,
+  1.0, 3.0, 0.2,
+  0.5, 0.2, 2.0
+), nrow = 3, byrow = TRUE)
+
+L <- matrix(c(
+  1.0, 0.5,
+  0.3, 0.7,
+  0.4, 0.2
+), nrow = 3, byrow = TRUE)
+
+K <- ncol(L)  # = 2
+
+R
+L
+K
+
+# 呼叫函數
+result <- calculateLogDeterminant(R, L, K)
+print(result)
+```
+
+```{r}
+# eigenDecompose
+# 固定測試矩陣
+M <- matrix(c(
+  4, 2, 0,
+  2, 3, 1,
+  0, 1, 2
+), nrow = 3, byrow = TRUE)
+
+res_R <- eigenDecompose(M)
+
+# 結果檢查
+print(res_R)
 
 ```
 
+```{r}
+# computeLikelihood
+# 固定測試資料
+data <- matrix(c(
+  1.0, 2.0,
+  3.0, 4.0,
+  5.0, 6.0
+), nrow = 3, byrow = TRUE)
 
+Fk <- matrix(c(
+  1.0, 0.0,
+  0.0, 1.0,
+  1.0, 1.0
+), nrow = 3, byrow = TRUE)
 
+M <- matrix(c(
+  2.0, 0.5,
+  0.5, 1.0
+), nrow = 2, byrow = TRUE)
 
+s <- 1.5
+
+Depsilon <- diag(c(0.1, 0.2, 0.3))
+
+# 呼叫 computeLikelihood
+result_R <- computeLikelihood(data, Fk, M, s, Depsilon)
+print(result_R)
+
+```
+
+```{r}
+# convertToPositiveDefinite
+mat <- matrix(c(
+  4, 2, -1,
+  2, 0, 1,
+  -1, 1, 3
+), nrow = 3, byrow = TRUE)
+
+# 呼叫
+pd_mat_R <- convertToPositiveDefinite(mat)
+print(pd_mat_R)
+```
+
+```{r}
+# isDiagonal
+mat1 <- matrix(c(
+  1, 0, 0,
+  0, 2, 0,
+  0, 0, 3
+), nrow = 3, byrow = TRUE)
+
+mat2 <- matrix(c(
+  1, 1, 0,
+  0, 2, 0,
+  0, 0, 3
+), nrow = 3, byrow = TRUE)
+
+# 呼叫
+print(autoFRK::isDiagonal(mat1))  # TRUE
+print(autoFRK::isDiagonal(mat2))  # FALSE
+print(autoFRK::isDiagonal(5))     # TRUE
+
+```
+
+```{r}
+# EM0miss
+# -----------------------------
+# 固定測試資料
+# -----------------------------
+# 觀測資料 (3x3)，有缺失值
+data <- matrix(c(
+  1, NA, 3,
+  4, 5, 6,
+  7, 8, 9
+), nrow = 3, byrow = TRUE)
+
+# 因子矩陣 Fk (3x3)，固定值，滿秩
+Fk <- matrix(c(
+  1, 0, 0,
+  0, 1, 0,
+  0, 0, 1
+), nrow = 3, byrow = TRUE)
+
+# 誤差矩陣 Depsilon (對角非零)
+Depsilon <- diag(c(1, 1, 1))
+
+# DfromLK 結構 (固定滿秩 wX)
+DfromLK <- list(
+  weights = c(1, 1, 1),
+  wX = matrix(c(
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1
+  ), nrow = 3, byrow = TRUE),
+  lambda = 0.1,
+  Q = diag(3),
+  G = diag(3)
+)
+
+# EM 參數
+maxit <- 10
+avgtol <- 1e-4
+vfixed <- NULL
+wSave <- TRUE
+verbose <- TRUE
+
+# -----------------------------
+# 呼叫 EM0miss
+# -----------------------------
+result <- EM0miss(
+  Fk = Fk,
+  data = data,
+  Depsilon = Depsilon,
+  maxit = maxit,
+  avgtol = avgtol,
+  wSave = wSave,
+  DfromLK = DfromLK,
+  vfixed = vfixed,
+  verbose = verbose
+)
+
+# -----------------------------
+# 查看結果
+# -----------------------------
+str(result)
+print(result)
+```
+
+```{r}
+# invCz
+# 固定測試集
+R_test <- matrix(c(
+  4.0, 1.0, 0.5,
+  1.0, 3.0, 0.2,
+  0.5, 0.2, 2.0
+), nrow = 3, byrow = TRUE)
+
+L_test <- matrix(c(
+  1.0, 0.0,
+  0.5, 1.0,
+  0.2, 0.3
+), nrow = 3, byrow = TRUE)
+
+z_test <- c(1.0, 2.0, 3.0)
+
+# 呼叫 invCz
+result <- invCz(R_test, L_test, z_test)
+print(result)
+
+```
+
+```{r}
+# getInverseSquareRootMatrix
+# 普通正定矩陣測試
+A <- matrix(c(2, 0, 1,
+              1, 3, 0,
+              0, 1, 2), nrow=3, byrow=TRUE)
+
+B <- matrix(c(1, 0, 1,
+              0, 2, 0,
+              1, 0, 3), nrow=3, byrow=TRUE)
+
+# 呼叫函數
+inv_sqrt_result <- getInverseSquareRootMatrix(A, B)
+print("Inverse square root matrix result:")
+print(inv_sqrt_result)
+```
+
+```{r}
+# computeProjectionMatrix
+# Fk1 與 Fk2
+Fk1 <- matrix(c(2, 1, 0,
+                0, 3, 1,
+                1, 0, 2), nrow=3, byrow=TRUE)
+Fk2 <- matrix(c(1, 0, 1,
+                0, 2, 0,
+                1, 0, 3), nrow=3, byrow=TRUE)
+
+# data
+data <- matrix(c(1, 2, 3,
+                 4, 5, 6,
+                 7, 8, 9), nrow=3, byrow=TRUE)
+
+# S 為 NULL
+S <- NULL
+
+# S 非 NULL
+S2 <- matrix(c(2, 0, 1,
+               0, 1, 0,
+               1, 0, 2), nrow=3, byrow=TRUE)
+
+# 普通矩陣測試
+result1 <- computeProjectionMatrix(Fk1 = Fk1, Fk2 = Fk2, data = data, S = NULL)
+print("matrix_JSJ (S=NULL):")
+print(result1$matrix_JSJ)
+
+# 使用 S 矩陣測試
+result2 <- computeProjectionMatrix(Fk1 = Fk1, Fk2 = Fk2, data = data, S = S2)
+print("matrix_JSJ (S非NULL):")
+print(result2$matrix_JSJ)
+
+```
+
+```{r}
+# estimateEta
+d <- c(5, 2, 7, 1)  # eigenvalues
+s <- 1.5
+v <- 0.5
+
+eta <- estimateEta(d, s, v)
+print(eta)  # 預期結果: c(3,0,5,0)
+
+```
+
+```{r}
+# estimateV
+d <- c(4, 2, 1)                  # eigenvalues
+s <- 1.0                         # s parameter
+sample_covariance_trace <- 15     # trace of sample covariance
+n <- 5                            # sample size
+
+v <- estimateV(d, s, sample_covariance_trace, n)
+print(v)  # 預期結果: 正數
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
+
+```{r}
+# 
+
+```
 
 
 

@@ -124,6 +124,7 @@ def fast_mode_knn_sklearn(
     return torch.tensor(data, dtype=dtype, device=device)
 
 # select basis function for autoFRK, using in autoFRK
+# check = none
 def selectBasis(
     data: torch.Tensor,
     loc: torch.Tensor,
@@ -263,6 +264,7 @@ def selectBasis(
     out = Fk[:, :Kopt]
     return out
 
+# check = ok
 def get_inverse_square_root_matrix(left_matrix, right_matrix):
     mat = left_matrix.T @ right_matrix  # A^T * B
     mat = (mat + mat.T) / 2
@@ -336,6 +338,7 @@ def subKnot(
     return x[index]
 
 # compute negative log likelihood for autoFRK, using in selectBasis
+# check = none
 def cMLE(
     Fk: torch.Tensor,
     num_columns: int,
@@ -415,6 +418,7 @@ def cMLE(
     }
 
 # compute negative log likelihood for autoFRK, using in cMLE
+# check = none
 def computeNegativeLikelihood(
     nrow_Fk: int,
     ncol_Fk: int,
@@ -492,6 +496,7 @@ def computeNegativeLikelihood(
     }
 
 # estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
+# check = ok
 def estimateV(
     d: torch.Tensor, 
     s: float, 
@@ -517,17 +522,18 @@ def estimateV(
     cumulative_d_values = torch.cumsum(d, dim=0)
     ks = torch.arange(1, k + 1, device=d.device)
     if k == n:
-        ks[n - 1] = n - 1
+        ks[-1] = n - 1
 
-    eligible_indices = torch.where(d > (sample_covariance_trace - cumulative_d_values) / (n - ks))[0]
-    L = torch.max(eligible_indices).item()
+    eligible_indices = torch.nonzero(d > (sample_covariance_trace - cumulative_d_values) / (n - ks)).flatten()
+    L = int(torch.max(eligible_indices))
     if L >= n:
         L = n - 1
 
-    v_hat = (sample_covariance_trace - cumulative_d_values[L]) / (n - L) - s
-    return max(v_hat.item(), 0.0)
+    v_hat = max((sample_covariance_trace - cumulative_d_values[L]) / (n - L - 1) - s, 0.0)
+    return v_hat
 
 # estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
+# check = ok
 def estimateEta(
     d: torch.Tensor, 
     s: float, 
@@ -547,6 +553,7 @@ def estimateEta(
     return torch.clamp(d - s - v, min=0.0)
 
 # compute the negative log likelihood, using in computeNegativeLikelihood
+# check = none
 def neg2llik(
     d: torch.Tensor,
     s: float,
@@ -581,6 +588,7 @@ def neg2llik(
     return sample_size * torch.log(2 * torch.pi) + log_det_term + log_sv_term + trace_term - eta_term
 
 # independent maximum likelihood estimation for autoFRK, using in selectBasis
+# check = none
 def indeMLE(
     data: torch.Tensor,
     Fk: torch.Tensor,
@@ -588,7 +596,7 @@ def indeMLE(
     maxit: int = 50,
     avgtol: float = 1e-6,
     wSave: bool = False,
-    DfromLK: Optional[torch.Tensor] = None,
+    DfromLK: Optional[dict] = None,
     vfixed: Optional[float] = None,
     verbose: bool = True,
     device: Optional[Union[torch.device, str]]='cpu'
@@ -708,28 +716,30 @@ def indeMLE(
         return out
 
 # convert dense tensor to sparse matrix, using in indeMLE
-def toSparseMatrix(
-    mat: torch.Tensor, 
-    verbose: bool=False
-) -> torch.Tensor:
-    """
+# python 不需要，在 R 中僅作為節省記憶體的角色
+# def toSparseMatrix(
+#     mat: torch.Tensor, 
+#     verbose: bool=False
+# ) -> torch.Tensor:
+#     """
     
-    """
-    if not torch.is_tensor(mat):
-        warn_msg = f'Expected tensor, but got {type(mat)}'
-        LOGGER.warning(warn_msg)
-        mat = torch.tensor(mat)
+#     """
+#     if not torch.is_tensor(mat):
+#         warn_msg = f'Expected tensor, but got {type(mat)}'
+#         LOGGER.warning(warn_msg)
+#         mat = torch.tensor(mat)
     
-    if mat.is_sparse:
-        if verbose:
-            info_msg = f'The input is already a sparse tensor'
-            LOGGER.info(info_msg)
-        return mat
+#     if mat.is_sparse:
+#         if verbose:
+#             info_msg = f'The input is already a sparse tensor'
+#             LOGGER.info(info_msg)
+#         return mat
 
-    if verbose:
-        return mat.to_sparse()
+#     if verbose:
+#         return mat.to_sparse()
 
 # using in indeMLE
+# check = none
 def cMLEimat(
     Fk: torch.Tensor,
     data: torch.Tensor,
@@ -792,7 +802,7 @@ def cMLEimat(
     if ncol_Fk > 2:
         reduced_columns = torch.cat([
             torch.tensor([0], device=device),
-            (d_hat[1:(ncol_Fk + 1)] > 0).nonzero(as_tuple=True)[0]
+            (d_hat[1:ncol_Fk] > 0).nonzero(as_tuple=True)[0]
         ])
     else:
         reduced_columns = torch.tensor([ncol_Fk - 1], device=device)
@@ -825,6 +835,7 @@ def cMLEimat(
             }
 
 # using in cMLEimat
+# check = ok
 def computeProjectionMatrix(
     Fk1: torch.Tensor, 
     Fk2: torch.Tensor, 
@@ -874,10 +885,12 @@ def computeProjectionMatrix(
     }
 
 # using in computeProjectionMatrix
+# check = ok
 def getInverseSquareRootMatrix(
     A: torch.Tensor, 
     B: torch.Tensor, 
-    device: Optional[Union[torch.device, str]]='cpu'
+    device: Optional[Union[torch.device, str]]='cpu',
+    eps: float = 1e-10
 ) -> torch.Tensor:
     """
     Compute inverse square root matrix of (A.T @ B), assuming it is symmetric.
@@ -896,16 +909,13 @@ def getInverseSquareRootMatrix(
     mat = A.T @ B
 
     eigenvalues, eigenvectors = torch.linalg.eigh(mat)
-
-    eps = 1e-10
     eigvals_clamped = torch.clamp(eigenvalues, min=eps)
     inv_sqrt_eigvals = torch.diag(eigvals_clamped.rsqrt())
 
-    result = eigenvectors @ inv_sqrt_eigvals @ eigenvectors.T
-
-    return result
+    return eigenvectors @ inv_sqrt_eigvals @ eigenvectors.T
 
 # using in cMLEimat
+# check = ok
 def invCz(
     R: torch.Tensor, 
     L: torch.Tensor, 
@@ -930,11 +940,9 @@ def invCz(
 
     if z.dim() == 1:
         z = z.unsqueeze(1)
-    elif z.shape[0] == 1:
-        z = z.T
 
     K = L.shape[1]
-    iR = torch.linalg.inv(R)
+    iR = torch.linalg.pinv(R)
     iRZ = iR @ z
     right = L @ torch.linalg.inv(torch.eye(K, device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
     result = iRZ - iR @ right
@@ -942,6 +950,7 @@ def invCz(
     return result.T
 
 # using in indeMLE
+# check = none
 def EM0miss(
     Fk: torch.Tensor, 
     data: torch.Tensor, 
@@ -950,7 +959,7 @@ def EM0miss(
     avgtol: float=1e-4, 
     wSave: bool=False, 
     external: bool=False,
-    DfromLK: torch.Tensor=None,
+    DfromLK: dict=None,
     vfixed: float=None,
     verbose: bool=True,
     device: Optional[Union[torch.device, str]] = 'cpu'
@@ -966,18 +975,16 @@ def EM0miss(
     TT = data.shape[1]
     ncol_Fk = Fk.shape[1]
     tmpdir = tempfile.mkdtemp()
-    ftmp = [os.path.join(tmpdir, str(i + 1)) for i in range(TT)]
     oldfile = os.path.join(tmpdir, "old_par.pt")
 
     ziDz = torch.full((TT,), float('nan'), device=device)
     ziDB = torch.full((TT, ncol_Fk), float('nan'), device=device)
     db = {}
-    D = toSparseMatrix(Depsilon)
+    D = Depsilon
     iD = torch.linalg.inv(D)
     diagD = isDiagonal(D)
 
     if DfromLK is not None:
-        DfromLK = DfromLK.to(device=device)
         pick = DfromLK.get("pick", None)
         weights = torch.tensor(DfromLK["weights"], device=device)
         if pick is None:
@@ -985,9 +992,18 @@ def EM0miss(
         else:
             pick = torch.tensor(pick, dtype=torch.long, device=device)
         weight = weights[pick]
-        DfromLK["wX"] = torch.tensor(DfromLK["wX"], device=device)[pick, :]
-        wwX = torch.diag(torch.sqrt(weight)) @ DfromLK["wX"]
-        lQ = DfromLK["lambda"] * torch.tensor(DfromLK["Q"], device=device)
+
+        DfromLK_wX = DfromLK["wX"]
+        if not torch.is_tensor(DfromLK_wX):
+            DfromLK_wX = torch.tensor(DfromLK_wX, device=device)
+        DfromLK_wX = DfromLK_wX[pick, :].clone().detach()
+
+        DfromLK_Q = DfromLK["Q"]
+        if not torch.is_tensor(DfromLK_Q):
+            DfromLK_Q = torch.tensor(DfromLK_Q, device=device)
+
+        wwX = torch.diag(torch.sqrt(weight)) @ DfromLK_wX
+        lQ = DfromLK["lambda"] * DfromLK_Q.clone().detach()
 
     for tt in range(TT):
         if DfromLK is not None:
@@ -997,7 +1013,7 @@ def EM0miss(
                 G_inv = torch.linalg.inv(DfromLK["G"].to(device=device))
                 wXiG = wwX @ G_inv
             else:
-                wX_obs = DfromLK["wX"][obs_idx, :].to(device)
+                wX_obs = DfromLK_wX[obs_idx, :].to(device)
                 G = wX_obs.T @ wX_obs + lQ.to(device)
                 wXiG = wwX[obs_idx, :] @ torch.linalg.inv(G)
 
@@ -1146,7 +1162,7 @@ def EM0miss(
             if torch.sum(obs_idx) == O.shape[0]:
                 wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], device=device))
             else:
-                wX_tt = DfromLK["wX"][obs_idx]
+                wX_tt = DfromLK_wX[obs_idx]
                 G = wX_tt.T @ wX_tt + lQ
                 wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
 
@@ -1165,7 +1181,7 @@ def EM0miss(
             "pick": pick
         }
         out["missing"] = {
-            "miss": toSparseMatrix(1 - O), 
+            "miss": 1 - O, 
             "maxit": maxit, 
             "avgtol": avgtol
         }
@@ -1180,7 +1196,7 @@ def EM0miss(
             "V": new["M"] - (etatt @ etatt.T) / TT
         }
         out["missing"] = {
-            "miss": toSparseMatrix(1 - O), 
+            "miss": 1 - O, 
             "maxit": maxit, 
             "avgtol": avgtol
         }
@@ -1211,6 +1227,8 @@ def isDiagonal(
     diag = torch.diag(torch.diagonal(tensor))
     return torch.allclose(tensor, diag, atol=tol)
 
+# using in EM0miss
+# check = ok
 def convertToPositiveDefinite(
     mat: torch.Tensor, 
     device: Optional[Union[torch.device, str]] = 'cpu'
@@ -1248,6 +1266,7 @@ def convertToPositiveDefinite(
     return mat
 
 # using in EM0miss
+# check = ok
 def computeLikelihood(
     data: torch.Tensor,
     Fk: torch.Tensor,
@@ -1279,7 +1298,7 @@ def computeLikelihood(
     num_columns = data.shape[1]
 
     n2loglik = non_missing_points_matrix.sum() * torch.log(torch.tensor(2 * torch.pi, device=device))
-    R = toSparseMatrix(s * Depsilon)
+    R = s * Depsilon
     eg = eigenDecompose(M,
                         device=device
                         )
@@ -1312,6 +1331,7 @@ def computeLikelihood(
     return n2loglik.item()
 
 # using in computeLikelihood
+# check = ok
 def eigenDecompose(
     matrix: torch.Tensor,
     device: Optional[Union[torch.device, str]] = 'cpu'
@@ -1339,7 +1359,7 @@ def eigenDecompose(
     }
 
 # using in computeLikelihood
-# check = 存在精度問題
+# check = ok
 def calculateLogDeterminant(
     R: torch.Tensor,
     L: torch.Tensor,

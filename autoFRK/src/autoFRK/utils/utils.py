@@ -418,7 +418,7 @@ def cMLE(
     }
 
 # compute negative log likelihood for autoFRK, using in cMLE
-# check = none
+# check = ok
 def computeNegativeLikelihood(
     nrow_Fk: int,
     ncol_Fk: int,
@@ -488,12 +488,11 @@ def computeNegativeLikelihood(
                                        sample_size=nrow_Fk
                                        ) * p + ldet * p
 
-    return {
-        "negative_log_likelihood": negative_log_likelihood,
-        "P": eigenvectors_JSJ,
-        "v": v,
-        "d_hat": d_hat
-    }
+    return {"negative_log_likelihood": negative_log_likelihood,
+            "P": eigenvectors_JSJ,
+            "v": v,
+            "d_hat": d_hat
+            }
 
 # estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
 # check = ok
@@ -553,7 +552,7 @@ def estimateEta(
     return torch.clamp(d - s - v, min=0.0)
 
 # compute the negative log likelihood, using in computeNegativeLikelihood
-# check = none
+# check = ok
 def neg2llik(
     d: torch.Tensor,
     s: float,
@@ -579,13 +578,13 @@ def neg2llik(
 
     if torch.max(eta / (s + v)) > 1e20:
         return float("inf")
-    
-    log_det_term = torch.sum(torch.log(eta + s + v))
-    log_sv_term = torch.log(s + v) * (sample_size - k)
-    trace_term = sample_covariance_trace / (s + v)
-    eta_term = torch.sum(d * eta / (eta + s + v)) / (s + v)
+    sPlusv = torch.tensor(s + v)
+    log_det_term = torch.sum(torch.log(eta + sPlusv))
+    log_sv_term = torch.log(sPlusv) * (sample_size - k)
+    trace_term = sample_covariance_trace / (sPlusv)
+    eta_term = torch.sum(d * eta / (eta + sPlusv)) / (sPlusv)
 
-    return sample_size * torch.log(2 * torch.pi) + log_det_term + log_sv_term + trace_term - eta_term
+    return sample_size * torch.log(torch.tensor(2 * torch.pi)) + log_det_term + log_sv_term + trace_term - eta_term
 
 # independent maximum likelihood estimation for autoFRK, using in selectBasis
 # check = none
@@ -739,7 +738,7 @@ def indeMLE(
 #         return mat.to_sparse()
 
 # using in indeMLE
-# check = none
+# check = ok
 def cMLEimat(
     Fk: torch.Tensor,
     data: torch.Tensor,
@@ -788,7 +787,7 @@ def cMLEimat(
     d_hat = likelihood_object["d_hat"]
     v = likelihood_object["v"]
 
-    M = inverse_square_root_matrix @ P @ (d_hat * P.T) @ inverse_square_root_matrix
+    M = inverse_square_root_matrix @ P @ (P.T * d_hat[:, None]) @ inverse_square_root_matrix
 
     if not wSave:
         return {"v": v, 
@@ -797,12 +796,12 @@ def cMLEimat(
                 "negloglik": negative_log_likelihood
                 }
 
-    L = Fk @ ((torch.sqrt(d_hat) * P.T) @ inverse_square_root_matrix).T
+    L = Fk @ ((torch.diag(torch.sqrt(d_hat)) @ P.T) @ inverse_square_root_matrix).T
 
     if ncol_Fk > 2:
         reduced_columns = torch.cat([
             torch.tensor([0], device=device),
-            (d_hat[1:ncol_Fk] > 0).nonzero(as_tuple=True)[0]
+            (d_hat[1:(ncol_Fk - 1)] > 0).nonzero(as_tuple=True)[0]
         ])
     else:
         reduced_columns = torch.tensor([ncol_Fk - 1], device=device)

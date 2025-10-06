@@ -172,8 +172,274 @@ result <- EM0miss(
 # -----------------------------
 # 查看結果
 # -----------------------------
-str(result)
 print(result)
+```
+
+
+```{python}
+import torch
+
+# -----------------------------
+# 固定測試資料 (Python)
+# -----------------------------
+
+# 觀測資料 (3x3)，有缺失值
+data = torch.tensor([
+    [1.0, float('nan'), 3.0],
+    [4.0, 5.0, 6.0],
+    [7.0, 8.0, 9.0]
+])
+
+# 因子矩陣 Fk (3x3)，固定值，滿秩
+Fk = torch.tensor([
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0]
+])
+
+# 誤差矩陣 Depsilon (對角非零)
+Depsilon = torch.diag(torch.tensor([1.0, 1.0, 1.0]))
+
+# DfromLK 結構 (固定滿秩 wX)
+DfromLK = {
+    "weights": torch.tensor([1.0, 1.0, 1.0]),
+    "wX": torch.tensor([
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0]
+    ]),
+    "lambda": 0.1,
+    "Q": torch.eye(3),
+    "G": torch.eye(3)
+}
+
+# EM 參數
+maxit = 10
+avgtol = 1e-4
+vfixed = None
+wSave = True
+verbose = True
+device = 'cpu'  # 或 'cuda'
+
+# -----------------------------
+# 呼叫 EM0miss (Python)
+# -----------------------------
+result = EM0miss(
+    Fk=Fk,
+    data=data,
+    Depsilon=Depsilon,
+    maxit=maxit,
+    avgtol=avgtol,
+    wSave=wSave,
+    DfromLK=DfromLK,
+    vfixed=vfixed,
+    verbose=verbose,
+    device=device
+)
+
+# -----------------------------
+# 查看結果
+# -----------------------------
+print(result)
+
+```
+
+```{r}
+if ("numeric" %in% class(data)) 
+    data <- as.matrix(data)
+O <- !is.na(data)
+TT <- NCOL(data)
+ncol_Fk <- NCOL(Fk)
+
+ziDz <- rep(NA, TT)
+ziDB <- matrix(NA, TT, ncol_Fk)
+db <- list()
+D <- toSparseMatrix(Depsilon)
+iD <- solve(D)
+diagD <- isDiagonal(D)
+if (!is.null(DfromLK)) {
+    pick <- DfromLK$pick
+    if (is.null(pick)) 
+        pick <- 1:length(DfromLK$weights)
+    weight <- DfromLK$weights[pick]
+    DfromLK$wX <- DfromLK$wX[pick, ]
+    wwX <- diag.spam(sqrt(weight)) %*% DfromLK$wX
+    lQ <- DfromLK$lambda * DfromLK$Q
+}
+for (tt in 1:TT) {
+    if (!is.null(DfromLK)) {
+        iDt <- NULL
+        if (sum(O[, tt]) == NROW(O)) {
+            wXiG <- wwX %*% solve(DfromLK$G)
+        }
+        else {
+            G <- t(DfromLK$wX[O[, tt], ]) %*% DfromLK$wX[O[, tt], ] + lQ
+            wXiG <- wwX[O[, tt], ] %*% solve(G)
+        }
+        Bt <- as.matrix(Fk[O[, tt], ])
+        if (NCOL(Bt) == 1) 
+            Bt <- t(Bt)
+        iDBt <- as.matrix(weight[O[, tt]] * Bt - wXiG %*% 
+            (t(wwX[O[, tt], ]) %*% Bt))
+        zt <- data[O[, tt], tt]
+        ziDz[tt] <- sum(zt * as.vector(weight[O[, tt]] * zt - wXiG %*% (t(wwX[O[, tt], ]) %*% zt)))
+        ziDB[tt, ] <- t(zt) %*% iDBt
+        BiDBt <- t(Bt) %*% iDBt
+    } else {
+        if (!diagD) {
+            iDt <- solve(D[O[, tt], O[, tt]])
+        } else {
+            iDt <- iD[O[, tt], O[, tt]]
+        }
+        Bt <- Fk[O[, tt], ]
+        if (NCOL(Bt) == 1) 
+            Bt <- t(Bt)
+        iDBt <- as.matrix(iDt %*% Bt)
+        zt <- data[O[, tt], tt]
+        ziDz[tt] <- sum(zt * as.vector(iDt %*% zt))
+        ziDB[tt, ] <- t(zt) %*% iDBt
+        BiDBt <- t(Bt) %*% iDBt
+    }
+    db[[tt]] <- list(iDBt = iDBt, zt = zt, BiDBt = BiDBt)
+
+}
+rm(iDt, Bt, iDBt, zt, BiDBt)
+gc()
+dif <- Inf
+cnt <- 0
+Z0 <- data
+Z0[is.na(Z0)] <- 0
+old <- cMLEimat(Fk, Z0, s = 0, wSave = TRUE)
+if (is.null(vfixed)) {
+    old$s <- old$v
+}else{ old$s <- vfixed}
+old$M <- convertToPositiveDefinite(old$M)
+Ptt1 <- old$M
+
+while ((dif > (avgtol * (100 * ncol_Fk^2))) && (cnt < maxit)) {
+    etatt <- matrix(0, ncol_Fk, TT)
+    sumPtt <- 0
+    s1 <- rep(0, TT)
+    
+    for (tt in 1:TT) {
+        s1.eta.P <- with(db[[tt]], {
+            ginv_Ptt1 <- MASS::ginv(convertToPositiveDefinite(Ptt1))
+            iP <- convertToPositiveDefinite(ginv_Ptt1 + BiDBt/old$s)
+            Ptt <- solve(iP)
+            Gt <- as.matrix(Ptt %*% t(iDBt)/old$s)
+            eta <- c(0 + Gt %*% zt)
+            s1kk <- diag(BiDBt %*% (eta %*% t(eta) + Ptt))
+            rbind(s1kk, eta, Ptt)
+        })
+        sumPtt <- sumPtt + s1.eta.P[-c(1:2), ]
+        etatt[, tt] <- s1.eta.P[2, ]
+        s1[tt] <- sum(s1.eta.P[1, ])
+    }
+    if (is.null(vfixed)) {
+        s <- max((sum(ziDz) - 2 * sum(ziDB * t(etatt)) + 
+            sum(s1))/sum(O), 1e-08)
+        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, 
+            s = s)
+    }
+    else {
+        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, 
+            s = vfixed)
+    }
+    new$M <- (new$M + t(new$M))/2
+    dif <- sum(abs(new$M - old$M)) + abs(new$s - old$s)
+    cnt <- cnt + 1
+    old <- new
+    Ptt1 <- old$M
+}
+if (verbose) 
+    cat("Number of iteration: ", cnt, "\n")
+unlink(tmpdir, recursive = TRUE)
+n2loglik <- computeLikelihood(data, Fk, new$M, new$s, Depsilon)
+if (!wSave) {
+    return(list(M = new$M, s = new$s, negloglik = n2loglik))
+}else if (!is.null(DfromLK)) {
+    out <- list(M = new$M, s = new$s, negloglik = n2loglik, 
+        w = etatt, V = new$M - etatt %*% t(etatt)/TT)
+    dec <- eigen(new$M)
+    L <- Fk %*% dec$vector %*% diag(sqrt(pmax(dec$value, 
+        0)))
+    weight <- DfromLK$weights[pick]
+    wlk <- matrix(NA, NROW(lQ), TT)
+    for (tt in 1:TT) {
+        if (sum(O[, tt]) == NROW(O)) {
+            wXiG <- wwX %*% solve(DfromLK$G)
+        }
+        else {
+            G <- t(DfromLK$wX[O[, tt], ]) %*% DfromLK$wX[O[, 
+              tt], ] + lQ
+            wXiG <- wwX[O[, tt], ] %*% solve(G)
+        }
+        dat <- data[O[, tt], tt]
+        Lt <- L[O[, tt], ]
+        iDL <- weight[O[, tt]] * Lt - wXiG %*% (t(wwX[O[, 
+            tt], ]) %*% Lt)
+        itmp <- solve(diag(1, NCOL(L)) + t(Lt) %*% iDL/out$s)
+        iiLiD <- itmp %*% t(iDL/out$s)
+        wlk[, tt] <- t(wXiG) %*% dat - t(wXiG) %*% Lt %*% 
+            (iiLiD %*% dat)
+    }
+    attr(out, "pinfo") <- list(wlk = wlk, pick = pick)
+    attr(out, "missing") <- list(miss = toSparseMatrix(1 - 
+        O), maxit = maxit, avgtol = avgtol)
+    return(out)
+}else {
+    out <- list(M = as.matrix(new$M), s = new$s, negloglik = n2loglik, 
+        w = etatt, V = new$M - etatt %*% t(etatt)/TT)
+    attr(out, "missing") <- list(miss = toSparseMatrix(1 - 
+        O), maxit = maxit, avgtol = avgtol)
+    return(out)
+}
+```
+```{r}
+data <- as.matrix(data)
+Fk <- as.matrix(Fk)
+num_columns <- NCOL(data)
+nrow_Fk <- nrow(Fk)
+ncol_Fk <- ncol(Fk)
+projection <- computeProjectionMatrix(Fk, Fk, data, S)
+inverse_square_root_matrix <- projection$inverse_square_root_matrix
+matrix_JSJ <- projection$matrix_JSJ
+sample_covariance_trace <- sum(rowSums(data^2))/num_columns
+likelihood_object <- computeNegativeLikelihood(nrow_Fk = nrow_Fk, 
+    ncol_Fk = ncol_Fk, s = s, p = num_columns, matrix_JSJ = matrix_JSJ, 
+    sample_covariance_trace = sample_covariance_trace)
+negative_log_likelihood <- likelihood_object$negative_log_likelihood
+if (onlylogLike) {
+    return(list(negloglik = negative_log_likelihood))
+}
+P <- likelihood_object$P
+d_hat <- likelihood_object$d_hat
+v <- likelihood_object$v
+M <- inverse_square_root_matrix %*% P %*% (d_hat * t(P)) %*% 
+    inverse_square_root_matrix
+dimnames(M) <- NULL
+if (!wSave) {
+    return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood))
+} else {
+    L <- Fk %*% t((sqrt(d_hat) * t(P)) %*% inverse_square_root_matrix)
+    if (ncol_Fk > 2) {
+        reduced_columns <- c(1, which(d_hat[2:ncol_Fk] > 0))
+    }
+    else {
+        reduced_columns <- ncol_Fk
+    }
+    L <- L[, reduced_columns]
+    invD <- rep(1, nrow_Fk)/(s + v)
+    iDZ <- invD * data
+    right <- L %*% (solve(diag(1, NCOL(L)) + t(L) %*% (invD * 
+        L)) %*% (t(L) %*% iDZ))
+    INVtZ <- iDZ - invD * right
+    etatt <- as.matrix(M %*% t(Fk) %*% INVtZ)
+    GM <- Fk %*% M
+    V <- as.matrix(M - t(GM) %*% invCz((s + v) * diag.spam(nrow_Fk),L, GM))
+    return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood, 
+        w = etatt, V = V))
+}
 ```
 
 ```{r}
@@ -352,13 +618,111 @@ result
 ```
 
 ```{r}
-# 
+# computeProjectionMatrix
+# ===== R 固定測試資料 =====
+Fk1 <- matrix(c(
+  1.0, 0.5,
+  0.2, 1.2,
+  0.8, 0.7
+), nrow=3, byrow=TRUE)
+
+Fk2 <- matrix(c(
+  0.9, 0.3,
+  0.4, 1.0,
+  1.1, 0.5
+), nrow=3, byrow=TRUE)
+
+data <- matrix(c(
+  1.0, 2.0, 3.0,
+  0.5, 1.5, 2.5,
+  2.0, 2.5, 3.5
+), nrow=3, byrow=TRUE)
+
+# 呼叫測試（S 為空）
+res1 <- computeProjectionMatrix(Fk1, Fk2, data)
+print(res1)
+
+# 呼叫測試（S 不為空）
+S <- diag(c(1, 2, 3))
+res2 <- computeProjectionMatrix(Fk1, Fk2, data, S)
+print(res2)
 
 ```
 
 ```{r}
-# 
+# cMLEimat
+# 固定矩陣資料
+Fk <- matrix(c(
+  1.0, 0.5, 0.2,
+  0.3, 1.0, 0.4,
+  0.1, 0.2, 1.0
+), nrow = 3, ncol = 3, byrow = TRUE)
 
+data <- matrix(c(
+  2.0, 1.0, 0.5, 1.5, 2.5,
+  1.2, 0.8, 0.6, 1.0, 1.8,
+  0.5, 0.4, 0.3, 0.6, 0.7
+), nrow = 3, ncol = 5, byrow = TRUE)
+
+s <- 0.1
+
+# 測試執行
+res_logonly <- cMLEimat(Fk, data, s, wSave = FALSE)
+res_full <- cMLEimat(Fk, data, s, wSave = TRUE)
+
+print(res_logonly)
+print(res_full)
+
+
+
+
+
+
+data <- as.matrix(data)
+Fk <- as.matrix(Fk)
+num_columns <- NCOL(data)
+nrow_Fk <- nrow(Fk)
+ncol_Fk <- ncol(Fk)
+projection <- computeProjectionMatrix(Fk, Fk, data, S)
+inverse_square_root_matrix <- projection$inverse_square_root_matrix
+matrix_JSJ <- projection$matrix_JSJ
+
+sample_covariance_trace <- sum(rowSums(data^2))/num_columns
+likelihood_object <- computeNegativeLikelihood(nrow_Fk = nrow_Fk, 
+    ncol_Fk = ncol_Fk, s = s, p = num_columns, matrix_JSJ = matrix_JSJ, 
+    sample_covariance_trace = sample_covariance_trace)
+negative_log_likelihood <- likelihood_object$negative_log_likelihood
+if (onlylogLike) {
+    return(list(negloglik = negative_log_likelihood))
+}
+P <- likelihood_object$P
+d_hat <- likelihood_object$d_hat
+v <- likelihood_object$v
+M <- inverse_square_root_matrix %*% P %*% (d_hat * t(P)) %*% 
+    inverse_square_root_matrix
+dimnames(M) <- NULL
+if (!wSave) {
+    return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood))
+}else {
+    L <- Fk %*% t((sqrt(d_hat) * t(P)) %*% inverse_square_root_matrix)
+    if (ncol_Fk > 2) {
+        reduced_columns <- c(1, which(d_hat[2:ncol_Fk] > 0))
+    } else {
+        reduced_columns <- ncol_Fk
+    }
+    L <- L[, reduced_columns]
+    invD <- rep(1, nrow_Fk)/(s + v)
+    iDZ <- invD * data
+    right <- L %*% (solve(diag(1, NCOL(L)) + t(L) %*% (invD * 
+        L)) %*% (t(L) %*% iDZ))
+    INVtZ <- iDZ - invD * right
+    etatt <- as.matrix(M %*% t(Fk) %*% INVtZ)
+    GM <- Fk %*% M
+    V <- as.matrix(M - t(GM) %*% invCz((s + v) * diag.spam(nrow_Fk), 
+        L, GM))
+    return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood, 
+        w = etatt, V = V))
+}
 ```
 
 ```{r}

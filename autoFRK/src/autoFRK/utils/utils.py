@@ -11,9 +11,7 @@ import sys
 sys.path.append(os.path.abspath("./src"))
 
 # import modules
-import tempfile
 import os
-import shutil
 import torch
 import numpy as np
 import faiss
@@ -698,8 +696,7 @@ def indeMLE(
                       Depsilon, 
                       maxit, 
                       avgtol, 
-                      wSave, 
-                      external=False, 
+                      wSave,
                       DfromLK=DfromLK, 
                       vfixed=vfixed, 
                       verbose=verbose
@@ -752,11 +749,11 @@ def cMLEimat(
     if onlylogLike is None:
         onlylogLike = not wSave
 
-    Fk = Fk.to(device)
     data = data.to(device)
+    Fk = Fk.to(device)
 
-    nrow_Fk, ncol_Fk = Fk.shape
     num_columns = data.shape[1]
+    nrow_Fk, ncol_Fk = Fk.shape
 
     projection = computeProjectionMatrix(Fk1=Fk, 
                                          Fk2=Fk, 
@@ -801,7 +798,7 @@ def cMLEimat(
     if ncol_Fk > 2:
         reduced_columns = torch.cat([
             torch.tensor([0], device=device),
-            (d_hat[1:(ncol_Fk - 1)] > 0).nonzero(as_tuple=True)[0]
+            (d_hat[1:(ncol_Fk)] > 0).nonzero(as_tuple=True)[0]
         ])
     else:
         reduced_columns = torch.tensor([ncol_Fk - 1], device=device)
@@ -819,6 +816,7 @@ def cMLEimat(
     GM = Fk @ M
 
     diag_matrix = (s + v) * torch.eye(nrow_Fk, device=device)
+
     V = M - GM.T @ invCz(R=diag_matrix,
                          L=L, 
                          z=GM,
@@ -878,10 +876,9 @@ def computeProjectionMatrix(
 
     matrix_JSJ = (matrix_JSJ + matrix_JSJ.T) / 2
 
-    return {
-        "inverse_square_root_matrix": inverse_square_root_matrix,
-        "matrix_JSJ": matrix_JSJ
-    }
+    return {"inverse_square_root_matrix": inverse_square_root_matrix,
+            "matrix_JSJ": matrix_JSJ
+            }
 
 # using in computeProjectionMatrix
 # check = ok
@@ -957,7 +954,6 @@ def EM0miss(
     maxit: int=100, 
     avgtol: float=1e-4, 
     wSave: bool=False, 
-    external: bool=False,
     DfromLK: dict=None,
     vfixed: float=None,
     verbose: bool=True,
@@ -973,8 +969,6 @@ def EM0miss(
     O = ~torch.isnan(data)
     TT = data.shape[1]
     ncol_Fk = Fk.shape[1]
-    tmpdir = tempfile.mkdtemp()
-    oldfile = os.path.join(tmpdir, "old_par.pt")
 
     ziDz = torch.full((TT,), float('nan'), device=device)
     ziDB = torch.full((TT, ncol_Fk), float('nan'), device=device)
@@ -985,34 +979,31 @@ def EM0miss(
 
     if DfromLK is not None:
         pick = DfromLK.get("pick", None)
-        weights = torch.tensor(DfromLK["weights"], device=device)
+        weights = DfromLK["weights"].clone().detach()
         if pick is None:
             pick = torch.arange(len(weights), device=device)
         else:
             pick = torch.tensor(pick, dtype=torch.long, device=device)
         weight = weights[pick]
 
-        DfromLK_wX = DfromLK["wX"]
-        if not torch.is_tensor(DfromLK_wX):
-            DfromLK_wX = torch.tensor(DfromLK_wX, device=device)
-        DfromLK_wX = DfromLK_wX[pick, :].clone().detach()
+        if not torch.is_tensor(DfromLK["wX"]):
+            DfromLK["wX"] = torch.tensor(DfromLK["wX"], device=device)
+        DfromLK["wX"] = DfromLK["wX"][pick, :].clone().detach()
 
-        DfromLK_Q = DfromLK["Q"]
-        if not torch.is_tensor(DfromLK_Q):
-            DfromLK_Q = torch.tensor(DfromLK_Q, device=device)
+        if not torch.is_tensor(DfromLK["Q"]):
+            DfromLK["Q"] = torch.tensor(DfromLK["Q"], device=device)
 
-        wwX = torch.diag(torch.sqrt(weight)) @ DfromLK_wX
-        lQ = DfromLK["lambda"] * DfromLK_Q.clone().detach()
+        wwX = torch.diag(torch.sqrt(weight)) @ DfromLK["wX"]
+        lQ = DfromLK["lambda"] * DfromLK["Q"].clone().detach()
 
     for tt in range(TT):
         if DfromLK is not None:
             obs_idx = O[:, tt].bool()
             iDt = None
             if obs_idx.sum() == O.shape[0]:
-                G_inv = torch.linalg.inv(DfromLK["G"].to(device=device))
-                wXiG = wwX @ G_inv
+                wXiG = wwX @ torch.linalg.inv(DfromLK["G"].to(device=device))
             else:
-                wX_obs = DfromLK_wX[obs_idx, :].to(device)
+                wX_obs = DfromLK["wX"][obs_idx, :].to(device)
                 G = wX_obs.T @ wX_obs + lQ.to(device)
                 wXiG = wwX[obs_idx, :] @ torch.linalg.inv(G)
 
@@ -1042,16 +1033,13 @@ def EM0miss(
             ziDB[tt, :] = (zt @ iDBt).squeeze()
             BiDBt = Bt.T @ iDBt
 
-        db[tt] = {
-            "iDBt": iDBt,
-            "zt": zt,
-            "BiDBt": BiDBt,
-            "external": external,
-            "oldfile": oldfile,
-        }
+        db[tt] = {"iDBt": iDBt,
+                  "zt": zt,
+                  "BiDBt": BiDBt
+                  }
 
     del iDt, Bt, iDBt, zt, BiDBt
-    gc.collect()
+    _ = gc.collect()
     torch.cuda.empty_cache()
 
     dif = float("inf")
@@ -1070,18 +1058,11 @@ def EM0miss(
         old["s"] = vfixed.to(old["v"].device)
     old["M"] = convertToPositiveDefinite(old["M"])
     Ptt1 = old["M"]
-    if external:
-        torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
 
     while (dif > (avgtol * (100 * (ncol_Fk ** 2)))) and (cnt < maxit):
         etatt = torch.zeros((ncol_Fk, TT), device=device)
         sumPtt = torch.zeros((ncol_Fk, ncol_Fk), device=device)
         s1 = torch.zeros(TT, device=device)
-
-        if external:
-            saved = torch.load(oldfile)
-            old = saved["old"]
-            Ptt1 = saved["Ptt1"]
 
         for tt in range(TT):
             iDBt = db[tt]["iDBt"].to(device)
@@ -1119,13 +1100,9 @@ def EM0miss(
         old = new
         Ptt1 = old["M"]
 
-        if external:
-            torch.save({"old": old, "Ptt1": Ptt1}, oldfile)
-
     if verbose:
         info_msg = f'Number of iteration: {cnt}'
         LOGGER.info(info_msg)
-    shutil.rmtree(tmpdir, ignore_errors=True)
     n2loglik = computeLikelihood(data=data,
                                  Fk=Fk,
                                  M=new["M"],

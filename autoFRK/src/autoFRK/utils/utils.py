@@ -522,11 +522,18 @@ def estimateV(
         ks[-1] = n - 1
 
     eligible_indices = torch.nonzero(d > (sample_covariance_trace - cumulative_d_values) / (n - ks)).flatten()
+    
+    if len(eligible_indices) == 0:
+        error_msg = "No eligible indices found: check input d, sample_covariance_trace, and n."
+        LOGGER.error(error_msg)
+        raise ValueError(error_msg)
     L = int(torch.max(eligible_indices))
-    if L >= n:
-        L = n - 1
 
-    v_hat = max((sample_covariance_trace - cumulative_d_values[L]) / (n - L - 1) - s, 0.0)
+    if (L + 1) >= n:
+        L = n - 1
+        v_hat = max((sample_covariance_trace - cumulative_d_values[L - 1]) / (n - L) - s, 0.0)
+    else:
+        v_hat = max((sample_covariance_trace - cumulative_d_values[L]) / (n - L - 1) - s, 0.0)
     return v_hat
 
 # estimate the eta parameter for negative likelihood, using in computeNegativeLikelihood
@@ -576,13 +583,13 @@ def neg2llik(
 
     if torch.max(eta / (s + v)) > 1e20:
         return float("inf")
-    sPlusv = torch.tensor(s + v)
+    sPlusv = torch.as_tensor(s + v, device=d.device, dtype=d.dtype)
     log_det_term = torch.sum(torch.log(eta + sPlusv))
     log_sv_term = torch.log(sPlusv) * (sample_size - k)
     trace_term = sample_covariance_trace / (sPlusv)
     eta_term = torch.sum(d * eta / (eta + sPlusv)) / (sPlusv)
 
-    return sample_size * torch.log(torch.tensor(2 * torch.pi)) + log_det_term + log_sv_term + trace_term - eta_term
+    return sample_size * torch.log(torch.tensor(2 * torch.pi, device=d.device, dtype=d.dtype)) + log_det_term + log_sv_term + trace_term - eta_term
 
 # independent maximum likelihood estimation for autoFRK, using in selectBasis
 # check = none
@@ -930,9 +937,9 @@ def invCz(
     Returns:
         (1 x p) tensor
     """
-    R = R.to(device)
-    L = L.to(device)
-    z = z.to(device)
+    R = R.to(device).double()
+    L = L.to(device).double()
+    z = z.to(device).double()
 
     if z.dim() == 1:
         z = z.unsqueeze(1)
@@ -940,10 +947,10 @@ def invCz(
     K = L.shape[1]
     iR = torch.linalg.pinv(R)
     iRZ = iR @ z
-    right = L @ torch.linalg.inv(torch.eye(K, device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
+    right = L @ torch.linalg.inv(torch.eye(K, device=device, dtype=torch.float64) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
     result = iRZ - iR @ right
 
-    return result.T
+    return result.T.float()
 
 # using in indeMLE
 # check = none
@@ -1068,13 +1075,14 @@ def EM0miss(
             iDBt = db[tt]["iDBt"].to(device)
             zt = db[tt]["zt"].to(device)
             BiDBt = db[tt]["BiDBt"].to(device)
+            
             ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(Ptt1))
             iP = convertToPositiveDefinite(ginv_Ptt1 + BiDBt / old["s"])
             Ptt = torch.linalg.inv(iP)
             Gt = (Ptt @ iDBt.T) / old["s"]
             eta = Gt @ zt
             s1kk = torch.diagonal(BiDBt @ (eta.unsqueeze(1) @ eta.unsqueeze(0) + Ptt))
-
+            
             sumPtt += Ptt
             etatt[:, tt] = eta
             s1[tt] = torch.sum(s1kk)
@@ -1082,17 +1090,15 @@ def EM0miss(
         if vfixed is None:
             s = torch.max(
                 (torch.sum(ziDz) - 2 * torch.sum(ziDB * etatt.T) + torch.sum(s1)) / torch.sum(O),
-                torch.tensor(1e-8, device=ziDz.device)
+                torch.tensor(1e-8, dtype=ziDz.dtype, device=ziDz.device)
             )
-            new = {
-                "M": (etatt @ etatt.T + sumPtt) / TT,
-                "s": s,
-            }
+            new = {"M": (etatt @ etatt.T + sumPtt) / TT,
+                   "s": s,
+                   }
         else:
-            new = {
-                "M": (etatt @ etatt.T + sumPtt) / TT,
-                "s": vfixed.to(device),
-            }
+            new = {"M": (etatt @ etatt.T + sumPtt) / TT,
+                   "s": vfixed.to(device),
+                   }
 
         new["M"] = (new["M"] + new["M"].T) / 2
         dif = torch.sum(torch.abs(new["M"] - old["M"])) + torch.abs(new["s"] - old["s"])
@@ -1103,10 +1109,11 @@ def EM0miss(
     if verbose:
         info_msg = f'Number of iteration: {cnt}'
         LOGGER.info(info_msg)
+        
     n2loglik = computeLikelihood(data=data,
                                  Fk=Fk,
                                  M=new["M"],
-                                 S=new["s"],
+                                 s=new["s"],
                                  Depsilon=Depsilon,
                                  device=device
                                  )
@@ -1138,7 +1145,7 @@ def EM0miss(
             if torch.sum(obs_idx) == O.shape[0]:
                 wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], device=device))
             else:
-                wX_tt = DfromLK_wX[obs_idx]
+                wX_tt = DfromLK["wX"][obs_idx]
                 G = wX_tt.T @ wX_tt + lQ
                 wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
 

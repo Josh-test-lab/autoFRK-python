@@ -336,14 +336,11 @@ while ((dif > (avgtol * (100 * ncol_Fk^2))) && (cnt < maxit)) {
         s1[tt] <- sum(s1.eta.P[1, ])
     }
     if (is.null(vfixed)) {
-        s <- max((sum(ziDz) - 2 * sum(ziDB * t(etatt)) + 
-            sum(s1))/sum(O), 1e-08)
-        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, 
-            s = s)
+        s <- max((sum(ziDz) - 2 * sum(ziDB * t(etatt)) + sum(s1))/sum(O), 1e-08)
+        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, s = s)
     }
     else {
-        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, 
-            s = vfixed)
+        new <- list(M = (etatt %*% t(etatt) + sumPtt)/TT, s = vfixed)
     }
     new$M <- (new$M + t(new$M))/2
     dif <- sum(abs(new$M - old$M)) + abs(new$s - old$s)
@@ -353,7 +350,6 @@ while ((dif > (avgtol * (100 * ncol_Fk^2))) && (cnt < maxit)) {
 }
 if (verbose) 
     cat("Number of iteration: ", cnt, "\n")
-unlink(tmpdir, recursive = TRUE)
 n2loglik <- computeLikelihood(data, Fk, new$M, new$s, Depsilon)
 if (!wSave) {
     return(list(M = new$M, s = new$s, negloglik = n2loglik))
@@ -539,6 +535,22 @@ v <- estimateV(d, s, sample_covariance_trace, n)
 print(v)  # 預期結果: 正數
 
 ```
+```{r}
+if (max(d) < max(sample_covariance_trace/n, s)) {
+    return(max(sample_covariance_trace/n - s, 0))
+}
+k <- length(d)
+cumulative_d_values <- cumsum(d)
+ks <- 1:k
+if (k == n) 
+    ks[n] <- n - 1
+eligible_indexs <- which(d > ((sample_covariance_trace - 
+    cumulative_d_values)/(n - ks)))
+L <- max(eligible_indexs)
+if (L >= n) 
+    L <- n - 1
+return(max((sample_covariance_trace - cumulative_d_values[L])/(n - L) - s, 0))
+```
 
 ```{r}
 # neg2llik
@@ -556,20 +568,27 @@ print(result)
 ```{r}
 # computeNegativeLikelihood
 # ==== 測試資料 ====
-nrow_Fk <- 5
-ncol_Fk <- 2
-s <- 1.0
+nrow_Fk <- 3
+ncol_Fk <- 3
+s <- 0
 p <- 3
-sample_covariance_trace <- 12.0
-ldet <- 0.5
 
-# 正定對稱矩陣 matrix_JSJ
-matrix_JSJ <- matrix(c(4, 1, 1,
-                       1, 3, 0,
-                       1, 0, 2), nrow=3, byrow=TRUE)
-matrix_JSJ <- (matrix_JSJ + t(matrix_JSJ))/2
+# matrix_JSJ 對應 Python tensor
+matrix_JSJ <- matrix(c(
+  3.3333,  7.3333, 11.3333,
+  7.3333, 25.6667, 40.6667,
+  11.3333, 40.6667, 64.6667
+), nrow = nrow_Fk, ncol = ncol_Fk, byrow = TRUE)
 
-# ==== 呼叫 ====
+# sample_covariance_trace 對應 Python tensor([93.6667])
+sample_covariance_trace <- 93.6667
+
+# 其他參數
+vfixed <- NULL
+ldet <- 0.0
+device <- "cpu"  # 只作為標記，R 不用
+
+# ==== 呼叫 computeNegativeLikelihood (R 版本) ====
 res <- computeNegativeLikelihood(
   nrow_Fk = nrow_Fk,
   ncol_Fk = ncol_Fk,
@@ -577,10 +596,11 @@ res <- computeNegativeLikelihood(
   p = p,
   matrix_JSJ = matrix_JSJ,
   sample_covariance_trace = sample_covariance_trace,
+  vfixed = vfixed,
   ldet = ldet
 )
-print(res)
 
+print(res)
 ```
 
 ```{r}
@@ -703,7 +723,7 @@ M <- inverse_square_root_matrix %*% P %*% (d_hat * t(P)) %*%
 dimnames(M) <- NULL
 if (!wSave) {
     return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood))
-}else {
+} else {
     L <- Fk %*% t((sqrt(d_hat) * t(P)) %*% inverse_square_root_matrix)
     if (ncol_Fk > 2) {
         reduced_columns <- c(1, which(d_hat[2:ncol_Fk] > 0))
@@ -718,8 +738,7 @@ if (!wSave) {
     INVtZ <- iDZ - invD * right
     etatt <- as.matrix(M %*% t(Fk) %*% INVtZ)
     GM <- Fk %*% M
-    V <- as.matrix(M - t(GM) %*% invCz((s + v) * diag.spam(nrow_Fk), 
-        L, GM))
+    V <- as.matrix(M - t(GM) %*% invCz((s + v) * diag.spam(nrow_Fk),L, GM))
     return(list(v = v, M = M, s = s, negloglik = negative_log_likelihood, 
         w = etatt, V = V))
 }

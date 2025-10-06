@@ -1,7 +1,7 @@
 """
 Title: Setup file of autoFRK-Python Project
 Author: Hsu, Yao-Chih
-Version: 1140807
+Version: 1141007
 Reference:
 """
 

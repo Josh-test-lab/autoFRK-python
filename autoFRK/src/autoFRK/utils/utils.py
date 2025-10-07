@@ -1065,7 +1065,9 @@ def EM0miss(
         old["s"] = old["v"]
     else:
         old["s"] = vfixed.to(old["v"].device)
-    old["M"] = convertToPositiveDefinite(old["M"])
+    old["M"] = convertToPositiveDefinite(mat=old["M"],
+                                         device=device
+                                         )
     Ptt1 = old["M"]
 
     while (dif > (avgtol * (100 * (ncol_Fk ** 2)))) and (cnt < maxit):

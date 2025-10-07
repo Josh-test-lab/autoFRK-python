@@ -407,13 +407,12 @@ def cMLE(
     else:
         L = torch.zeros((nrow_Fk, 1), dtype=Fk.dtype, device=Fk.device)
 
-    return {
-        'v': v,
-        'M': M,
-        's': s,
-        'negloglik': negative_log_likelihood,
-        'L': L
-    }
+    return {'v': v,
+            'M': M,
+            's': s,
+            'negloglik': negative_log_likelihood,
+            'L': L
+            }
 
 # compute negative log likelihood for autoFRK, using in cMLE
 # check = ok
@@ -627,7 +626,7 @@ def indeMLE(
         D = torch.eye(data.shape[0], device=device).to_sparse()
 
     if not torch.allclose(D, torch.diag(torch.diagonal(D))):
-        D0 = toSparseMatrix(mat=D)
+        D0 = D
     else:
         D0 = torch.diag(torch.diag(D)).to_sparse()
 
@@ -646,7 +645,7 @@ def indeMLE(
 
     N = data.shape[0]
     K = Fk.shape[1]
-    Depsilon = toSparseMatrix(mat=D)
+    Depsilon = D
     is_diag = torch.allclose(D, torch.diag(torch.diagonal(D)))
     mean_diag = torch.mean(torch.diagonal(D))
     isimat = is_diag and torch.allclose(torch.diagonal(Depsilon), mean_diag.repeat(N), atol=1e-10)
@@ -805,7 +804,7 @@ def cMLEimat(
     if ncol_Fk > 2:
         reduced_columns = torch.cat([
             torch.tensor([0], device=device),
-            (d_hat[1:(ncol_Fk)] > 0).nonzero(as_tuple=True)[0]
+            (d_hat[1:(ncol_Fk - 1)] > 0).nonzero(as_tuple=True)[0]
         ])
     else:
         reduced_columns = torch.tensor([ncol_Fk - 1], device=device)
@@ -937,9 +936,12 @@ def invCz(
     Returns:
         (1 x p) tensor
     """
-    R = R.to(device).double()
-    L = L.to(device).double()
-    z = z.to(device).double()
+
+    dtype = R.dtype
+    if R.dtype != torch.float64:
+        R = R.to(dtype=torch.float64)
+        L = L.to(dtype=torch.float64)
+        z = z.to(dtype=torch.float64)
 
     if z.dim() == 1:
         z = z.unsqueeze(1)
@@ -947,13 +949,13 @@ def invCz(
     K = L.shape[1]
     iR = torch.linalg.pinv(R)
     iRZ = iR @ z
-    right = L @ torch.linalg.inv(torch.eye(K, device=device, dtype=torch.float64) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
+    right = L @ torch.linalg.inv(torch.eye(K, device=R.device, dtype=torch.float64) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
     result = iRZ - iR @ right
 
-    return result.T.float()
+    return result.T.to(dtype=dtype)
 
 # using in indeMLE
-# check = none
+# check = ok, but have some problem
 def EM0miss(
     Fk: torch.Tensor, 
     data: torch.Tensor, 
@@ -1078,7 +1080,7 @@ def EM0miss(
             
             ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(Ptt1))
             iP = convertToPositiveDefinite(ginv_Ptt1 + BiDBt / old["s"])
-            Ptt = torch.linalg.inv(iP)
+            Ptt = torch.linalg.inv(iP)  # will broken
             Gt = (Ptt @ iDBt.T) / old["s"]
             eta = Gt @ zt
             s1kk = torch.diagonal(BiDBt @ (eta.unsqueeze(1) @ eta.unsqueeze(0) + Ptt))

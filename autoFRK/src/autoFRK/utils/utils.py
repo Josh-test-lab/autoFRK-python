@@ -250,7 +250,6 @@ def selectBasis(
                                matrix_JSJ=matrix_JSJ
                                )["negloglik"]
 
-    # 計算 AIC 並選出最佳 K 值
     df = torch.where(
         K <= num_data_columns,
         (K * (K + 1) / 2 + 1),

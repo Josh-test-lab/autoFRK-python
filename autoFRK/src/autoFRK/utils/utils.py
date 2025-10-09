@@ -397,12 +397,12 @@ def cMLE(
     P = likelihood_object['P']
     d_hat = likelihood_object['d_hat']
     v = likelihood_object['v']
-    M = inverse_square_root_matrix @ P @ (d_hat * P.T) @ inverse_square_root_matrix
+    M = inverse_square_root_matrix @ P @ (torch.diag(d_hat) @ P.T) @ inverse_square_root_matrix
 
     if not wSave:
         L = None
     elif d_hat[0] != 0:
-        L = Fk @ ((torch.sqrt(d_hat) * P.T) @ inverse_square_root_matrix)
+        L = Fk @ ((torch.diag(torch.sqrt(d_hat)) @ P.T) @ inverse_square_root_matrix)
         L = L[:, d_hat > 0]
     else:
         L = torch.zeros((nrow_Fk, 1), dtype=Fk.dtype, device=Fk.device)

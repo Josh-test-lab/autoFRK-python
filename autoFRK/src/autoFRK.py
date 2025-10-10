@@ -22,6 +22,78 @@ LOGGER = setup_logger()
 
 # classes
 class autoFRK(nn.Module):
+    """
+    Automatic Fixed Rank Kriging
+
+    This function performs resolution-adaptive fixed rank kriging on spatial
+    data observed at one or multiple time points using a spatial random-effects
+    model:
+
+        z[t] = mu + G @ w[t] + eta[t] + e[t], 
+        w[t] ~ N(0, M), 
+        e[t] ~ N(0, s * D), 
+        t = 1, ..., T
+
+    where:
+        - z[t] is an n-vector of (partially) observed data at n locations
+        - mu is an n-vector of deterministic mean values
+        - D is a given n x n covariance matrix of measurement errors
+        - G is a given n x K basis function matrix
+        - eta[t] is an n-vector of random variables corresponding to a stationary spatial process
+        - w[t] is a K-vector of unobservable random weights
+
+    Parameters:
+        data (torch.Tensor): 
+            n x T data matrix (can contain NaN) with z[t] as the t-th column.
+        loc (torch.Tensor): 
+            n x d matrix of coordinates corresponding to n locations.
+        mu (torch.Tensor or float, optional): 
+            n-vector or scalar for the mean mu. Default is 0.
+        D (torch.Tensor, optional): 
+            n x n covariance matrix for measurement errors. Default is identity matrix.
+        G (torch.Tensor, optional): 
+            n x K matrix of basis function values. Default is None (automatically determined).
+        finescale (bool, optional): 
+            If True, include an approximate stationary finer-scale process eta[t].
+            Only the diagonals of D are used. Default is False.
+        maxit (int, optional): 
+            Maximum number of iterations. Default is 50.
+        tolerance (float, optional): 
+            Precision tolerance for convergence check. Default is 1e-6.
+        maxK (int, optional): 
+            Maximum number of basis functions considered. Default: 10*sqrt(n) if n>100 else n.
+        Kseq (torch.Tensor, optional): 
+            User-specified sequence of number of basis functions. Default is None.
+        method (str, optional): 
+            "fast" for k-nearest-neighbor imputation; "EM" for EM algorithm. Default is "fast".
+        n_neighbor (int, optional): 
+            Number of neighbors for the "fast" method. Default is 3.
+        maxknot (int, optional): 
+            Maximum number of knots for generating basis functions. Default is 5000.
+
+    Returns:
+        dict
+            Object of class FRK, with keys:
+                - 'M': ML estimate of M
+                - 's': estimate of the scale parameter of measurement errors
+                - 'negloglik': negative log-likelihood
+                - 'w': K x T matrix with w[t] as the t-th column
+                - 'V': K x K prediction error covariance matrix of w[t]
+                - 'G': user-specified or automatically generated basis function matrix
+                - 'LKobj': list from calling LKrig.MLE if useLK=True; else None
+
+    Notes:
+    Computes the ML estimate of M using the closed-form expression in
+    Tzeng and Huang (2018). For large n, it is recommended to provide D as
+    a sparse matrix.
+
+    References:
+    - Tzeng, S., & Huang, H.-C. (2018). Resolution Adaptive Fixed Rank Kriging,
+      Technometrics. https://doi.org/10.1080/00401706.2017.1345701
+    - Nychka D, Hammerling D, Sain S, Lenssen N (2016). LatticeKrig: Multiresolution
+      Kriging Based on Markov Random Fields. R package version 8.4.
+      https://github.com/NCAR/LatticeKrig
+    """
     def __init__(self,
                  mu: Union[float, torch.Tensor]=0.0, 
                  D: torch.Tensor=None, 

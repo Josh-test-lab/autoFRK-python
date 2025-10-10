@@ -21,7 +21,7 @@ from autoFRK.utils.utils import *
 LOGGER = setup_logger()
 
 # classes
-class autoFRK(nn.Module):
+class AutoFRK(nn.Module):
     """
     Automatic Fixed Rank Kriging
 
@@ -106,30 +106,41 @@ class autoFRK(nn.Module):
                  method: str="fast", 
                  n_neighbor: int=3, 
                  maxknot: int=5000,
+                 dtype: torch.dtype=torch.float64,
                  device: Optional[Union[torch.device, str]]=None
                  ):
         """
-        
+        Initialize autoFRK model with tensor-safe and device-aware configuration.
         """
         super().__init__()
-        self.mu = mu
-        self.D = D
-        self.G = G
+
+        # setup device
+        self.device = setup_device(device=device)
+
+        # dtype check
+        if not isinstance(dtype, torch.dtype):
+            error_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}"
+            LOGGER.error(error_msg)
+            raise TypeError(error_msg)
+        self.dtype = dtype
+
+        # multi-GPU wrapper flag
+        #self.dp_wrapper = torch.cuda.device_count() > 1
+
+        # convert all major parameters
+        self.mu = to_tensor(mu, dtype=dtype, device=self.device)
+        self.D = to_tensor(D, dtype=dtype, device=self.device) if D is not None else None
+        self.G = to_tensor(G, dtype=dtype, device=self.device) if G is not None else None
+        self.Kseq = to_tensor(Kseq, dtype=dtype, device=self.device) if Kseq is not None else None
+
+        # other parameters
         self.finescale = finescale
         self.maxit = maxit
         self.tolerance = tolerance
         self.maxK = maxK
-        self.Kseq = Kseq
         self.method = method
         self.n_neighbor = n_neighbor
         self.maxknot = maxknot
-        self.device = setup_device(device=device)
-        
-        # 支援多GPU用 DataParallel
-        if torch.cuda.device_count() > 1:
-            self.dp_wrapper = True
-        else:
-            self.dp_wrapper = False
 
     def forward(self, 
                 data: torch.Tensor, 
@@ -138,107 +149,92 @@ class autoFRK(nn.Module):
         """
 
         """
-        data = data.to(self.device)
-        loc = loc.to(self.device)
+        data = to_tensor(data, dtype=self.dtype, device=self.device)
+        loc = to_tensor(loc, dtype=self.dtype, device=self.device)
         
-        # Step 1: 中心化
         data = data - self.mu
-        
-        # Step 2: 取得 basis Fk
         if self.G is not None:
             Fk = self.G.to(self.device)
         else:
             Fk = selectBasis(data, 
-                              loc, 
-                              self.D, 
-                              self.maxit, 
-                              self.tolerance,
-                              self.maxK, 
-                              self.Kseq, 
-                              self.method, 
-                              self.n_neighbor,
-                              self.maxknot, 
-                              None
-                              ).to(self.device)
+                             loc,
+                             self.D, 
+                             self.maxit, 
+                             self.tolerance,
+                             self.maxK, 
+                             self.Kseq, 
+                             self.method, 
+                             self.n_neighbor,
+                             self.maxknot, 
+                             None
+                             ).to(self.device)
         
         K = Fk.shape[1]
-        
-        # Step 3: 若是 fast 方法，針對缺值用鄰近均值填補
-        if self.method == "fast":
-            data = fast_mode_knn(data=data,
-                                 loc=loc, 
-                                 n_neighbor=self.n_neighbor
-                                 ).to(self.device)
-        elif self.method == "fast_sklearn":  # avoid the OpenMP issue
+        if self.method == "fast":  # have OpenMP issue
             data = fast_mode_knn_sklearn(data=data,
                                          loc=loc, 
                                          n_neighbor=self.n_neighbor
                                          ).to(self.device)
+        elif self.method == "fast_faiss":
+            data = fast_mode_knn_faiss(data=data,
+                                       loc=loc, 
+                                       n_neighbor=self.n_neighbor
+                                       ).to(self.device)
         
-        # Step 4: finescale 分支 or 否
         if not self.finescale:
             obj = indeMLE(data=data,
                           Fk=Fk[:, :K],
-                          D=self.D.to(self.device) if self.D is not None else None,
+                          D=self.D,
                           maxit=self.maxit,
                           avgtol=self.tolerance,
                           wSave=True,
-                          DfromLK=None)
+                          DfromLK=None
+                          )
+            
         else:
-            # 以下部分參數要根據你程式環境設定
-            # 例如 nu, nlevel, a_wght, NC 等參數，你要自行定義或提供
+            # all codes here only for testing
             nu = 1
             nlevel = 3
             a_wght = None  # torch.Tensor or None
-            NC = 10  # 假設一個值
+            NC = 10
             
-            LK_obj = initializeLKnFRK(data=data, location=loc, nlevel=nlevel,
-                                     weights=1.0 / torch.diag(self.D),
-                                     n_neighbor=self.n_neighbor, nu=nu)
+            LK_obj = initializeLKnFRK(data=data,
+                                      location=loc,
+                                      nlevel=nlevel,
+                                      weights=1.0 / torch.diag(self.D),
+                                      n_neighbor=self.n_neighbor,
+                                      nu=nu
+                                      )
             
-            DnLK = setLKnFRKOption(LK_obj, Fk[:, :K], nc=NC, a_wght=a_wght)
+            DnLK = setLKnFRKOption(LK_obj,
+                                   Fk[:, :K],
+                                   nc=NC,
+                                   a_wght=a_wght
+                                   )
             DfromLK = DnLK['DfromLK']
             LKobj = DnLK['LKobj']
-            
-            # Depsilon = diag.spam(LK_obj$weight[LK_obj$pick], length(LK_obj$weight[LK_obj$pick])) 
-            # 這段R特有，請自行處理
-            
             obj = indeMLE(data=data,
                           Fk=Fk[:, :K],
-                          D=self.D.to(self.device) if self.D is not None else None,
+                          D=self.D,
                           maxit=self.maxit,
                           avgtol=self.tolerance,
                           wSave=True,
                           DfromLK=DfromLK,
-                          vfixed=DnLK.get('s', None))
-            obj['LKobj'] = LKobj
+                          vfixed=DnLK.get('s', None)
+                          )
         
         obj['G'] = Fk
         
-        if not self.finescale:
-            obj['LKobj'] = None
+        if self.finescale:
+            obj['LKobj'] = LKobj
+            obj.setdefault('pinfo', {})
+            obj['pinfo']["loc"] = loc
+            obj['pinfo']["weights"] = 1.0 / torch.diag(self.D)
+        else:
+            obj['LKobj'] = None        
         
-        # 返回一個 dict 結果（可依需求包成class）
         return obj
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# functions
 
 
 # main program

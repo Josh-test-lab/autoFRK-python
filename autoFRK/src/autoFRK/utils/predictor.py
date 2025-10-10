@@ -14,7 +14,6 @@ sys.path.append(os.path.abspath("./src"))
 import os
 import torch
 import numpy as np
-import faiss
 import gc
 from typing import Optional, Union
 from autoFRK.utils.logger import setup_logger

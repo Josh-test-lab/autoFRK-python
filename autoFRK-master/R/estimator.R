@@ -116,8 +116,8 @@ EM0miss <- function(Fk,
   old <- cMLEimat(Fk, Z0, s = 0, wSave = TRUE)
   if (is.null(vfixed)) {
     old$s <- old$v
-  }else{
-    old$s <- vfixed}
+  }else{}
+    old$s <- vfixed
   old$M <- convertToPositiveDefinite(old$M)
   Ptt1 <- old$M
   if (external)

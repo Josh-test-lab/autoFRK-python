@@ -335,7 +335,7 @@ def subKnot(
     return x[index]
 
 # compute negative log likelihood for autoFRK, using in selectBasis
-# check = none
+# check = ok
 def cMLE(
     Fk: torch.Tensor,
     num_columns: int,
@@ -581,16 +581,16 @@ def neg2llik(
 
     if torch.max(eta / (s + v)) > 1e20:
         return float("inf")
-    sPlusv = torch.as_tensor(s + v, device=d.device, dtype=d.dtype)
-    log_det_term = torch.sum(torch.log(eta + sPlusv))
-    log_sv_term = torch.log(sPlusv) * (sample_size - k)
-    trace_term = sample_covariance_trace / (sPlusv)
-    eta_term = torch.sum(d * eta / (eta + sPlusv)) / (sPlusv)
+    s_plus_v = torch.as_tensor(s + v, device=d.device, dtype=d.dtype)
+    log_det_term = torch.sum(torch.log(eta + s_plus_v))
+    log_sv_term = torch.log(s_plus_v) * (sample_size - k)
+    trace_term = sample_covariance_trace / (s_plus_v)
+    eta_term = torch.sum(d * eta / (eta + s_plus_v)) / (s_plus_v)
 
     return sample_size * torch.log(torch.tensor(2 * torch.pi, device=d.device, dtype=d.dtype)) + log_det_term + log_sv_term + trace_term - eta_term
 
 # independent maximum likelihood estimation for autoFRK, using in selectBasis
-# check = none
+# check = ok
 def indeMLE(
     data: torch.Tensor,
     Fk: torch.Tensor,
@@ -604,9 +604,34 @@ def indeMLE(
     device: Optional[Union[torch.device, str]]='cpu'
 ) -> dict:
     """
-    
+    Internal function: indeMLE
+
+    Parameters:
+        data (torch.Tensor): 
+            n x T data matrix (NA allowed), where each column is z[t].
+        Fk (torch.Tensor): 
+            n x K matrix of basis function values; each column is a basis function evaluated at observation locations.
+        D (torch.Tensor, optional): 
+            n x n diagonal matrix.
+        maxit (int, default 50): 
+            Maximum number of iterations.
+        avgtol (float, default 1e-6): 
+            Average tolerance for convergence.
+        wSave (bool, default False): 
+            Whether to compute and return weight and covariance matrices.
+        DfromLK (dict, optional): 
+            n x n matrix or dictionary of low-rank kernel precomputations.
+        vfixed (float, optional): 
+            Fixed variance parameter (if provided, overrides estimation).
+        verbose (bool, default True): 
+            Print useful information during computation.
+        device (str or torch.device, default 'cpu'): 
+            Device to perform computation on.
+
+    Returns:
+        dict
+            Dictionary containing estimated matrices, variance parameters, and optional diagnostic information.
     """
-    device = torch.device(device)
     data = data.to(device)
     Fk = Fk.to(device)
 
@@ -622,12 +647,12 @@ def indeMLE(
     pick = torch.arange(data.shape[0], device=device)
 
     if D is None:
-        D = torch.eye(data.shape[0], device=device).to_sparse()
+        D = torch.eye(data.shape[0], device=device)
 
-    if not torch.allclose(D, torch.diag(torch.diagonal(D))):
+    if not isDiagonal(D):
         D0 = D
     else:
-        D0 = torch.diag(torch.diag(D)).to_sparse()
+        D0 = torch.diag(torch.diag(D))
 
     if withNA and len(del_rows) > 0:
         pick = pick[~torch.isin(pick, del_rows)]
@@ -651,15 +676,16 @@ def indeMLE(
 
     if not withNA:
         if isimat and DfromLK is None:
-            sigma = 0  # we cannot find `.Option$sigma_FRK` in the R code # need fix
+            sigma = 0  # we cannot find `.Option$sigma_FRK` in the R code  # outside
             out = cMLEimat(Fk, 
                            data, 
                            s=sigma, 
-                           wSave=wSave
+                           wSave=wSave,
+                           device=device
                            )
             if out['v'] is not None:
                 out['s'] = out['v'] if sigma == 0 else sigma
-                del out['v']
+                out.pop("v", None)
             if wSave:
                 w = torch.zeros((K, TT), device=device)
                 w[:, notempty] = out['w']
@@ -668,11 +694,13 @@ def indeMLE(
                                 'pick': pick
                                 }
             return out
+        
         elif DfromLK is None:
             out = cMLEsp(Fk, 
                          data, 
                          Depsilon, 
-                         wSave
+                         wSave,
+                         device=device
                          )
             if wSave:
                 w = torch.zeros((K, TT), device=device)
@@ -682,19 +710,22 @@ def indeMLE(
                                 'pick': pick
                                 }
             return out
+        
         else:
             out = cMLElk(Fk, 
                          data, 
                          Depsilon, 
                          wSave, 
                          DfromLK, 
-                         vfixed
+                         vfixed,
+                         device=device
                          )
             if wSave:
                 w = torch.zeros((K, TT), device=device)
                 w[:, notempty] = out['w']
                 out['w'] = w
             return out
+        
     else:
         out = EM0miss(Fk, 
                       data, 
@@ -704,7 +735,8 @@ def indeMLE(
                       wSave,
                       DfromLK=DfromLK, 
                       vfixed=vfixed, 
-                      verbose=verbose
+                      verbose=verbose,
+                      device=device
                       )
         if wSave:
             w = torch.zeros((K, TT), device=device)
@@ -1376,143 +1408,221 @@ def calculateLogDeterminant(
     return (first_part_determinant + second_part_determinant).item()
 
 # using in indeMLE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# check = ok
+def cMLEsp(
+    Fk: torch.Tensor,
+    data: torch.Tensor,
+    Depsilon: torch.Tensor,
+    wSave: bool = False,
+    device: Optional[Union[str, torch.device]] = 'cpu'
+) -> dict:
+    """
+    Internal function: cMLEsp
+
+    Parameters:
+        Fk (torch.Tensor): 
+            (n × K) matrix of basis function values at observation locations.
+
+        data (torch.Tensor): 
+            (n × T) data matrix (can contain NaN).
+
+        Depsilon (torch.Tensor): 
+            (n × n) diagonal covariance matrix (measurement error variances).
+
+        wSave (bool, default=False): 
+            Whether to compute and return weight and covariance matrices.
+
+        device (torch.device or str, optional): 
+            Device for computation.
+
+        dtype (torch.dtype, optional): 
+            Data precision.
+
+    Returns:
+        dict
+            Dictionary containing:
+            - 'M', 's', and (if wSave=True) 'w', 'V'
+    """
+    Fk = Fk.to(device=device)
+    data = data.to(device=device)
+    De = Depsilon.to(device=device)
+    iD = torch.linalg.inv(De)
+    ldetD = logDeterminant(De).item()
+    iDFk = iD @ Fk
+    num_columns = data.shape[1]
+
+    projection = computeProjectionMatrix(Fk,
+                                         iDFk,
+                                         data
+                                         )
+    inverse_square_root_matrix = projection["inverse_square_root_matrix"]
+    matrix_JSJ = projection["matrix_JSJ"]
+
+    trS = torch.sum((iD @ data) * data) / num_columns
+    out = cMLE(Fk,
+               num_columns,
+               trS,
+               inverse_square_root_matrix,
+               matrix_JSJ,
+               s = 0,
+               ldet = ldetD,
+               wSave = wSave
+               )
+
+    if wSave:
+        L = out["L"]
+        s_plus_v = out["s"] + out["v"]
+        invD = iD / s_plus_v
+        iDZ = invD @ data
+        right0 = L @ torch.linalg.solve(
+            torch.eye(L.shape[1], device=device) + L.T @ (invD @ L),
+            torch.eye(L.shape[1], device=device)
+        )
+
+        INVtZ = iDZ - invD @ right0 @ (L.T @ iDZ)
+        etatt = out["M"] @ Fk.T @ INVtZ
+        out["w"] = etatt
+        GM = Fk @ out["M"]
+        iDGM = invD @ GM
+        out["V"] = out["M"] - GM.T @ (iDGM - invD @ right0 @ (L.T @ iDGM))
+
+    out["s"] = out["v"]
+    out.pop("v", None)
+    out.pop("L", None)
+    return out
+
+# using in cMLEsp
+# check = ok
+def logDeterminant(
+    mat: torch.Tensor
+) -> torch.Tensor:
+    """
+    Internal function: log-determinant of a square matrix
+
+    Parameters:
+        mat (torch.Tensor): 
+            Square matrix whose log-determinant will be computed.
+
+    Returns:
+        torch.Tensor:
+            The log-determinant of the input matrix.
+    """
+    return torch.logdet(mat.abs())
+
+# using in indeMLE
+# check = ok
+def cMLElk(
+    Fk: torch.Tensor,
+    data: torch.Tensor,
+    Depsilon: torch.Tensor,
+    wSave: bool = False,
+    DfromLK: dict = None,
+    vfixed: float = None,
+    device: Optional[Union[str, torch.device]] = 'cpu'
+) -> dict:
+    """
+    Internal function: cMLElk
+
+    Parameters:
+        Fk (torch.Tensor):
+            (n × K) matrix of basis function values, where each column
+            represents a basis function evaluated at the observation locations.
+
+        data (torch.Tensor):
+            (n × T) data matrix (can contain NaN) with z[t] as the t-th column.
+
+        Depsilon (torch.Tensor):
+            (n × n) diagonal covariance matrix of measurement errors.
+
+        wSave (bool, default=False):
+            Whether to compute and return additional weight and covariance matrices.
+
+        DfromLK (dict):
+            Dictionary containing precomputed quantities from the low-rank kernel step:
+                - 'lambda' (float): regularization parameter.
+                - 'pick' (list[int]): indices of selected observations.
+                - 'wX' (torch.Tensor): weighted design matrix.
+                - 'weights' (torch.Tensor): vector of weights.
+                - 'Q' (torch.Tensor): penalty matrix.
+
+        vfixed (float, optional):
+            Fixed variance parameter (if provided, overrides estimation).
+
+    Returns:
+        dict:
+            Dictionary containing:
+                - 'M' (torch.Tensor): estimated model matrix.
+                - 's' (float): variance parameter.
+                - 'w' (torch.Tensor, optional): estimated weights if wSave=True.
+                - 'V' (torch.Tensor, optional): covariance matrix of weights.
+                - 'pinfo' (dict, optional): diagnostic info with 'wlk' and 'pick'.
+    """
+    num_columns = data.shape[1]
+    lambda_ = DfromLK["lambda"]
+    pick = DfromLK["pick"]
+    wX = DfromLK["wX"]
+    weight = DfromLK["weights"]
+    Q = DfromLK["Q"]
+
+    if len(pick) < wX.shape[0]:
+        wX = wX[pick, :]
+        weight = weight[pick]
+
+    G = wX.T @ wX + lambda_ * Q
+    wwX = torch.diag(torch.sqrt(weight)) @ wX
+    wXiG = wwX @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
+    iDFk = weight.unsqueeze(1) * Fk - wXiG @ wwX.T @ Fk
+
+    projection = computeProjectionMatrix(Fk,
+                                         iDFk,
+                                         data
+                                         )
+    inverse_square_root_matrix = projection["inverse_square_root_matrix"]
+    matrix_JSJ = projection["matrix_JSJ"]
+    iDZ = weight.unsqueeze(1) * data - wXiG @ (wwX.T @ data)
+    trS = torch.sum(iDZ * data) / num_columns
+    ldetD = (
+        -Q.shape[0] * torch.log(torch.tensor(lambda_, device=device))
+        + logDeterminant(G)
+        - logDeterminant(Q)
+        - torch.sum(torch.log(weight))
+    ).item()
+
+    out = cMLE(Fk=Fk,
+               num_columns=num_columns,
+               sample_covariance_trace=trS,
+               inverse_square_root_matrix=inverse_square_root_matrix,
+               matrix_JSJ=matrix_JSJ,
+               s=0,
+               ldet=ldetD,
+               wSave=True,
+               onlylogLike=False,
+               vfixed=vfixed,
+               device=device
+               )
+    L = out["L"]
+    out["s"] = out["v"]
+    out.pop("v", None)
+    out.pop("L", None)
+    if not wSave:
+        return out
+
+    iDL = weight.unsqueeze(1) * L - wXiG @ (wwX.T @ L)
+    itmp = torch.linalg.solve(
+        torch.eye(L.shape[1], device=device) + (L.T @ iDL) / out["s"],
+        torch.eye(L.shape[1], device=device),
+    )
+    iiLiD = itmp @ (iDL.T / out["s"])
+    MFiS11 = (out["M"] @ (iDFk.T / out["s"]) - ((out["M"] @ (iDFk.T / out["s"])) @ L) @ iiLiD)
+    out["w"] = MFiS11 @ data
+    out["V"] = MFiS11 @ (Fk @ out["M"])
+    wlk = wXiG.T @ data - wXiG.T @ L @ (iiLiD @ data)
+
+    out["pinfo"] = {"wlk": wlk,
+                    "pick": pick
+                    }
+
+    return out
 
 
 

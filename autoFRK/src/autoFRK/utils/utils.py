@@ -16,7 +16,7 @@ import torch
 import numpy as np
 import faiss
 import gc
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from sklearn.neighbors import NearestNeighbors
 from scipy.optimize import minimize_scalar
 from autoFRK.utils.logger import setup_logger
@@ -26,10 +26,10 @@ from autoFRK.mrts import MRTS
 LOGGER = setup_logger()
 
 # change into tensor, using in autoFRK
-# check = none
+# check = ok
 def to_tensor(
-    obj,
-    dtype=torch.float64,
+    obj: Any,
+    dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> torch.Tensor:
     """
@@ -180,6 +180,7 @@ def selectBasis(
     max_knot: int = 5000,
     DfromLK: dict = None,
     Fk: torch.Tensor = None,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> torch.Tensor:
     # 去除全為 NaN 的欄位
@@ -191,7 +192,7 @@ def selectBasis(
 
     # 找出整行都是 NaN 的列（完全缺失）
     na_rows = torch.isnan(data).all(dim=1)
-    pick = torch.arange(data.shape[0])
+    pick = torch.arange(data.shape[0], dtype=dtype, device=device)
     if na_rows.any():
         data = data[~na_rows]
         loc = loc[~na_rows]  # 同步刪除 loc 中相同的行 need fix
@@ -201,7 +202,7 @@ def selectBasis(
 
     # 如果 D 未提供，則初始化為單位對角矩陣
     if D is None:
-        D = torch.eye(data.shape[0], device=data.device)
+        D = torch.eye(data.shape[0], dtype=dtype, device=device)
 
     # 取得位置維度
     d = loc.shape[1]
@@ -212,14 +213,17 @@ def selectBasis(
     if N < max_knot:
         knot = loc[pick, :]
     else:
-        knot = subKnot(x=loc[pick, :],
-                       nknot=min(max_knot, klim),
-                       device=device
-                       ).to(device=device)
+        knot = subKnot(x        = loc[pick, :],
+                       nknot    = min(max_knot, klim),
+                       xrng     = None,
+                       nsamp    = 1,
+                       dtype    = dtype,
+                       device   = device
+                       )
 
     # 處理 K 值
     if max_rank is not None:
-        max_rank = round(max_rank)
+        max_rank = torch.round(max_rank)
     else:
         max_rank = torch.round(torch.max(sequence_rank)).to(torch.int) if sequence_rank is not None else klim
 
@@ -239,9 +243,9 @@ def selectBasis(
         K = K[K > d]
     else:
         step = max_rank ** (1/3) * d
-        K = torch.arange(d + 1, max_rank, step).round().to(torch.int).unique()
+        K = torch.arange(d + 1, max_rank, step, dtype=dtype, device=device).round().to(torch.int).unique()
         if len(K) > 30:
-            K = torch.linspace(d + 1, max_rank, 30).round().to(torch.int).unique()
+            K = torch.linspace(d + 1, max_rank, 30, dtype=dtype, device=device).round().to(torch.int).unique()
 
     # Fk 為 None 時初始化 basis function 值
     if Fk is None:
@@ -253,19 +257,24 @@ def selectBasis(
 
     if method == "EM" and DfromLK is None:
         for k in range(len(K)):
-            AIC_list[k] = indeMLE(data,
-                                  Fk[pick, :K[k]],
-                                  D,
-                                  maxit,
-                                  avgtol,
-                                  wSave=False,
-                                  verbose=False
+            AIC_list[k] = indeMLE(data  = data,
+                                  Fk    = Fk[pick, :K[k]],
+                                  D     = D,
+                                  maxit = maxit,
+                                  avgtol= avgtol,
+                                  wSave = False,
+                                  DfromLK= None,
+                                  vfixed = None,
+                                  verbose= False,
+                                  dtype  = dtype,
+                                  device = device
                                   )["negloglik"]
+
     else:
         if is_data_with_missing_values:
             data = fast_mode_knn_sklearn(data=data, loc=loc, n_neighbor=num_neighbors) 
         if DfromLK is None:
-            iD = torch.linalg.solve(D, torch.eye(D.shape[0], device=D.device))
+            iD = torch.linalg.solve(D, torch.eye(D.shape[0], dtype=dtype, device=device))
             iDFk = iD @ Fk[pick, :]
             iDZ = iD @ data
         else:
@@ -282,16 +291,25 @@ def selectBasis(
         for k in range(len(K)):
             Fk_k = Fk[pick, :K[k]]
             iDFk_k = iDFk[:, :K[k]]
-            inverse_square_root_matrix = get_inverse_square_root_matrix(Fk_k, iDFk_k)
+            inverse_square_root_matrix = get_inverse_square_root_matrix(left_matrix  = Fk_k,
+                                                                        right_matrix = iDFk_k
+                                                                        )
             ihFiD = inverse_square_root_matrix @ iDFk_k.T
             tmp = torch.matmul(ihFiD, data)
             matrix_JSJ = torch.matmul(tmp, tmp.T) / num_data_columns
             matrix_JSJ = (matrix_JSJ + matrix_JSJ.T) / 2
-            AIC_list[k] = cMLE(Fk=Fk_k,
-                               num_columns=num_data_columns,
-                               sample_covariance_trace=sample_covariance_trace,
-                               inverse_square_root_matrix=inverse_square_root_matrix,
-                               matrix_JSJ=matrix_JSJ
+            AIC_list[k] = cMLE(Fk                           = Fk_k,
+                               num_columns                  = num_data_columns,
+                               sample_covariance_trace      = sample_covariance_trace,
+                               inverse_square_root_matrix   = inverse_square_root_matrix,
+                               matrix_JSJ                   = matrix_JSJ,
+                               s                            =  0,
+                               ldet                         =  0,
+                               wSave                        =  False,
+                               onlylogLike                  =  None,
+                               vfixed                       =  None,
+                               dtype                        = dtype,
+                               device                       = device
                                )["negloglik"]
 
     df = torch.where(
@@ -306,7 +324,10 @@ def selectBasis(
     return out
 
 # check = ok
-def get_inverse_square_root_matrix(left_matrix, right_matrix):
+def get_inverse_square_root_matrix(
+    left_matrix,
+    right_matrix
+):
     mat = left_matrix.T @ right_matrix  # A^T * B
     mat = (mat + mat.T) / 2
     eigvals, eigvecs = torch.linalg.eigh(mat)
@@ -320,6 +341,7 @@ def subKnot(
     nknot: int, 
     xrng: torch.Tensor = None, 
     nsamp: int = 1, 
+    dtype: torch.dtype=torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     x = x.to(device)
@@ -391,6 +413,7 @@ def cMLE(
     wSave: bool = False,
     onlylogLike: bool = None,
     vfixed: float = None,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> dict:
     """
@@ -559,7 +582,7 @@ def estimateV(
 
     k = d.shape[0]
     cumulative_d_values = torch.cumsum(d, dim=0)
-    ks = torch.arange(1, k + 1, device=d.device)
+    ks = torch.arange(1, k + 1, dtype=dtype, device=device)
     if k == n:
         ks[-1] = n - 1
 
@@ -645,6 +668,7 @@ def indeMLE(
     DfromLK: Optional[dict] = None,
     vfixed: Optional[float] = None,
     verbose: bool = True,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
@@ -688,10 +712,10 @@ def indeMLE(
         data = data[:, notempty]
 
     del_rows = torch.isnan(data).all(dim=1).nonzero(as_tuple=True)[0]
-    pick = torch.arange(data.shape[0], device=device)
+    pick = torch.arange(data.shape[0], dtype=dtype, device=device)
 
     if D is None:
-        D = torch.eye(data.shape[0], device=device)
+        D = torch.eye(data.shape[0], dtype=dtype, device=device)
 
     if not isDiagonal(D):
         D0 = D
@@ -700,13 +724,13 @@ def indeMLE(
 
     if withNA and len(del_rows) > 0:
         pick = pick[~torch.isin(pick, del_rows)]
-        data = data[~torch.isin(torch.arange(data.shape[0], device=device), del_rows), :]
-        Fk = Fk[~torch.isin(torch.arange(Fk.shape[0], device=device), del_rows), :]
+        data = data[~torch.isin(torch.arange(data.shape[0], dtype=dtype, device=device), del_rows), :]
+        Fk = Fk[~torch.isin(torch.arange(Fk.shape[0], dtype=dtype, device=device), del_rows), :]
         if not torch.allclose(D, torch.diag(torch.diagonal(D))):
-            D = D[~torch.isin(torch.arange(D.shape[0], device=device), del_rows)][:, ~torch.isin(torch.arange(D.shape[1], device=device), del_rows)]
+            D = D[~torch.isin(torch.arange(D.shape[0], dtype=dtype, device=device), del_rows)][:, ~torch.isin(torch.arange(D.shape[1], dtype=dtype, device=device), del_rows)]
         else:
-            keep_mask = ~torch.isin(torch.arange(D.shape[0], device=device), del_rows)
-            full_diag = torch.zeros(D.shape[0], device=device)
+            keep_mask = ~torch.isin(torch.arange(D.shape[0], dtype=dtype, device=device), del_rows)
+            full_diag = torch.zeros(D.shape[0], dtype=dtype, device=device)
             full_diag[keep_mask] = torch.diagonal(D)[keep_mask]
             D = torch.diag(full_diag)
         withNA = torch.isnan(data).any().item()
@@ -997,6 +1021,7 @@ def invCz(
     R: torch.Tensor, 
     L: torch.Tensor, 
     z: torch.Tensor, 
+    dtype: torch.dtype=torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
@@ -1011,23 +1036,16 @@ def invCz(
     Returns:
         (1 x p) tensor
     """
-
-    dtype = R.dtype
-    if R.dtype != torch.float64:
-        R = R.to(dtype=torch.float64)
-        L = L.to(dtype=torch.float64)
-        z = z.to(dtype=torch.float64)
-
     if z.dim() == 1:
         z = z.unsqueeze(1)
 
     K = L.shape[1]
     iR = torch.linalg.pinv(R)
     iRZ = iR @ z
-    right = L @ torch.linalg.inv(torch.eye(K, device=R.device, dtype=torch.float64) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
+    right = L @ torch.linalg.inv(torch.eye(K, dtype=dtype ,device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
     result = iRZ - iR @ right
 
-    return result.T.to(dtype=dtype)
+    return result.T
 
 # using in indeMLE
 # check = ok, but have some problem
@@ -1065,7 +1083,7 @@ def EM0miss(
         pick = DfromLK.get("pick", None)
         weights = DfromLK["weights"].clone().detach()
         if pick is None:
-            pick = torch.arange(len(weights), device=device)
+            pick = torch.arange(len(weights), dtype=dtype, device=device)
         else:
             pick = torch.tensor(pick, dtype=torch.long, device=device)
         weight = weights[pick]

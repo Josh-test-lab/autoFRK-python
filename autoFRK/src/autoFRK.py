@@ -11,16 +11,17 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from typing import Optional, Union
+from typing import Optional, Union, Any, Dict
 import datetime
 from autoFRK.utils.logger import setup_logger
 from autoFRK.utils.device import setup_device
 from autoFRK.utils.utils import *
+from autoFRK.utils.predictor import *
 
 # logger config
 LOGGER = setup_logger()
 
-# classes
+# class AutoFRK
 class AutoFRK(nn.Module):
     """
     Automatic Fixed Rank Kriging
@@ -94,21 +95,22 @@ class AutoFRK(nn.Module):
       Kriging Based on Markov Random Fields. R package version 8.4.
       https://github.com/NCAR/LatticeKrig
     """
-    def __init__(self,
-                 mu: Union[float, torch.Tensor]=0.0, 
-                 D: torch.Tensor=None, 
-                 G: torch.Tensor=None,
-                 finescale: bool=False, 
-                 maxit: int=50, 
-                 tolerance: float=1e-6,
-                 maxK: int=None, 
-                 Kseq: torch.Tensor=None, 
-                 method: str="fast", 
-                 n_neighbor: int=3, 
-                 maxknot: int=5000,
-                 dtype: torch.dtype=torch.float64,
-                 device: Optional[Union[torch.device, str]]=None
-                 ):
+    def __init__(
+        self,
+        mu: Union[float, torch.Tensor]=0.0, 
+        D: torch.Tensor=None, 
+        G: torch.Tensor=None,
+        finescale: bool=False, 
+        maxit: int=50, 
+        tolerance: float=1e-6,
+        maxK: int=None, 
+        Kseq: torch.Tensor=None, 
+        method: str="fast", 
+        n_neighbor: int=3, 
+        maxknot: int=5000,
+        dtype: torch.dtype=torch.float64,
+        device: Optional[Union[torch.device, str]]=None
+        ):
         """
         Initialize autoFRK model with tensor-safe and device-aware configuration.
         """
@@ -142,10 +144,11 @@ class AutoFRK(nn.Module):
         self.n_neighbor = n_neighbor
         self.maxknot = maxknot
 
-    def forward(self, 
-                data: torch.Tensor, 
-                loc: torch.Tensor
-                ):
+    def forward(
+        self, 
+        data: torch.Tensor, 
+        loc: torch.Tensor
+    ):
         """
 
         """
@@ -154,44 +157,60 @@ class AutoFRK(nn.Module):
         
         data = data - self.mu
         if self.G is not None:
-            Fk = self.G.to(self.device)
+            Fk = self.G
         else:
-            Fk = selectBasis(data, 
-                             loc,
-                             self.D, 
-                             self.maxit, 
-                             self.tolerance,
-                             self.maxK, 
-                             self.Kseq, 
-                             self.method, 
-                             self.n_neighbor,
-                             self.maxknot, 
-                             None
-                             ).to(self.device)
+            Fk = selectBasis(data           = data, 
+                             loc            = loc,
+                             D              = self.D, 
+                             maxit          = self.maxit, 
+                             avgtol         = self.tolerance,
+                             max_rank       = self.maxK, 
+                             sequence_rank  = self.Kseq, 
+                             method         = self.method, 
+                             num_neighbors  = self.n_neighbor,
+                             max_knot       = self.maxknot, 
+                             DfromLK        = None,
+                             Fk             = None,
+                             dtype          = self.dtype,
+                             device         = self.device
+                             )
         
         K = Fk.shape[1]
         if self.method == "fast":  # have OpenMP issue
-            data = fast_mode_knn_sklearn(data=data,
-                                         loc=loc, 
-                                         n_neighbor=self.n_neighbor
-                                         ).to(self.device)
+            data = fast_mode_knn_sklearn(data       = data,
+                                         loc        = loc, 
+                                         n_neighbor = self.n_neighbor
+                                         )
         elif self.method == "fast_faiss":
-            data = fast_mode_knn_faiss(data=data,
-                                       loc=loc, 
-                                       n_neighbor=self.n_neighbor
-                                       ).to(self.device)
+            data = fast_mode_knn_faiss(data         = data,
+                                       loc          = loc, 
+                                       n_neighbor   = self.n_neighbor
+                                       )
+        data = to_tensor(data, dtype=self.dtype, device=self.dtype)
         
         if not self.finescale:
-            obj = indeMLE(data=data,
-                          Fk=Fk[:, :K],
-                          D=self.D,
-                          maxit=self.maxit,
-                          avgtol=self.tolerance,
-                          wSave=True,
-                          DfromLK=None
+            obj = indeMLE(data      = data,
+                          Fk        = Fk[:, :K],
+                          D         = self.D,
+                          maxit     = self.maxit,
+                          avgtol    = self.tolerance,
+                          wSave     = True,
+                          DfromLK   = None,
+                          vfixed    = None,
+                          verbose   = True,
+                          dtype     = self.dtype,
+                          device    = self.device
                           )
             
         else:
+            """
+            In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
+            This implementation is not provided in the current context.
+            """
+            error_msg = "The part about \"self.method == else\" in `AutoFRK.forward()` is Not provided yet!"
+            LOGGER.error(error_msg)
+            raise NotImplementedError(error_msg)
+
             # all codes here only for testing
             nu = 1
             nlevel = 3
@@ -226,6 +245,14 @@ class AutoFRK(nn.Module):
         obj['G'] = Fk
         
         if self.finescale:
+            """
+            In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
+            This implementation is not provided in the current context.
+            """
+            error_msg = "The part about \"if self.finescale\" in `AutoFRK.forward()` is Not provided yet!"
+            LOGGER.error(error_msg)
+            raise NotImplementedError(error_msg)
+        
             obj['LKobj'] = LKobj
             obj.setdefault('pinfo', {})
             obj['pinfo']["loc"] = loc
@@ -233,8 +260,36 @@ class AutoFRK(nn.Module):
         else:
             obj['LKobj'] = None        
         
+        self.obj = obj
         return obj
-
+    
+    def predict(
+        self,
+        object: dict = None,
+        obsData: torch.Tensor = None,
+        obsloc: torch.Tensor = None,
+        mu_obs: Union[float, torch.Tensor] = 0,
+        newloc: torch.Tensor = None,
+        basis: torch.Tensor = None,
+        mu_new: Union[float, torch.Tensor] = 0,
+        se_report: bool = False
+    ) -> dict:
+        """
+        
+        """
+        if object is None:
+            object = self.obj
+        return predict_FRK(object       = object,
+                           obsData      = obsData,
+                           obsloc       = obsloc,
+                           mu_obs       = mu_obs,
+                           newloc       = newloc,
+                           basis        = basis,
+                           mu_new       = mu_new,
+                           se_report    = se_report,
+                           dtype        = self.dtype,
+                           device       = self.device
+                           )
 
 
 # main program

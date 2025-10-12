@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoFRK"
+version = "0.1.0"
+description = "autoFRK Python Version with PyTorch"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+  { name="Y.C. H.", email="you@example.com" }
+]
+
+dependencies = [
+  "numpy",
+  "requests"
+]
+
+[project.urls]
+Homepage = "https://github.com/yourname/myproject"
+Issues = "https://github.com/yourname/myproject/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

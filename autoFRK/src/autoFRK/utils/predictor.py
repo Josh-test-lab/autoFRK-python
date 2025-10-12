@@ -6,15 +6,11 @@ Reference:
 """
 
 # import modules
-import os
 import torch
-import numpy as np
-import gc
-from typing import Optional, Union, Any, Dict
+from typing import Optional, Union, Dict
 from autoFRK.utils.logger import setup_logger
 from autoFRK.utils.device import *
 from autoFRK.utils.utils import *
-from autoFRK.mrts import MRTS
 
 # logger config
 LOGGER = setup_logger()
@@ -195,7 +191,7 @@ def predict_FRK(
                 De = torch.eye(len(pick), dtype=dtype, device=device)
                 G = predict_mrts(obj    = obj["G"],
                                  newx   = obsloc[pick],
-                                 dtype  = dtype
+                                 dtype  = dtype,
                                  device = device
                                  )
 

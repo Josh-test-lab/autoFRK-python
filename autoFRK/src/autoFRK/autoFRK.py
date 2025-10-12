@@ -1,18 +1,15 @@
 """
 Title: Automatic Fixed Rank Kriging.
 Author: Hsu, Yao-Chih
-Version: 1140727
+Version: 1141012
 Description: `autoFRK` is an R package to mitigate the intensive computation for modeling regularly/irregularly located spatial data using a class of basis functions with multi-resolution features and ordered in terms of their resolutions, and this project is to implement the `autoFRK` in Python.
 Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng Huang
 """
 
 # import modules
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
-from typing import Optional, Union, Any, Dict
-import datetime
+from typing import Optional, Union
 from autoFRK.utils.logger import setup_logger
 from autoFRK.utils.device import setup_device
 from autoFRK.utils.utils import *
@@ -294,4 +291,4 @@ class AutoFRK(nn.Module):
 
 # main program
 if __name__ == "__main__":
-    print("This is the autoFRK package. Please import it in your code to use its functionalities.")
+    print("This is the class `AutoFRK` for autoFRK package. Please import it in your code to use its functionalities.")

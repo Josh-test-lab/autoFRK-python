@@ -1,7 +1,7 @@
 """
 Title: Setup file of autoFRK-Python Project
 Author: Hsu, Yao-Chih
-Version: 1141007
+Version: 1141012
 Reference:
 """
 
@@ -183,6 +183,9 @@ def selectBasis(
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> torch.Tensor:
+    """
+    
+    """
     # 去除全為 NaN 的欄位
     not_all_nan = ~torch.isnan(data).all(dim=0)
     data = data[:, not_all_nan]
@@ -249,7 +252,11 @@ def selectBasis(
 
     # Fk 為 None 時初始化 basis function 值
     if Fk is None:
-        mrts = MRTS(locs=loc, k=max(K), device=device)  # 待修 (knot, max(K), loc, max_knot) need fix
+        mrts = MRTS(locs    = loc,
+                    k       = max(K),
+                    dtype   = dtype,
+                    device  = device
+                    )  # 待修 (knot, max(K), loc, max_knot) need fix
         Fk = mrts.forward()
 
     AIC_list = [float('inf')] * len(K)
@@ -328,6 +335,9 @@ def get_inverse_square_root_matrix(
     left_matrix,
     right_matrix
 ):
+    """
+    
+    """
     mat = left_matrix.T @ right_matrix  # A^T * B
     mat = (mat + mat.T) / 2
     eigvals, eigvecs = torch.linalg.eigh(mat)
@@ -335,7 +345,7 @@ def get_inverse_square_root_matrix(
     return eigvecs @ inv_sqrt_eigvals @ eigvecs.T
 
 # subset knot selection for autoFRK, using in selectBasis
-# check = ok
+# check = none
 def subKnot(
     x: torch.Tensor, 
     nknot: int, 
@@ -344,9 +354,11 @@ def subKnot(
     dtype: torch.dtype=torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
-    x = x.to(device)
+    """
+    
+    """
     x = torch.sort(x, dim=0).values
-    xdim = x.shape  # (N, D)
+    xdim = x.shape
 
     if xrng is None:
         xrng = torch.stack([x.min(dim=0).values, x.max(dim=0).values], dim=0)
@@ -358,7 +370,7 @@ def subKnot(
     rng_max_index = torch.argmax(rng).item()
 
     log_rng = torch.log(rng)
-    nmbin = torch.round(torch.exp(log_rng * torch.log(torch.tensor(nknot, dtype=torch.float32)) / log_rng.sum())).int()
+    nmbin = torch.round(torch.exp(log_rng * torch.log(to_tensor(nknot, dtype=dtype, device=device)) / log_rng.sum())).int()
     nmbin = torch.clamp(nmbin, min=2)
 
     while torch.prod(nmbin).item() < nknot:
@@ -379,7 +391,7 @@ def subKnot(
                 grp = torch.clamp(grp, max=nmbin[kk] - 1)
 
             if len(torch.unique(grp)) < nmbin[kk]:
-                brk = torch.tensor(np.quantile(x[:, kk].cpu().numpy(), np.linspace(0, 1, nmbin[kk] + 1)), device=device)
+                brk = torch.quantile(x[:, kk], torch.linspace(0, 1, nmbin[kk] + 1, dtype=dtype, device=device))
                 brk[0] -= 1e-8
                 grp = torch.bucketize(x[:, kk], brk) - 1
             gvec += kconst * grp
@@ -387,17 +399,21 @@ def subKnot(
 
         cnt += 1
 
-    gvec_np = gvec.cpu().numpy()
-    index = []
-    for g in np.unique(gvec_np):
-        idx = np.where(gvec_np == g)[0]
-        if len(idx) == 1:
-            index.append(idx[0])
+    # To-do: refactor the following lines
+    # outside
+    # need fix
+    unique_g, inverse = torch.unique(gvec, return_inverse=True)
+    mask = torch.zeros(xdim[0], dtype=torch.bool, device=device)
+    for i, cnt in enumerate(torch.bincount(inverse)):
+        idx = torch.nonzero(inverse == i, as_tuple=True)[0]
+        if cnt <= nsamp:
+            mask[idx] = True
         else:
-            np.random.seed(int(np.mean(idx)))
-            index.extend(np.random.choice(idx, size=min(nsamp, len(idx)), replace=False))
+            torch.manual_seed(int(idx.float().mean().item()))
+            perm = torch.randperm(cnt, device=idx.device)
+            mask[idx[perm[:nsamp]]] = True
 
-    index = torch.tensor(index, device=device)
+    index = torch.nonzero(mask, as_tuple=True)[0].to(dtype=torch.int64, device=device)
     return x[index]
 
 # compute negative log likelihood for autoFRK, using in selectBasis
@@ -444,15 +460,16 @@ def cMLE(
     nrow_Fk = Fk.shape[0]
 
     likelihood_object = computeNegativeLikelihood(
-        nrow_Fk=nrow_Fk,
-        ncol_Fk=Fk.shape[1],
-        s=s,
-        p=num_columns,
-        matrix_JSJ=matrix_JSJ,
-        sample_covariance_trace=sample_covariance_trace,
-        vfixed=vfixed,
-        ldet=ldet,
-        device=device
+        nrow_Fk                 = nrow_Fk,
+        ncol_Fk                 = Fk.shape[1],
+        s                       = s,
+        p                       = num_columns,
+        matrix_JSJ              = matrix_JSJ,
+        sample_covariance_trace = sample_covariance_trace,
+        vfixed                  = vfixed,
+        ldet                    = ldet,
+        dtype                   = dtype,
+        device                  = device
     )
 
     negative_log_likelihood = likelihood_object['negative_log_likelihood']
@@ -471,7 +488,7 @@ def cMLE(
         L = Fk @ ((torch.diag(torch.sqrt(d_hat)) @ P.T) @ inverse_square_root_matrix)
         L = L[:, d_hat > 0]
     else:
-        L = torch.zeros((nrow_Fk, 1), dtype=Fk.dtype, device=Fk.device)
+        L = torch.zeros((nrow_Fk, 1), dtype=dtype, device=device)
 
     return {'v': v,
             'M': M,
@@ -491,6 +508,7 @@ def computeNegativeLikelihood(
     sample_covariance_trace: float,
     vfixed: float = None,
     ldet: float = 0.0,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
@@ -515,8 +533,6 @@ def computeNegativeLikelihood(
             'd_hat': torch.Tensor
         }
     """
-    matrix_JSJ = matrix_JSJ.to(device)
-
     if not torch.allclose(matrix_JSJ, matrix_JSJ.T, atol=1e-10):
         err_msg = f'Please input a symmetric matrix'
         LOGGER.error(err_msg)
@@ -533,22 +549,29 @@ def computeNegativeLikelihood(
     eigenvectors_JSJ = eigenvectors_JSJ[:, idx][:, :ncol_Fk]
 
     if vfixed is None:
-        v = estimateV(d=eigenvalues_JSJ, 
-                      s=s, 
-                      sample_covariance_trace=sample_covariance_trace, 
-                      n=nrow_Fk
+        v = estimateV(d                         = eigenvalues_JSJ, 
+                      s                         = s, 
+                      sample_covariance_trace   = sample_covariance_trace, 
+                      n                         = nrow_Fk,
+                      dtype                     = dtype,
+                      device                    = device
                       )
     else:
         v = vfixed
 
     d = torch.clamp(eigenvalues_JSJ, min=0)
-    d_hat = estimateEta(d, s, v)
+    d_hat = estimateEta(d = d,
+                        s = s,
+                        v = v
+                        )
 
-    negative_log_likelihood = neg2llik(d=d, 
-                                       s=s, 
-                                       v=v, 
-                                       sample_covariance_trace=sample_covariance_trace, 
-                                       sample_size=nrow_Fk
+    negative_log_likelihood = neg2llik(d                        = d, 
+                                       s                        = s, 
+                                       v                        = v, 
+                                       sample_covariance_trace  = sample_covariance_trace, 
+                                       sample_size              = nrow_Fk,
+                                       dtype                    = dtype,
+                                       device                   = device
                                        ) * p + ldet * p
 
     return {"negative_log_likelihood": negative_log_likelihood,
@@ -563,7 +586,9 @@ def estimateV(
     d: torch.Tensor, 
     s: float, 
     sample_covariance_trace: float, 
-    n: int
+    n: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> float:
     """
     Estimate the v parameter.
@@ -628,7 +653,9 @@ def neg2llik(
     s: float,
     v: float,
     sample_covariance_trace: float,
-    sample_size: int
+    sample_size: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> float:
     """
     Estimate the negative log-likelihood (up to constant)
@@ -644,17 +671,20 @@ def neg2llik(
         Scalar negative log-likelihood value
     """
     k = d.shape[0]
-    eta = estimateEta(d, s, v)
+    eta = estimateEta(d = d,
+                      s = s,
+                      v = v
+                      )
 
     if torch.max(eta / (s + v)) > 1e20:
         return float("inf")
-    s_plus_v = torch.as_tensor(s + v, device=d.device, dtype=d.dtype)
+    s_plus_v = torch.as_tensor(s + v, device=device, dtype=dtype)
     log_det_term = torch.sum(torch.log(eta + s_plus_v))
     log_sv_term = torch.log(s_plus_v) * (sample_size - k)
     trace_term = sample_covariance_trace / (s_plus_v)
     eta_term = torch.sum(d * eta / (eta + s_plus_v)) / (s_plus_v)
 
-    return sample_size * torch.log(torch.tensor(2 * torch.pi, device=d.device, dtype=d.dtype)) + log_det_term + log_sv_term + trace_term - eta_term
+    return sample_size * torch.log(torch.tensor(2 * torch.pi, device=device, dtype=dtype)) + log_det_term + log_sv_term + trace_term - eta_term
 
 # independent maximum likelihood estimation for autoFRK, using in selectBasis
 # check = ok
@@ -700,9 +730,6 @@ def indeMLE(
         dict
             Dictionary containing estimated matrices, variance parameters, and optional diagnostic information.
     """
-    data = data.to(device)
-    Fk = Fk.to(device)
-
     withNA = torch.isnan(data).any().item()
 
     TT = data.shape[1]
@@ -712,7 +739,7 @@ def indeMLE(
         data = data[:, notempty]
 
     del_rows = torch.isnan(data).all(dim=1).nonzero(as_tuple=True)[0]
-    pick = torch.arange(data.shape[0], dtype=dtype, device=device)
+    pick = torch.arange(data.shape[0], dtype=torch.int64, device=device)
 
     if D is None:
         D = torch.eye(data.shape[0], dtype=dtype, device=device)
@@ -724,12 +751,12 @@ def indeMLE(
 
     if withNA and len(del_rows) > 0:
         pick = pick[~torch.isin(pick, del_rows)]
-        data = data[~torch.isin(torch.arange(data.shape[0], dtype=dtype, device=device), del_rows), :]
+        data = data[~torch.isin(torch.arange(data.shape[0], dtype=torch.int64, device=device), del_rows), :]
         Fk = Fk[~torch.isin(torch.arange(Fk.shape[0], dtype=dtype, device=device), del_rows), :]
         if not torch.allclose(D, torch.diag(torch.diagonal(D))):
             D = D[~torch.isin(torch.arange(D.shape[0], dtype=dtype, device=device), del_rows)][:, ~torch.isin(torch.arange(D.shape[1], dtype=dtype, device=device), del_rows)]
         else:
-            keep_mask = ~torch.isin(torch.arange(D.shape[0], dtype=dtype, device=device), del_rows)
+            keep_mask = ~torch.isin(torch.arange(D.shape[0], dtype=torch.int64, device=device), del_rows)
             full_diag = torch.zeros(D.shape[0], dtype=dtype, device=device)
             full_diag[keep_mask] = torch.diagonal(D)[keep_mask]
             D = torch.diag(full_diag)
@@ -745,17 +772,20 @@ def indeMLE(
     if not withNA:
         if isimat and DfromLK is None:
             sigma = 0  # we cannot find `.Option$sigma_FRK` in the R code  # outside
-            out = cMLEimat(Fk, 
-                           data, 
-                           s=sigma, 
-                           wSave=wSave,
-                           device=device
+            out = cMLEimat(Fk           = Fk, 
+                           data         = data, 
+                           s            = sigma, 
+                           wSave        = wSave,
+                           S            = None,
+                           onlylogLike  = None,
+                           dtype        = dtype,
+                           device       = device
                            )
             if out['v'] is not None:
                 out['s'] = out['v'] if sigma == 0 else sigma
                 out.pop("v", None)
             if wSave:
-                w = torch.zeros((K, TT), device=device)
+                w = torch.zeros((K, TT), dtype=dtype, device=device)
                 w[:, notempty] = out['w']
                 out['w'] = w
                 out['pinfo'] = {'D': D0, 
@@ -764,14 +794,15 @@ def indeMLE(
             return out
         
         elif DfromLK is None:
-            out = cMLEsp(Fk, 
-                         data, 
-                         Depsilon, 
-                         wSave,
-                         device=device
+            out = cMLEsp(Fk         = Fk, 
+                         data       = data, 
+                         Depsilon   = Depsilon, 
+                         wSave      = wSave,
+                         dtype      = dtype,
+                         device     = device
                          )
             if wSave:
-                w = torch.zeros((K, TT), device=device)
+                w = torch.zeros((K, TT), dtype=dtype, device=device)
                 w[:, notempty] = out['w']
                 out['w'] = w
                 out['pinfo'] = {'D': D0, 
@@ -780,34 +811,36 @@ def indeMLE(
             return out
         
         else:
-            out = cMLElk(Fk, 
-                         data, 
-                         Depsilon, 
-                         wSave, 
-                         DfromLK, 
-                         vfixed,
-                         device=device
+            out = cMLElk(Fk         = Fk, 
+                         data       = data, 
+                         Depsilon   = Depsilon, 
+                         wSave      = wSave, 
+                         DfromLK    = DfromLK, 
+                         vfixed     = vfixed,
+                         dtype      = dtype,
+                         device     = device
                          )
             if wSave:
-                w = torch.zeros((K, TT), device=device)
+                w = torch.zeros((K, TT), dtype=dtype, device=device)
                 w[:, notempty] = out['w']
                 out['w'] = w
             return out
         
     else:
-        out = EM0miss(Fk, 
-                      data, 
-                      Depsilon, 
-                      maxit, 
-                      avgtol, 
-                      wSave,
-                      DfromLK=DfromLK, 
-                      vfixed=vfixed, 
-                      verbose=verbose,
-                      device=device
+        out = EM0miss(Fk        = Fk, 
+                      data      = data, 
+                      Depsilon  = Depsilon, 
+                      maxit     = maxit, 
+                      avgtol    = avgtol, 
+                      wSave     = wSave,
+                      DfromLK   = DfromLK, 
+                      vfixed    = vfixed, 
+                      verbose   = verbose,
+                      dtype     = dtype,
+                      device    = device
                       )
         if wSave:
-            w = torch.zeros((K, TT), device=device)
+            w = torch.zeros((K, TT), dtype=dtype, device=device)
             w[:, notempty] = out['w']
             out['w'] = w
             if DfromLK is None:
@@ -848,36 +881,40 @@ def cMLEimat(
     wSave: bool = False,
     S: Optional[torch.Tensor] = None,
     onlylogLike: Optional[bool] = None,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> dict:
-
+    """
+    
+    """
     if onlylogLike is None:
         onlylogLike = not wSave
-
-    data = data.to(device)
-    Fk = Fk.to(device)
 
     num_columns = data.shape[1]
     nrow_Fk, ncol_Fk = Fk.shape
 
-    projection = computeProjectionMatrix(Fk1=Fk, 
-                                         Fk2=Fk, 
-                                         data=data, 
-                                         S=S, 
-                                         device=device
+    projection = computeProjectionMatrix(Fk1    = Fk, 
+                                         Fk2    = Fk, 
+                                         data   = data, 
+                                         S      = S, 
+                                         dtype  = dtype, 
+                                         device = device
                                          )
     inverse_square_root_matrix = projection["inverse_square_root_matrix"]
     matrix_JSJ = projection["matrix_JSJ"]
 
     sample_covariance_trace = torch.sum(data ** 2) / num_columns
 
-    likelihood_object = computeNegativeLikelihood(nrow_Fk=nrow_Fk,
-                                                  ncol_Fk=ncol_Fk,
-                                                  s=s,
-                                                  p=num_columns,
-                                                  matrix_JSJ=matrix_JSJ,
-                                                  sample_covariance_trace=sample_covariance_trace,
-                                                  device=device
+    likelihood_object = computeNegativeLikelihood(nrow_Fk                   = nrow_Fk,
+                                                  ncol_Fk                   = ncol_Fk,
+                                                  s                         = s,
+                                                  p                         = num_columns,
+                                                  matrix_JSJ                = matrix_JSJ,
+                                                  sample_covariance_trace   = sample_covariance_trace,
+                                                  vfixed                    = None,
+                                                  ldet                      = 0.0,
+                                                  dtype                     = dtype,
+                                                  device                    = device
                                                   )
 
     negative_log_likelihood = likelihood_object["negative_log_likelihood"]
@@ -902,30 +939,31 @@ def cMLEimat(
 
     if ncol_Fk > 2:
         reduced_columns = torch.cat([
-            torch.tensor([0], device=device),
+            torch.tensor([0], dtype=torch.int64, device=device),
             (d_hat[1:(ncol_Fk - 1)] > 0).nonzero(as_tuple=True)[0]
         ])
     else:
-        reduced_columns = torch.tensor([ncol_Fk - 1], device=device)
+        reduced_columns = torch.tensor([ncol_Fk - 1], dtype=torch.int64, device=device)
 
     L = L[:, reduced_columns]
 
-    invD = torch.ones(nrow_Fk, device=device) / (s + v)
+    invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s + v)
     iDZ = invD[:, None] * data
 
-    right = L @ (torch.linalg.inv(torch.eye(L.shape[1], device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
+    right = L @ (torch.linalg.inv(torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
 
     INVtZ = iDZ - invD[:, None] * right
     etatt = M @ Fk.T @ INVtZ
 
     GM = Fk @ M
 
-    diag_matrix = (s + v) * torch.eye(nrow_Fk, device=device)
+    diag_matrix = (s + v) * torch.eye(nrow_Fk, dtype=dtype, device=device)
 
-    V = M - GM.T @ invCz(R=diag_matrix,
-                         L=L, 
-                         z=GM,
-                         device=device
+    V = M - GM.T @ invCz(R      = diag_matrix,
+                         L      = L, 
+                         z      = GM,
+                         dtype  = dtype,
+                         device = device
                          ).T
 
     return {"v": v,
@@ -942,7 +980,8 @@ def computeProjectionMatrix(
     Fk1: torch.Tensor, 
     Fk2: torch.Tensor, 
     data: torch.Tensor, 
-    S: torch.Tensor=None, 
+    S: torch.Tensor=None,
+    dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
@@ -961,16 +1000,12 @@ def computeProjectionMatrix(
             'matrix_JSJ': torch.Tensor
         }
     """
-    Fk1 = Fk1.to(device)
-    Fk2 = Fk2.to(device)
-    data = data.to(device)
     if S is not None:
-        S = S.to(device)
+        S = to_tensor(S, dtype=dtype, device=device)
 
     num_columns = data.shape[1]
-    inverse_square_root_matrix = getInverseSquareRootMatrix(A=Fk1, 
-                                                            B=Fk2, 
-                                                            device=device
+    inverse_square_root_matrix = getInverseSquareRootMatrix(A = Fk1, 
+                                                            B = Fk2
                                                             )
     inverse_square_root_on_Fk2 = inverse_square_root_matrix @ Fk2.T
 
@@ -989,8 +1024,7 @@ def computeProjectionMatrix(
 # check = ok
 def getInverseSquareRootMatrix(
     A: torch.Tensor, 
-    B: torch.Tensor, 
-    device: Union[torch.device, str]='cpu',
+    B: torch.Tensor,
     eps: float = 1e-10
 ) -> torch.Tensor:
     """
@@ -1004,9 +1038,6 @@ def getInverseSquareRootMatrix(
     Returns:
         Inverse square root of (A.T @ B): Tensor of shape (k, k)
     """
-    A = A.to(device)
-    B = B.to(device)
-
     mat = A.T @ B
 
     eigenvalues, eigenvectors = torch.linalg.eigh(mat)
@@ -1059,15 +1090,12 @@ def EM0miss(
     DfromLK: dict=None,
     vfixed: float=None,
     verbose: bool=True,
-    device: Union[torch.device, str] = 'cpu'
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
 
     """
-    Fk = Fk.to(device)
-    data = data.to(device)
-    Depsilon = Depsilon.to(device)
-
     O = ~torch.isnan(data)
     TT = data.shape[1]
     ncol_Fk = Fk.shape[1]
@@ -1080,52 +1108,46 @@ def EM0miss(
     diagD = isDiagonal(D)
 
     if DfromLK is not None:
+        DfromLK = to_tensor(DfromLK, dtype=dtype, device=device)
         pick = DfromLK.get("pick", None)
-        weights = DfromLK["weights"].clone().detach()
+        weights = DfromLK["weights"]
         if pick is None:
-            pick = torch.arange(len(weights), dtype=dtype, device=device)
+            pick = torch.arange(len(weights), dtype=torch.int64, device=device)
         else:
-            pick = torch.tensor(pick, dtype=torch.long, device=device)
+            pick = to_tensor(pick, dtype=torch.int64, device=device)
         weight = weights[pick]
-
-        if not torch.is_tensor(DfromLK["wX"]):
-            DfromLK["wX"] = torch.tensor(DfromLK["wX"], device=device)
-        DfromLK["wX"] = DfromLK["wX"][pick, :].clone().detach()
-
-        if not torch.is_tensor(DfromLK["Q"]):
-            DfromLK["Q"] = torch.tensor(DfromLK["Q"], device=device)
-
+        DfromLK["wX"] = DfromLK["wX"][pick, :]
         wwX = torch.diag(torch.sqrt(weight)) @ DfromLK["wX"]
-        lQ = DfromLK["lambda"] * DfromLK["Q"].clone().detach()
+        lQ = DfromLK["lambda"] * DfromLK["Q"]
 
     for tt in range(TT):
         if DfromLK is not None:
             obs_idx = O[:, tt].bool()
             iDt = None
             if obs_idx.sum() == O.shape[0]:
-                wXiG = wwX @ torch.linalg.inv(DfromLK["G"].to(device=device))
+                wXiG = wwX @ torch.linalg.inv(DfromLK["G"])
             else:
-                wX_obs = DfromLK["wX"][obs_idx, :].to(device)
-                G = wX_obs.T @ wX_obs + lQ.to(device)
+                wX_obs = DfromLK["wX"][obs_idx, :]
+                G = wX_obs.T @ wX_obs + lQ
                 wXiG = wwX[obs_idx, :] @ torch.linalg.inv(G)
 
-            Bt = Fk[obs_idx, :].to(device)
+            Bt = Fk[obs_idx, :]
             if Bt.ndim == 1:
                 Bt = Bt.unsqueeze(0)
 
             iDBt = weight[obs_idx].unsqueeze(1) * Bt - wXiG @ (wwX[obs_idx, :].T @ Bt)
-            zt = data[obs_idx, tt].to(device=device)
+            zt = data[obs_idx, tt]
             ziDz[tt] = torch.sum(zt * (weight[obs_idx] * zt - wXiG @ (wwX[obs_idx, :].T @ zt)))
             ziDB[tt, :] = (zt @ iDBt).squeeze()
             BiDBt = Bt.T @ iDBt
 
         else:
             if not diagD:
-                iDt = torch.linalg.inv(D[obs_idx][:, obs_idx].to(device))
+                iDt = torch.linalg.inv(D[obs_idx][:, obs_idx])
             else:
-                iDt = iD[obs_idx][:, obs_idx].to(device)
+                iDt = iD[obs_idx][:, obs_idx]
 
-            Bt = Fk[obs_idx, :].to(device)
+            Bt = Fk[obs_idx, :]
             if Bt.ndim == 1:
                 Bt = Bt.unsqueeze(0)
 
@@ -1148,34 +1170,40 @@ def EM0miss(
     cnt = 0
     Z0 = data.clone()
     Z0[torch.isnan(Z0)] = 0
-    old = cMLEimat(Fk=Fk, 
-                   data=Z0, 
-                   s=0, 
-                   wSave=True,
-                   device=device
+    old = cMLEimat(Fk           = Fk, 
+                   data         = Z0, 
+                   s            = 0, 
+                   wSave        = True,
+                   S            =  None,
+                   onlylogLike  =  None,
+                   dtype        = dtype,
+                   device       = device
                    )
     if vfixed is None:
         old["s"] = old["v"]
     else:
-        old["s"] = vfixed.to(old["v"].device)
-    old["M"] = convertToPositiveDefinite(mat=old["M"],
-                                         device=device
+        old["s"] = to_tensor(vfixed)
+    old["M"] = convertToPositiveDefinite(mat    = old["M"],
+                                         dtype  = dtype,
+                                         device = device
                                          )
     Ptt1 = old["M"]
 
     while (dif > (avgtol * (100 * (ncol_Fk ** 2)))) and (cnt < maxit):
-        etatt = torch.zeros((ncol_Fk, TT), device=device)
-        sumPtt = torch.zeros((ncol_Fk, ncol_Fk), device=device)
-        s1 = torch.zeros(TT, device=device)
+        etatt = torch.zeros((ncol_Fk, TT), dtype=dtype, device=device)
+        sumPtt = torch.zeros((ncol_Fk, ncol_Fk), dtype=dtype, device=device)
+        s1 = torch.zeros(TT, dtype=dtype, device=device)
 
-        for tt in range(TT):
-            iDBt = db[tt]["iDBt"].to(device)
-            zt = db[tt]["zt"].to(device)
-            BiDBt = db[tt]["BiDBt"].to(device)
-            
-            ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(Ptt1))
-            iP = convertToPositiveDefinite(ginv_Ptt1 + BiDBt / old["s"])
-            Ptt = torch.linalg.inv(iP)  # will broken
+        for tt in range(TT):            
+            ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(mat     = Ptt1,
+                                                                    dtype   = dtype,
+                                                                    device  = device
+                                                                    ))
+            iP = convertToPositiveDefinite(mat      = ginv_Ptt1 + BiDBt / old["s"],
+                                           dtype    = dtype,
+                                           device   = device
+                                           )
+            Ptt = torch.linalg.inv(iP)  # will broken under some situation  # need fix
             Gt = (Ptt @ iDBt.T) / old["s"]
             eta = Gt @ zt
             s1kk = torch.diagonal(BiDBt @ (eta.unsqueeze(1) @ eta.unsqueeze(0) + Ptt))
@@ -1187,14 +1215,14 @@ def EM0miss(
         if vfixed is None:
             s = torch.max(
                 (torch.sum(ziDz) - 2 * torch.sum(ziDB * etatt.T) + torch.sum(s1)) / torch.sum(O),
-                torch.tensor(1e-8, dtype=ziDz.dtype, device=ziDz.device)
+                torch.tensor(1e-8, dtype=dtype, device=device)
             )
             new = {"M": (etatt @ etatt.T + sumPtt) / TT,
                    "s": s,
                    }
         else:
             new = {"M": (etatt @ etatt.T + sumPtt) / TT,
-                   "s": vfixed.to(device),
+                   "s": vfixed,
                    }
 
         new["M"] = (new["M"] + new["M"].T) / 2
@@ -1207,12 +1235,13 @@ def EM0miss(
         info_msg = f'Number of iteration: {cnt}'
         LOGGER.info(info_msg)
         
-    n2loglik = computeLikelihood(data=data,
-                                 Fk=Fk,
-                                 M=new["M"],
-                                 s=new["s"],
-                                 Depsilon=Depsilon,
-                                 device=device
+    n2loglik = computeLikelihood(data       = data,
+                                 Fk         = Fk,
+                                 M          = new["M"],
+                                 s          = new["s"],
+                                 Depsilon   = Depsilon,
+                                 dtype      = dtype,
+                                 device     = device
                                  )
 
     if not wSave:
@@ -1240,18 +1269,18 @@ def EM0miss(
         for tt in range(TT):
             obs_idx = O[:, tt].bool()
             if torch.sum(obs_idx) == O.shape[0]:
-                wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], device=device))
+                wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], dtype=dtype, device=device))
             else:
                 wX_tt = DfromLK["wX"][obs_idx]
                 G = wX_tt.T @ wX_tt + lQ
-                wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
+                wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
 
             dat = data[obs_idx, tt]
             Lt = L[obs_idx]
             iDL = weight[obs_idx].unsqueeze(1) * Lt - wXiG @ (wwX[obs_idx].T @ Lt)
             itmp = torch.linalg.solve(
-                torch.eye(L.shape[1], device=device) + (Lt.T @ iDL) / out["s"],
-                torch.eye(L.shape[1], device=device)
+                torch.eye(L.shape[1], dtype=dtype, device=device) + (Lt.T @ iDL) / out["s"],
+                torch.eye(L.shape[1], dtype=dtype, device=device)
             )
             iiLiD = itmp @ (iDL.T / out["s"])
             wlk[:, tt] = (wXiG.T @ dat - wXiG.T @ Lt @ (iiLiD @ dat)).squeeze()
@@ -1310,8 +1339,9 @@ def isDiagonal(
 # using in EM0miss
 # check = ok
 def convertToPositiveDefinite(
-    mat: torch.Tensor, 
-    device: Union[torch.device, str] = 'cpu'
+    mat: torch.Tensor,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
     Internal function: convert a matrix to positive definite
@@ -1323,8 +1353,6 @@ def convertToPositiveDefinite(
     Returns:
         torch.Tensor: A positive-definite version of the input matrix.
     """
-    mat = mat.to(device)
-
     # Ensure symmetry
     if not torch.allclose(mat, mat.T, atol=1e-10):
         mat = (mat + mat.T) / 2
@@ -1341,7 +1369,7 @@ def convertToPositiveDefinite(
 
     if min_eigenvalue <= 0:
         adjustment = abs(min_eigenvalue) + 1e-6
-        mat = mat + torch.eye(mat.shape[0], device=device) * adjustment
+        mat = mat + torch.eye(mat.shape[0], dtype=dtype, device=device) * adjustment
 
     return mat
 
@@ -1353,7 +1381,8 @@ def computeLikelihood(
     M: torch.Tensor,
     s: float,
     Depsilon: torch.Tensor,
-    device: Union[torch.device, str] = 'cpu'
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> float:
     """
     Compute negative log-likelihood (-2 * log(likelihood)).
@@ -1369,21 +1398,15 @@ def computeLikelihood(
     Returns:
         float: Negative log-likelihood value.
     """
-    data = data.to(device)
-    Fk = Fk.to(device)
-    M = M.to(device)
-    Depsilon = Depsilon.to(device)
 
     non_missing_points_matrix = ~torch.isnan(data)
     num_columns = data.shape[1]
 
-    n2loglik = non_missing_points_matrix.sum() * torch.log(torch.tensor(2 * torch.pi, device=device))
+    n2loglik = non_missing_points_matrix.sum() * torch.log(torch.tensor(2 * torch.pi, dtype=dtype, device=device))
     R = s * Depsilon
-    eg = eigenDecompose(M,
-                        device=device
-                        )
+    eigenvalues, eigenvectors = torch.linalg.eigh(M)
     K = Fk.shape[1]
-    L = Fk @ eg["vector"] @ torch.diag(torch.sqrt(torch.clamp(eg["value"], min=0.0))) @ eg["vector"].T
+    L = Fk @ eigenvectors @ torch.diag(torch.sqrt(torch.clamp(eigenvalues, min=0.0))) @ eigenvectors.T
     
     for t in range(num_columns):
         mask = non_missing_points_matrix[:, t]
@@ -1396,15 +1419,17 @@ def computeLikelihood(
         Rt = R[mask][:, mask]
         Lt = L[mask]
 
-        log_det = calculateLogDeterminant(Rt, 
-                                          Lt, 
-                                          K, 
-                                          device=device
+        log_det = calculateLogDeterminant(R     = Rt, 
+                                          L     = Lt, 
+                                          K     = K, 
+                                          dtype = dtype,
+                                          device= device
                                           )
-        inv_cz_val = invCz(Rt, 
-                           Lt, 
-                           zt, 
-                           device=device
+        inv_cz_val = invCz(R        = Rt, 
+                           L        = Lt, 
+                           z        = zt,
+                           dtype    = dtype,
+                           device   = device
                            )
         n2loglik += log_det + torch.sum(zt * inv_cz_val)
 
@@ -1412,39 +1437,12 @@ def computeLikelihood(
 
 # using in computeLikelihood
 # check = ok
-def eigenDecompose(
-    matrix: torch.Tensor,
-    device: Union[torch.device, str] = 'cpu'
-) -> dict:
-    """
-    Internal function: Eigen-decompose a matrix
-
-    Parameters:
-        matrix (torch.Tensor): (K x K) symmetric matrix
-        device (str or torch.device): computation device
-
-    Returns:
-        dict with keys:
-            'value': (K,) tensor of eigenvalues
-            'vector': (K x K) tensor of eigenvectors (columns)
-    """
-    matrix = matrix.to(device)
-
-    # Use symmetric eigendecomposition
-    eigenvalues, eigenvectors = torch.linalg.eigh(matrix)
-
-    return {
-        'value': eigenvalues,
-        'vector': eigenvectors
-    }
-
-# using in computeLikelihood
-# check = ok
 def calculateLogDeterminant(
     R: torch.Tensor,
     L: torch.Tensor,
     K: int=None,
-    device: Optional[Union[str, torch.device]] = 'cpu'
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> float:
     """
     Internal function: calculate the log determinant for the likelihood use.
@@ -1458,13 +1456,10 @@ def calculateLogDeterminant(
     Returns:
         float: log-determinant value
     """
-    R = R.to(device)
-    L = L.to(device)
-
     if K is None:
         K = L.shape[1]
 
-    first_part_determinant = torch.logdet(torch.eye(K, device=device) + L.T @ torch.linalg.solve(R, L))
+    first_part_determinant = torch.logdet(torch.eye(K, dtype=dtype, device=device) + L.T @ torch.linalg.solve(R, L))
     second_part_determinant = torch.logdet(R)
 
     return (first_part_determinant + second_part_determinant).item()
@@ -1476,7 +1471,8 @@ def cMLEsp(
     data: torch.Tensor,
     Depsilon: torch.Tensor,
     wSave: bool = False,
-    device: Optional[Union[str, torch.device]] = 'cpu'
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
     Internal function: cMLEsp
@@ -1505,30 +1501,34 @@ def cMLEsp(
             Dictionary containing:
             - 'M', 's', and (if wSave=True) 'w', 'V'
     """
-    Fk = Fk.to(device=device)
-    data = data.to(device=device)
-    De = Depsilon.to(device=device)
-    iD = torch.linalg.inv(De)
-    ldetD = logDeterminant(De).item()
+    iD = torch.linalg.inv(Depsilon)
+    ldetD = logDeterminant(mat = Depsilon).item()
     iDFk = iD @ Fk
     num_columns = data.shape[1]
 
-    projection = computeProjectionMatrix(Fk,
-                                         iDFk,
-                                         data
+    projection = computeProjectionMatrix(Fk1    = Fk,
+                                         Fk2    = iDFk,
+                                         data   = data,
+                                         S      = None,
+                                         dtype  = dtype,
+                                         device = device
                                          )
     inverse_square_root_matrix = projection["inverse_square_root_matrix"]
     matrix_JSJ = projection["matrix_JSJ"]
 
     trS = torch.sum((iD @ data) * data) / num_columns
-    out = cMLE(Fk,
-               num_columns,
-               trS,
-               inverse_square_root_matrix,
-               matrix_JSJ,
-               s = 0,
-               ldet = ldetD,
-               wSave = wSave
+    out = cMLE(Fk                           = Fk,
+               num_columns                  = num_columns,
+               sample_covariance_trace      = trS,
+               inverse_square_root_matrix   = inverse_square_root_matrix,
+               matrix_JSJ                   = matrix_JSJ,
+               s                            = 0,
+               ldet                         = ldetD,
+               wSave                        = wSave,
+               onlylogLike                  = None,
+               vfixed                       = None,
+               dtype                        = dtype,
+               device                       = device
                )
 
     if wSave:
@@ -1537,8 +1537,8 @@ def cMLEsp(
         invD = iD / s_plus_v
         iDZ = invD @ data
         right0 = L @ torch.linalg.solve(
-            torch.eye(L.shape[1], device=device) + L.T @ (invD @ L),
-            torch.eye(L.shape[1], device=device)
+            torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD @ L),
+            torch.eye(L.shape[1], dtype=dtype, device=device)
         )
 
         INVtZ = iDZ - invD @ right0 @ (L.T @ iDZ)
@@ -1580,7 +1580,8 @@ def cMLElk(
     wSave: bool = False,
     DfromLK: dict = None,
     vfixed: float = None,
-    device: Optional[Union[str, torch.device]] = 'cpu'
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
 ) -> dict:
     """
     Internal function: cMLElk
@@ -1632,12 +1633,15 @@ def cMLElk(
 
     G = wX.T @ wX + lambda_ * Q
     wwX = torch.diag(torch.sqrt(weight)) @ wX
-    wXiG = wwX @ torch.linalg.solve(G, torch.eye(G.shape[0], device=device))
+    wXiG = wwX @ torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
     iDFk = weight.unsqueeze(1) * Fk - wXiG @ wwX.T @ Fk
 
-    projection = computeProjectionMatrix(Fk,
-                                         iDFk,
-                                         data
+    projection = computeProjectionMatrix(Fk1    =Fk,
+                                         Fk2    =iDFk,
+                                         data   =data,
+                                         S      =None,
+                                         dtype  =dtype,
+                                         device =device
                                          )
     inverse_square_root_matrix = projection["inverse_square_root_matrix"]
     matrix_JSJ = projection["matrix_JSJ"]
@@ -1645,22 +1649,23 @@ def cMLElk(
     trS = torch.sum(iDZ * data) / num_columns
     ldetD = (
         -Q.shape[0] * torch.log(torch.tensor(lambda_, device=device))
-        + logDeterminant(G)
-        - logDeterminant(Q)
+        + logDeterminant(mat = G)
+        - logDeterminant(mat = Q)
         - torch.sum(torch.log(weight))
     ).item()
 
-    out = cMLE(Fk=Fk,
-               num_columns=num_columns,
-               sample_covariance_trace=trS,
-               inverse_square_root_matrix=inverse_square_root_matrix,
-               matrix_JSJ=matrix_JSJ,
-               s=0,
-               ldet=ldetD,
-               wSave=True,
-               onlylogLike=False,
-               vfixed=vfixed,
-               device=device
+    out = cMLE(Fk                           = Fk,
+               num_columns                  = num_columns,
+               sample_covariance_trace      = trS,
+               inverse_square_root_matrix   = inverse_square_root_matrix,
+               matrix_JSJ                   = matrix_JSJ,
+               s                            = 0,
+               ldet                         = ldetD,
+               wSave                        = True,
+               onlylogLike                  = False,
+               vfixed                       = vfixed,
+               dtype                        = dtype,
+               device                       = device
                )
     L = out["L"]
     out["s"] = out["v"]
@@ -1671,8 +1676,8 @@ def cMLElk(
 
     iDL = weight.unsqueeze(1) * L - wXiG @ (wwX.T @ L)
     itmp = torch.linalg.solve(
-        torch.eye(L.shape[1], device=device) + (L.T @ iDL) / out["s"],
-        torch.eye(L.shape[1], device=device),
+        torch.eye(L.shape[1], dtype=dtype, device=device) + (L.T @ iDL) / out["s"],
+        torch.eye(L.shape[1], dtype=dtype, device=device),
     )
     iiLiD = itmp @ (iDL.T / out["s"])
     MFiS11 = (out["M"] @ (iDFk.T / out["s"]) - ((out["M"] @ (iDFk.T / out["s"])) @ L) @ iiLiD)
@@ -1855,13 +1860,13 @@ def setLKnFRKOption(
     if a_wght is None:
         a_wght = 2 * x.shape[1] + 0.01
 
-    info = LKrigSetup(x=x,
-                      a_wght=a_wght,
-                      nlevel=nlevel,
-                      NC=nc,
-                      alpha=alpha,
-                      LKGeometry=gtype,
-                      lambda_=1.0
+    info = LKrigSetup(x         = x,
+                      a_wght    = a_wght,
+                      nlevel    = nlevel,
+                      NC        = nc,
+                      alpha     = alpha,
+                      LKGeometry= gtype,
+                      lambda_   = 1.0
                       )              
 
     location = x
@@ -1887,7 +1892,7 @@ def setLKnFRKOption(
         wXiG = wwX @ torch.linalg.inv(G)
         iDFk = weights * Fk - wXiG @ (wwX.T @ Fk)
         iDZ = weights * data - wXiG @ (wwX.T @ data)
-        ldetD = -Qini.shape[0] * torch.log(lambda_) + logDeterminant(G_mat)
+        ldetD = -Qini.shape[0] * torch.log(lambda_) + logDeterminant(mat = G_mat)
         trS = torch.sum(iDZ * data) / TT
         half = getInverseSquareRootMatrix(Fk, iDFk)
         ihFiD = half @ iDFk.T
@@ -1903,7 +1908,7 @@ def setLKnFRKOption(
                         wSave=False
                         )['negloglik']
         else:
-            llike = ldetD - logDeterminant(Qini) - torch.log(weights).sum()
+            llike = ldetD - logDeterminant(mat = Qini) - torch.log(weights).sum()
             return cMLE(Fk,
                         TT,
                         trS,

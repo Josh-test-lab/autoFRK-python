@@ -6,12 +6,11 @@ Reference:
 """
 
 # development only
-import os
-import sys
-sys.path.append(os.path.abspath("./src"))
+#import os
+#import sys
+#sys.path.append(os.path.abspath("./src"))
 
 # import modules
-import os
 import torch
 import numpy as np
 import faiss

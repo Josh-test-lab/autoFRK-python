@@ -1,0 +1,4 @@
+include README.md
+include LICENSE
+recursive-include src/autoFRK *.py *.txt *.md
+recursive-include src/autoFRK/utils *.py

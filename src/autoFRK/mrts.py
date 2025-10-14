@@ -13,7 +13,7 @@ from scipy.integrate import quad
 from typing import Optional, Union, Any
 from autoFRK.utils.logger import setup_logger
 from autoFRK.utils.device import setup_device
-from autoFRK.utils.utils import *
+from autoFRK.utils.utils import to_tensor
 
 # logger config
 LOGGER = setup_logger()

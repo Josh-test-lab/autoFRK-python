@@ -19,7 +19,6 @@ from typing import Optional, Union, Any
 from sklearn.neighbors import NearestNeighbors
 from scipy.optimize import minimize_scalar
 from autoFRK.utils.logger import setup_logger
-from autoFRK.mrts import MRTS
 
 # logger config
 LOGGER = setup_logger()
@@ -43,7 +42,7 @@ def to_tensor(
     Returns:
         torch.Tensor or dict (nested with tensors)
     """
-    if isinstance(obj, torch.Tensor) and ():
+    if isinstance(obj, torch.Tensor):
         if obj.dtype != dtype or obj.device != device:
             t = obj.to(dtype=dtype, device=device)
         else:
@@ -60,8 +59,12 @@ def to_tensor(
         t = {k: to_tensor(v, dtype=dtype, device=device) for k, v in obj.items()}
     elif hasattr(obj, 'shape'):
         t = torch.tensor(obj, dtype=dtype, device=device)
+    elif obj is None:
+        t = obj
     else:
-        raise TypeError(f"Unsupported type: {type(obj)}")
+        error_msg = f"Unsupported type: {type(obj)}"
+        LOGGER.error(error_msg)
+        raise TypeError(error_msg)
     
     return t
 
@@ -194,7 +197,7 @@ def selectBasis(
 
     # 找出整行都是 NaN 的列（完全缺失）
     na_rows = torch.isnan(data).all(dim=1)
-    pick = torch.arange(data.shape[0], dtype=dtype, device=device)
+    pick = torch.arange(data.shape[0], dtype=torch.int64, device=device)
     if na_rows.any():
         data = data[~na_rows]
         loc = loc[~na_rows]  # 同步刪除 loc 中相同的行 need fix
@@ -251,6 +254,7 @@ def selectBasis(
 
     # Fk 為 None 時初始化 basis function 值
     if Fk is None:
+        from autoFRK.mrts import MRTS
         mrts = MRTS(locs    = loc,
                     k       = max(K),
                     dtype   = dtype,
@@ -258,7 +262,7 @@ def selectBasis(
                     )  # 待修 (knot, max(K), loc, max_knot) need fix
         Fk = mrts.forward()
 
-    AIC_list = [float('inf')] * len(K)
+    AIC_list = to_tensor([float('inf')] * len(K), dtype=dtype, device=device)
     num_data_columns = data.shape[1]
 
     if method == "EM" and DfromLK is None:

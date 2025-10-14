@@ -159,6 +159,10 @@ class AutoFRK(nn.Module):
         # convert data and locations
         data = to_tensor(data, dtype=dtype, device=device)
         loc = to_tensor(loc, dtype=dtype, device=device)
+
+        # reshape data
+        if data.ndim == 1:
+            data = data.reshape(-1, 1)
         
         data = data - mu
         if G is not None:
@@ -181,19 +185,19 @@ class AutoFRK(nn.Module):
                              )
         
         K = Fk.shape[1]
-        if self.method == "fast":  # have OpenMP issue
+        if method == "fast":  # have OpenMP issue
             data = fast_mode_knn_sklearn(data       = data,
                                          loc        = loc, 
                                          n_neighbor = n_neighbor
                                          )
-        elif self.method == "fast_faiss":
+        elif method == "fast_faiss":
             data = fast_mode_knn_faiss(data         = data,
                                        loc          = loc, 
                                        n_neighbor   = n_neighbor
                                        )
-        data = to_tensor(data, dtype=dtype, device=dtype)
+        data = to_tensor(data, dtype=dtype, device=device)
         
-        if not self.finescale:
+        if not finescale:
             obj = indeMLE(data      = data,
                           Fk        = Fk[:, :K],
                           D         = D,
@@ -212,7 +216,7 @@ class AutoFRK(nn.Module):
             In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
             This implementation is not provided in the current context.
             """
-            error_msg = "The part about \"self.method == else\" in `AutoFRK.forward()` is Not provided yet!"
+            error_msg = "The part about \"method == else\" in `AutoFRK.forward()` is Not provided yet!"
             LOGGER.error(error_msg)
             raise NotImplementedError(error_msg)
 
@@ -254,23 +258,23 @@ class AutoFRK(nn.Module):
             In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
             This implementation is not provided in the current context.
             """
-            error_msg = "The part about \"if self.finescale\" in `AutoFRK.forward()` is Not provided yet!"
+            error_msg = "The part about \"if finescale\" in `AutoFRK.forward()` is Not provided yet!"
             LOGGER.error(error_msg)
             raise NotImplementedError(error_msg)
         
             obj['LKobj'] = LKobj
             obj.setdefault('pinfo', {})
             obj['pinfo']["loc"] = loc
-            obj['pinfo']["weights"] = 1.0 / torch.diag(self.D)
+            obj['pinfo']["weights"] = 1.0 / torch.diag(D)
         else:
             obj['LKobj'] = None        
         
         self.obj = obj
-        return obj
+        return self.obj
     
     def predict(
         self,
-        object: dict = None,
+        obj: dict = None,
         obsData: torch.Tensor = None,
         obsloc: torch.Tensor = None,
         mu_obs: Union[float, torch.Tensor] = 0,
@@ -282,9 +286,10 @@ class AutoFRK(nn.Module):
         """
         
         """
-        if object is None:
-            object = self.obj
-        return predict_FRK(object       = object,
+        if obj is None:
+            obj = self.obj
+            
+        return predict_FRK(obj          = obj,
                            obsData      = obsData,
                            obsloc       = obsloc,
                            mu_obs       = mu_obs,

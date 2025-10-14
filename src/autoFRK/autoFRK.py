@@ -94,22 +94,11 @@ class AutoFRK(nn.Module):
     """
     def __init__(
         self,
-        mu: Union[float, torch.Tensor]=0.0, 
-        D: torch.Tensor=None, 
-        G: torch.Tensor=None,
-        finescale: bool=False, 
-        maxit: int=50, 
-        tolerance: float=1e-6,
-        maxK: int=None, 
-        Kseq: torch.Tensor=None, 
-        method: str="fast", 
-        n_neighbor: int=3, 
-        maxknot: int=5000,
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
         ):
         """
-        Initialize autoFRK model with tensor-safe and device-aware configuration.
+        Initialize autoFRK model.
         """
         super().__init__()
 
@@ -123,80 +112,99 @@ class AutoFRK(nn.Module):
             raise TypeError(error_msg)
         self.dtype = dtype
 
-        # multi-GPU wrapper flag
-        #self.dp_wrapper = torch.cuda.device_count() > 1
-
-        # convert all major parameters
-        self.mu = to_tensor(mu, dtype=dtype, device=self.device)
-        self.D = to_tensor(D, dtype=dtype, device=self.device) if D is not None else None
-        self.G = to_tensor(G, dtype=dtype, device=self.device) if G is not None else None
-        self.Kseq = to_tensor(Kseq, dtype=dtype, device=self.device) if Kseq is not None else None
-
-        # other parameters
-        self.finescale = finescale
-        self.maxit = maxit
-        self.tolerance = tolerance
-        self.maxK = maxK
-        self.method = method
-        self.n_neighbor = n_neighbor
-        self.maxknot = maxknot
-
     def forward(
         self, 
         data: torch.Tensor, 
-        loc: torch.Tensor
+        loc: torch.Tensor,
+        mu: Union[float, torch.Tensor]=0.0, 
+        D: torch.Tensor=None, 
+        G: torch.Tensor=None,
+        finescale: bool=False, 
+        maxit: int=50, 
+        tolerance: float=1e-6,
+        maxK: int=None, 
+        Kseq: torch.Tensor=None, 
+        method: str="fast", 
+        n_neighbor: int=3, 
+        maxknot: int=5000,
+        dtype: Optional[torch.dtype]=None,
+        device: Optional[Union[torch.device, str]]=None
     ):
         """
 
         """
-        data = to_tensor(data, dtype=self.dtype, device=self.device)
-        loc = to_tensor(loc, dtype=self.dtype, device=self.device)
+        # setup device
+        if device is None:
+            device = self.device
+        else:
+            device = setup_device(device=device)
+            self.device = device
+
+        # dtype check
+        if dtype is None:
+            dtype = self.dtype
+        elif not isinstance(dtype, torch.dtype):
+            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            LOGGER.warning(warn_msg)
+            dtype = self.dtype
+        else:
+            self.dtype = dtype
+
+        # convert all major parameters
+        mu = to_tensor(mu, dtype=dtype, device=device)
+        D = to_tensor(D, dtype=dtype, device=device) if D is not None else None
+        G = to_tensor(G, dtype=dtype, device=device) if G is not None else None
+        Kseq = to_tensor(Kseq, dtype=dtype, device=device) if Kseq is not None else None
+
+        # convert data and locations
+        data = to_tensor(data, dtype=dtype, device=device)
+        loc = to_tensor(loc, dtype=dtype, device=device)
         
-        data = data - self.mu
-        if self.G is not None:
-            Fk = self.G
+        data = data - mu
+        if G is not None:
+            Fk = G
         else:
             Fk = selectBasis(data           = data, 
                              loc            = loc,
-                             D              = self.D, 
-                             maxit          = self.maxit, 
-                             avgtol         = self.tolerance,
-                             max_rank       = self.maxK, 
-                             sequence_rank  = self.Kseq, 
-                             method         = self.method, 
-                             num_neighbors  = self.n_neighbor,
-                             max_knot       = self.maxknot, 
+                             D              = D, 
+                             maxit          = maxit, 
+                             avgtol         = tolerance,
+                             max_rank       = maxK, 
+                             sequence_rank  = Kseq, 
+                             method         = method, 
+                             num_neighbors  = n_neighbor,
+                             max_knot       = maxknot, 
                              DfromLK        = None,
                              Fk             = None,
-                             dtype          = self.dtype,
-                             device         = self.device
+                             dtype          = dtype,
+                             device         = device
                              )
         
         K = Fk.shape[1]
         if self.method == "fast":  # have OpenMP issue
             data = fast_mode_knn_sklearn(data       = data,
                                          loc        = loc, 
-                                         n_neighbor = self.n_neighbor
+                                         n_neighbor = n_neighbor
                                          )
         elif self.method == "fast_faiss":
             data = fast_mode_knn_faiss(data         = data,
                                        loc          = loc, 
-                                       n_neighbor   = self.n_neighbor
+                                       n_neighbor   = n_neighbor
                                        )
-        data = to_tensor(data, dtype=self.dtype, device=self.dtype)
+        data = to_tensor(data, dtype=dtype, device=dtype)
         
         if not self.finescale:
             obj = indeMLE(data      = data,
                           Fk        = Fk[:, :K],
-                          D         = self.D,
-                          maxit     = self.maxit,
-                          avgtol    = self.tolerance,
+                          D         = D,
+                          maxit     = maxit,
+                          avgtol    = tolerance,
                           wSave     = True,
                           DfromLK   = None,
                           vfixed    = None,
                           verbose   = True,
-                          dtype     = self.dtype,
-                          device    = self.device
+                          dtype     = dtype,
+                          device    = device
                           )
             
         else:
@@ -217,8 +225,8 @@ class AutoFRK(nn.Module):
             LK_obj = initializeLKnFRK(data=data,
                                       location=loc,
                                       nlevel=nlevel,
-                                      weights=1.0 / torch.diag(self.D),
-                                      n_neighbor=self.n_neighbor,
+                                      weights=1.0 / torch.diag(D),
+                                      n_neighbor=n_neighbor,
                                       nu=nu
                                       )
             
@@ -231,9 +239,9 @@ class AutoFRK(nn.Module):
             LKobj = DnLK['LKobj']
             obj = indeMLE(data=data,
                           Fk=Fk[:, :K],
-                          D=self.D,
-                          maxit=self.maxit,
-                          avgtol=self.tolerance,
+                          D=D,
+                          maxit=maxit,
+                          avgtol=tolerance,
                           wSave=True,
                           DfromLK=DfromLK,
                           vfixed=DnLK.get('s', None)
@@ -241,7 +249,7 @@ class AutoFRK(nn.Module):
         
         obj['G'] = Fk
         
-        if self.finescale:
+        if finescale:
             """
             In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
             This implementation is not provided in the current context.

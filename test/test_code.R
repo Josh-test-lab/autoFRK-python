@@ -30,6 +30,11 @@ squ_res <- res^2
 cat("MSE(ALL TIME):", mean(squ_res))
 
 for (i in 1:nt) {
+  temp <- mean(squ_res[, i])
+  cat(paste("\nMSE(TIME", i, ") =", round(temp, 4)))
+}
+
+for (i in 1:nt) {
   # mse
   temp <- mean(squ_res[, i])
   plot(PRED$pred.value[, i],

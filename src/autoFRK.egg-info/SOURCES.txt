@@ -5,6 +5,7 @@ pyproject.toml
 src/autoFRK/__init__.py
 src/autoFRK/autoFRK.py
 src/autoFRK/mrts.py
+src/autoFRK/mrts_beta.py
 src/autoFRK.egg-info/PKG-INFO
 src/autoFRK.egg-info/SOURCES.txt
 src/autoFRK.egg-info/dependency_links.txt

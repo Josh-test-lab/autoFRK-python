@@ -129,7 +129,7 @@ class AutoFRK(nn.Module):
         maxknot: int=5000,
         dtype: Optional[torch.dtype]=None,
         device: Optional[Union[torch.device, str]]=None
-    ):
+    ) -> dict:
         """
 
         """

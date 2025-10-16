@@ -1970,5 +1970,68 @@ def setLKnFRKOption(
             }
     return to_tensor(ret, dtype=dtype, device=device)
 
+# using in MRTS.forward
+# check = none
+def predictMrts(s, xobs_diag, s_new, k, dtype=torch.float64, device="cpu"):
+    """
+    Predict on new locations by MRTS method (PyTorch version)
+    
+    Parameters
+    ----------
+    s : torch.Tensor, shape (n, d)
+        Original location matrix
+    xobs_diag : torch.Tensor, shape (n, n)
+        Observation matrix (diagonal or related)
+    s_new : torch.Tensor, shape (n2, d)
+        New location matrix
+    k : int
+        Rank
+    """
+    n, d = s.shape
+    n2 = s_new.shape[0]
+
+    # 1. 初始化矩陣
+    Phi = torch.zeros((n, n), dtype=dtype, device=device)  # placeholder, Rcpp 會更新
+    X = torch.zeros((n, k), dtype=dtype, device=device)
+    UZ = torch.zeros((n, k), dtype=dtype, device=device)
+    B = torch.zeros((n, d+1), dtype=dtype, device=device)
+    BBB = torch.zeros((n, k), dtype=dtype, device=device)
+    gamma = torch.zeros((k,), dtype=dtype, device=device)
+    lambda_ = torch.zeros((k,), dtype=dtype, device=device)
+    nconst = torch.zeros((k,), dtype=dtype, device=device)
+    
+    # 2. 更新 B, BBB, lambda, gamma (對應 updateMrtsBasisComponents)
+    # 這裡需要你自己實作 updateMrtsBasisComponents
+    updateMrtsBasisComponents(s, k, Phi, B, BBB, lambda_, gamma)
+    
+    # 3. 更新 X, UZ, nconst (對應 updateMrtsCoreComponentX / updateMrtsCoreComponentUZ)
+    updateMrtsCoreComponentX(s, Phi, B, BBB, lambda_, gamma, k, X, nconst)
+    updateMrtsCoreComponentUZ(s, xobs_diag, Phi, B, BBB, lambda_, gamma, k, UZ)
+    
+    # 4. 新位置 Phi_new
+    Phi_new = torch.zeros((n2, n), dtype=dtype, device=device)
+    # predictThinPlateMatrix(s_new, s, Phi_new) -> 需自行實作 thin-plate spline
+    Phi_new = predictThinPlateMatrix(s_new, s)  # shape (n2, n)
+    
+    # 5. 計算 X1
+    X1 = Phi_new @ UZ[:, :k]  # shape (n2, k)
+    
+    # 6. B_new 矩陣
+    B_new = torch.ones((n2, d + 1), dtype=dtype, device=device)
+    B_new[:, 1:] = s_new  # 後 d 欄放 s_new
+    
+    # 7. 計算 X1 修正
+    X1_corrected = X1 - B_new * ((BBB * Phi) @ UZ[:, :k])  # element-wise * 對應 Rcpp
+    
+    # 8. 回傳 dict 對應 Rcpp::List
+    result = {
+        "X": X,
+        "UZ": UZ,
+        "BBBH": BBB * Phi,
+        "nconst": nconst,
+        "X1": X1_corrected
+    }
+
+    return result
 
 

@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" scale="10" border="30">
     <diagram id="XuQJfIB-7gxwj8ibH9eZ" name="autoFRK">
-        <mxGraphModel dx="1046" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="607" dy="387" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -123,7 +123,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="aRreUktds2WmTYsilnNn" name="selectBasis">
-        <mxGraphModel dx="1046" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -259,7 +259,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="_wAuiHI8t3BaK7q7JUPL" name="computeMrtsRcpp">
-        <mxGraphModel dx="713" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -473,7 +473,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="MiSgtW1skynadFGV-osk" name="mrts">
-        <mxGraphModel dx="721" dy="1117" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -489,14 +489,14 @@
                 <mxCell id="lhZyYRwugqW37cqDlVFg-4" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="365" y="190" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="Z8MYh-YTOZI0yOpzvpkF-1" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Input&lt;/span&gt;&lt;/div&gt;&lt;span style=&quot;text-align: left; background-color: initial;&quot;&gt;data,&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;text-align: left; background-color: initial;&quot;&gt;loc&lt;/span&gt;&lt;br&gt;&lt;div style=&quot;left: 212px; bottom: 0px; right: 0px; height: 36px;&quot; class=&quot;geTabContainer geTabItem&quot;&gt;&lt;div style=&quot;width: 30px;&quot; title=&quot;Pages&quot; class=&quot;geTab geControlTab&quot;&gt;&lt;div style=&quot;text-align: left; background-image: url(&amp;quot;data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMThweCIgdmlld0JveD0iMCAwIDI0IDI0IiB3aWR0aD0iMThweCIgZmlsbD0iIzAwMDAwMCI+PHBhdGggZD0iTTAgMGgyNHYyNEgwVjB6IiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTEyIDhjMS4xIDAgMi0uOSAyLTJzLS45LTItMi0yLTIgLjktMiAyIC45IDIgMiAyem0wIDJjLTEuMSAwLTIgLjktMiAycy45IDIgMiAyIDItLjkgMi0yLS45LTItMi0yem0wIDZjLTEuMSAwLTIgLjktMiAycy45IDIgMiAyIDItLjkgMi0yLS45LTItMi0yeiIvPjwvc3ZnPg==&amp;quot;); background-repeat: no-repeat; background-position: center center; background-size: 24px; position: relative; opacity: 0.5; width: 100%; height: 100%;&quot; class=&quot;geAdaptiveAsset&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;geTabScroller&quot;&gt;&lt;div draggable=&quot;true&quot; title=&quot;autoFRK (XuQJfIB-7gxwj8ibH9eZ) [1]&quot; class=&quot;geTab gePageTab geActivePage&quot;&gt;&lt;span style=&quot;text-align: left;&quot;&gt;autoF&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div style=&quot;width: 12px; z-index: 1; touch-action: none; top: 69px; left: 212px; bottom: 37px;&quot; class=&quot;geHsplit&quot;&gt;&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+                <mxCell id="Z8MYh-YTOZI0yOpzvpkF-1" value="&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Input&lt;/span&gt;&lt;/div&gt;&lt;span style=&quot;text-align: left; background-color: initial;&quot;&gt;data,&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;text-align: left; background-color: initial;&quot;&gt;loc&lt;/span&gt;&lt;br&gt;&lt;div style=&quot;left: 212px; bottom: 0px; right: 0px; height: 36px;&quot; class=&quot;geTabContainer geTabItem&quot;&gt;&lt;div style=&quot;width: 30px;&quot; title=&quot;Pages&quot; class=&quot;geTab geControlTab&quot;&gt;&lt;div style=&quot;text-align: left; background-image: url(&amp;quot;data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMThweCIgdmlld0JveD0iMCAwIDI0IDI0IiB3aWR0aD0iMThweCIgZmlsbD0iIzAwMDAwMCI+PHBhdGggZD0iTTAgMGgyNHYyNEgwVjB6IiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTEyIDhjMS4xIDAgMi0uOSAyLTJzLS45LTItMi0yLTIgLjktMiAyIC45IDIgMiAyem0wIDJjLTEuMSAwLTIgLjktMiAycy45IDIgMiAyIDItLjkgMi0yLS45LTItMi0yem0wIDZjLTEuMSAwLTIgLjktMiAycy45IDIgMiAyIDItLjkgMi0yLS45LTItMi0yeiIvPjwvc3ZnPg==&amp;quot;); background-repeat: no-repeat; background-position: center center; background-size: 24px; position: relative; opacity: 0.5; width: 100%; height: 100%;&quot; class=&quot;geAdaptiveAsset&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;geTabScroller&quot;&gt;&lt;div draggable=&quot;true&quot; title=&quot;autoFRK (XuQJfIB-7gxwj8ibH9eZ) [1]&quot; class=&quot;geTab gePageTab geActivePage&quot;&gt;&lt;span style=&quot;text-align: left;&quot;&gt;autoF&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div style=&quot;width: 12px; z-index: 1; touch-action: none; top: 69px; left: 212px; bottom: 37px;&quot; class=&quot;geHsplit&quot;&gt;&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
                     <mxGeometry x="100" y="50" width="140" height="60" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
     </diagram>
     <diagram id="DemXN7UhvjINz1dLnWDb" name="cMLE">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -545,7 +545,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="Cjwr7dhfozOuazh2cz59" name="indeMLE">
-        <mxGraphModel dx="713" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -667,7 +667,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="GT2BN5FEExDf8B0XDDPu" name="cMLEimat">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -738,7 +738,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="T_76mG0Pr34SJxPvHJsL" name="computeProjetionMatrix">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -746,7 +746,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="dfJCgeIeECuL7UYifgvk" name="computeNegativeLikelihood">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -829,7 +829,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="3pTyqowcQ0qrrl-noSCV" name="subknot">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -922,7 +922,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="wIj73q1Jm2dgMqNFZTkG" name="knn">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -990,7 +990,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="yd9VMSCFCl9VMFBe54BR" name="getIneverseSquareRootMatix">
-        <mxGraphModel dx="786" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -998,7 +998,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="FrobLKEYMTQ1Y2ElofK8" name="predict.mrts">
-        <mxGraphModel dx="1536" dy="474" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1107,33 +1107,33 @@
                 <mxCell id="GouNqndl4LLPVZPxTXlD-34" value="nconst = biased std of Xu" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="80" y="570" width="160" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="qFlDO4ChKGf3tGATxvJy-1" value="class(object) is &quot;mrts&quot;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="qFlDO4ChKGf3tGATxvJy-1" value="class(object) is &quot;mrts&quot;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="70" y="138" width="140" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="qFlDO4ChKGf3tGATxvJy-2" value="Xu 是訓練集的站點座標；newx 是完整資料的站點座標" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="qFlDO4ChKGf3tGATxvJy-2" value="Xu 是訓練集的站點座標；newx 是完整資料的站點座標" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="5" y="325" width="310" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="qFlDO4ChKGf3tGATxvJy-3" value="對角線上放是經度、緯度，偏標準差的倒數" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="qFlDO4ChKGf3tGATxvJy-3" value="對角線上放是經度、緯度，偏標準差的倒數" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="15" y="498" width="250" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="qFlDO4ChKGf3tGATxvJy-4" value="把新資料的站點座標利用舊資料的統計特徵做標準化&lt;div&gt;新數據與訓練數據在統計特徵上對齊&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+                <mxCell id="qFlDO4ChKGf3tGATxvJy-4" value="把新資料的站點座標利用舊資料的統計特徵做標準化&lt;div&gt;新數據與訓練數據在統計特徵上對齊&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="15" y="660" width="300" height="40" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
     </diagram>
     <diagram id="yLcIK4_zhWmP13Gk9In7" name="predictMrtsRcppWithBasis">
-        <mxGraphModel dx="1066" dy="403" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+        <mxGraphModel dx="866" dy="1307" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
                 <mxCell id="XpjY8JLlAFmeNaFbIBIS-1" value="&lt;span style=&quot;font-family: &amp;quot;Courier New&amp;quot;;&quot;&gt;&lt;font style=&quot;color: light-dark(rgb(192, 192, 192), rgb(255, 255, 255));&quot;&gt;predictMrtsRcppWithBasis&lt;/font&gt;&lt;/span&gt;" style="ellipse;whiteSpace=wrap;html=1;rotation=16;" parent="1" vertex="1">
                     <mxGeometry x="380" y="77.5" width="120" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="vuyLb9kSp0NN8ZA0a9KV-2" value="" style="edgeStyle=none;html=1;dashed=1;" edge="1" parent="1" source="vuyLb9kSp0NN8ZA0a9KV-1" target="XpjY8JLlAFmeNaFbIBIS-1">
+                <mxCell id="vuyLb9kSp0NN8ZA0a9KV-2" value="" style="edgeStyle=none;html=1;dashed=1;" parent="1" source="vuyLb9kSp0NN8ZA0a9KV-1" target="XpjY8JLlAFmeNaFbIBIS-1" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="vuyLb9kSp0NN8ZA0a9KV-1" value="&lt;ol&gt;&lt;li&gt;Xu&lt;/li&gt;&lt;li&gt;xobs_diag&lt;/li&gt;&lt;li&gt;x0&lt;/li&gt;&lt;li&gt;attr(object, &quot;BBBH&quot;)&lt;/li&gt;&lt;li&gt;attr(object, &quot;UZ&quot;)&lt;/li&gt;&lt;li&gt;attr(object, &quot;nconst&quot;)&lt;/li&gt;&lt;li&gt;k&lt;/li&gt;&lt;/ol&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+                <mxCell id="vuyLb9kSp0NN8ZA0a9KV-1" value="&lt;ol&gt;&lt;li&gt;Xu&lt;/li&gt;&lt;li&gt;xobs_diag&lt;/li&gt;&lt;li&gt;x0&lt;/li&gt;&lt;li&gt;attr(object, &quot;BBBH&quot;)&lt;/li&gt;&lt;li&gt;attr(object, &quot;UZ&quot;)&lt;/li&gt;&lt;li&gt;attr(object, &quot;nconst&quot;)&lt;/li&gt;&lt;li&gt;k&lt;/li&gt;&lt;/ol&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" parent="1" vertex="1">
                     <mxGeometry x="70" y="40" width="220" height="155" as="geometry"/>
                 </mxCell>
             </root>

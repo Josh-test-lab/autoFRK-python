@@ -1,2 +1,4 @@
 .venv-cpu/*
 .venv-cpu/
+.venv-gpu/*
+.venv-gpu/

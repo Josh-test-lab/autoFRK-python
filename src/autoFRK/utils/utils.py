@@ -317,7 +317,7 @@ def selectBasis(
 
         for k in range(len(K)):
             Fk_k = Fk["MRTS"][pick, :K[k]]
-            iDFk_k = iDFk["MRTS"][:, :K[k]]
+            iDFk_k = iDFk[:, :K[k]]
             inverse_square_root_matrix = get_inverse_square_root_matrix(left_matrix  = Fk_k,
                                                                         right_matrix = iDFk_k
                                                                         )
@@ -2052,8 +2052,8 @@ def predictMrts(
                                    lambda_  = lambda_,
                                    gamma    = gamma,
                                    k        = k,
-                                   dtype    =dtype,
-                                   device   =device
+                                   dtype    = dtype,
+                                   device   = device
                                    )
 
     # Create thin plate splines, Phi_new by new positions `s_new`
@@ -2066,12 +2066,41 @@ def predictMrts(
     X1 = Phi_new @ UZ[:n, :k]
     B_new = torch.ones((n2, d + 1), dtype=dtype, device=device)
     B_new[:, -d:] = s_new
-    
+
+    # ==============================
+    # Debug Prints
+    # ==============================
+    # print("\n========== DEBUG: predictMrts() ==========")
+    # print(f"X: {X.shape}\n", X[:5, :5])
+    # print(f"UZ: {UZ.shape}\n", UZ[:5, :5])
+    # print(f"B_new: {B_new.shape}\n", B_new[:5, :5])
+    # print(f"BBB: {BBB.shape}\n", BBB[:5, :5])
+    # print(f"Phi: {Phi.shape}\n", Phi[:5, :5])
+
+    # # BBB @ Phi
+    # BBB_Phi = BBB @ Phi
+    # print(f"(BBB @ Phi): {BBB_Phi.shape}\n", BBB_Phi[:5, :5])
+
+    # print(f"nconst: {nconst.shape}\n", nconst[:5])
+
+    # # (BBB @ Phi) @ UZ[:n, :k]
+    # BBB_Phi_UZ = (BBB @ Phi) @ UZ[:n, :k]
+    # print(f"(BBB @ Phi) @ UZ[:n, :k]: {BBB_Phi_UZ.shape}\n", BBB_Phi_UZ[:5, :5])
+
+    # # B_new @ ((BBB @ Phi) @ UZ[:n, :k])
+    # Bnew_BBBPhiUZ = B_new @ BBB_Phi_UZ
+    # print(f"B_new @ ((BBB @ Phi) @ UZ[:n, :k]): {Bnew_BBBPhiUZ.shape}\n", Bnew_BBBPhiUZ[:5, :5])
+
+    # # X1 - B_new @ ((BBB @ Phi) @ UZ[:n, :k])
+    # X1_final = X1 - Bnew_BBBPhiUZ
+    # print(f"X1 - B_new @ ((BBB @ Phi) @ UZ[:n, :k]): {X1_final.shape}\n", X1_final[:5, :5])
+    # print("==========================================\n")
+
     return {"X":        X,
             "UZ":       UZ,
-            "BBBH":     BBB * Phi,
+            "BBBH":     BBB @ Phi,
             "nconst":   nconst,
-            "X1":       X1 - B_new * ((BBB * Phi) @ UZ[:n, :k])
+            "X1":       X1 - B_new @ ((BBB @ Phi) @ UZ[:n, :k])
             }
 
 # using in predictMrts
@@ -2118,6 +2147,7 @@ def updateMrtsBasisComponents(
     B[:, -d:] = s
     Bt = B.t()
     BtB = Bt @ B
+    BtB = (BtB + BtB.T) / 2
 
     L = torch.linalg.cholesky(BtB)
     # BBB := B(B'B)^{-1}B'
@@ -2129,14 +2159,14 @@ def updateMrtsBasisComponents(
 
     # Set a convergence threshold for eigen-decomposition
     ncv = min(n, max(2 * k + 1, 20))
-    eg = decomposeSymmetricMatrix(M     = quadratic,
-                                  k     = k,
-                                  ncv   = ncv,
-                                  dtype = dtype,
-                                  device= device
-                                  )
+    lambda_, gamma = decomposeSymmetricMatrix(M     = quadratic,
+                                              k     = k,
+                                              ncv   = ncv,
+                                              dtype = dtype,
+                                              device= device
+                                              )
 
-    return Phi, B, BBB, eg["lambda"], eg["gamma"]
+    return Phi, B, BBB, lambda_, gamma
 
 # using in updateMrtsBasisComponents
 # check = none

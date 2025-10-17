@@ -1,11 +1,11 @@
 """
 Title: Predictor of autoFRK-Python Project
-Author: Hsu, Yao-Chih
+Author: Yao-Chih Hsu
 Version: 1141017
 Reviewer: 
-Reviewed Version:
-Reference: 
+Reviewed Version: 
 Description: 
+Reference: 
 """
 
 # import modules
@@ -390,7 +390,7 @@ def predict_mrts(
     n = Xu.shape[0]
     xobs_diag = torch.diag(torch.sqrt(torch.tensor(n / (n - 1), dtype=dtype, device=device)) / Xu.std(dim=0, unbiased=True))
     ndims = Xu.shape[1]
-    k = obj["basis"].shape[1]
+    k = obj["MRTS"].shape[1]
     x0 = newx
     kstar = k - ndims - 1
 
@@ -474,7 +474,7 @@ def predictMrtsWithBasis(
                                      device = device
                                      )
 
-    X1 = Phi_new @ UZ[:, :k]
+    X1 = Phi_new @ UZ[:n, :k]
     B = torch.ones((n2, d + 1), dtype=dtype, device=device)
     B[:, -d:] = s_new
 
@@ -483,6 +483,6 @@ def predictMrtsWithBasis(
                 "UZ": UZ,
                 "BBBH": BBBH,
                 "nconst": nconst,
-                "X1": X1 - B @ (BBBH @ UZ[:, :k].T)
+                "X1": X1 - B * (BBBH * UZ[:n, :k])
             }
     return out

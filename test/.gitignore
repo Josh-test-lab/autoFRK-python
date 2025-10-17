@@ -2,3 +2,8 @@
 .venv-cpu/
 .venv-gpu/*
 .venv-gpu/
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+.Rproj.user

@@ -271,7 +271,7 @@ class AutoFRK(nn.Module):
             obj['pinfo']["loc"] = loc
             obj['pinfo']["weights"] = 1.0 / torch.diag(D)
         else:
-            obj['LKobj'] = None        
+            obj['LKobj'] = None   
         
         self.obj = obj
         return self.obj

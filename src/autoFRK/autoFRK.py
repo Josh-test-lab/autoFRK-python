@@ -1,7 +1,10 @@
 """
 Title: Automatic Fixed Rank Kriging.
 Author: Hsu, Yao-Chih
-Version: 1141012
+Author: Hsu, Yao-Chih
+Version: 1141017
+Reviewer: 
+Reviewed Version:
 Description: `autoFRK` is an R package to mitigate the intensive computation for modeling regularly/irregularly located spatial data using a class of basis functions with multi-resolution features and ordered in terms of their resolutions, and this project is to implement the `autoFRK` in Python.
 Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng Huang
 """
@@ -10,10 +13,10 @@ Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng
 import torch
 import torch.nn as nn
 from typing import Optional, Union
-from autoFRK.utils.logger import setup_logger
-from autoFRK.utils.device import setup_device
-from autoFRK.utils.utils import *
-from autoFRK.utils.predictor import *
+from .utils.logger import setup_logger
+from .utils.device import setup_device
+from .utils.utils import *
+from .utils.predictor import *
 
 # logger config
 LOGGER = setup_logger()
@@ -165,8 +168,9 @@ class AutoFRK(nn.Module):
             data = data.reshape(-1, 1)
         
         data = data - mu
+        Fk = {}
         if G is not None:
-            Fk = G
+            Fk["MRTS"] = G
         else:
             Fk = selectBasis(data           = data, 
                              loc            = loc,
@@ -184,7 +188,7 @@ class AutoFRK(nn.Module):
                              device         = device
                              )
         
-        K = Fk.shape[1]
+        K = Fk["MRTS"].shape[1]
         if method == "fast":  # have OpenMP issue
             data = fast_mode_knn_sklearn(data       = data,
                                          loc        = loc, 
@@ -199,7 +203,7 @@ class AutoFRK(nn.Module):
         
         if not finescale:
             obj = indeMLE(data      = data,
-                          Fk        = Fk[:, :K],
+                          Fk        = Fk["MRTS"][:, :K],
                           D         = D,
                           maxit     = maxit,
                           avgtol    = tolerance,
@@ -235,14 +239,14 @@ class AutoFRK(nn.Module):
                                       )
             
             DnLK = setLKnFRKOption(LK_obj,
-                                   Fk[:, :K],
+                                   Fk["MRTS"][:, :K],
                                    nc=NC,
                                    a_wght=a_wght
                                    )
             DfromLK = DnLK['DfromLK']
             LKobj = DnLK['LKobj']
             obj = indeMLE(data=data,
-                          Fk=Fk[:, :K],
+                          Fk=Fk["MRTS"][:, :K],
                           D=D,
                           maxit=maxit,
                           avgtol=tolerance,

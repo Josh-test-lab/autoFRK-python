@@ -1,8 +1,11 @@
 """
 Title: Predictor of autoFRK-Python Project
 Author: Hsu, Yao-Chih
-Version: 1141011
-Reference:
+Version: 1141017
+Reviewer: 
+Reviewed Version:
+Reference: 
+Description: 
 """
 
 # import modules
@@ -96,7 +99,7 @@ def predict_FRK(
                 error_msg = f"Basis matrix of new locations should be given (unless the model was fitted with mrts bases)!"
                 LOGGER.error(error_msg)
                 raise ValueError(error_msg)
-            basis = obj["G"]
+            basis = obj["G"]["MRTS"]
             device = check_device(obj   = obj,
                                   device= device
                                   )
@@ -123,7 +126,7 @@ def predict_FRK(
         basis = basis.unsqueeze(0)
 
     if obsloc is None:
-        nobs = obj["G"].shape[0]
+        nobs = obj["G"]["MRTS"].shape[0]
     else:
         nobs = to_tensor(obj    = obsloc.shape[0],  
                          dtype  = dtype,
@@ -143,7 +146,7 @@ def predict_FRK(
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
     else:
-        if basis.shape[0] != obj["G"].shape[0]:
+        if basis.shape[0] != obj["G"]["MRTS"].shape[0]:
             error_msg = f"Dimensions of obsloc and obsData are not compatible!"
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
@@ -168,7 +171,7 @@ def predict_FRK(
                     pick = pinfo.get("pick", [])
                     D0 = pinfo["D"][pick][:, pick]
                     miss_bool = (miss["miss"] == 1).to(torch.bool)
-                    Fk = obj["G"][pick]
+                    Fk = obj["G"]["MRTS"][pick]
                     M = obj["M"]
                     eigenvalues, eigenvectors = torch.linalg.eigh(M)
                     for tt in range(TT):
@@ -186,7 +189,7 @@ def predict_FRK(
             pick = (~torch.isnan(obsData)).nonzero(asuple=True)[0].tolist()
             if obsloc is None:
                 De = pinfo["D"][pick][:, pick]
-                G = obj["G"][pick]
+                G = obj["G"]["MRTS"][pick]
             else:
                 De = torch.eye(len(pick), dtype=dtype, device=device)
                 G = predict_mrts(obj    = obj["G"],
@@ -465,90 +468,21 @@ def predictMrtsWithBasis(
     """
     n, d = s.shape
     n2 = s_new.shape[0]
-    Phi_new = torch.zeros((n2, n), device=s.device)
     Phi_new = predictThinPlateMatrix(s_new  = s_new,
                                      s      = s,
-                                     L      = Phi_new
+                                     dtype  = dtype,
+                                     device = device
                                      )
 
     X1 = Phi_new @ UZ[:, :k]
     B = torch.ones((n2, d + 1), dtype=dtype, device=device)
     B[:, -d:] = s_new
-    X1_adjusted = X1 - B @ (BBBH @ UZ[:, :k].T)
 
     out = {
                 "X": s,
                 "UZ": UZ,
                 "BBBH": BBBH,
                 "nconst": nconst,
-                "X1": X1_adjusted
+                "X1": X1 - B @ (BBBH @ UZ[:, :k].T)
             }
     return out
-
-# using in predictMrtsWithBasis
-# check = none
-def predictThinPlateMatrix(
-    s_new: torch.Tensor,
-    s: torch.Tensor,
-    L: torch.Tensor
-) -> torch.Tensor:
-    """
-    Compute the Thin Plate Spline (TPS) basis matrix between new and reference locations.
-    
-    Parameters:
-        s_new (torch.Tensor): 
-            New position matrix (n1 x d)
-        s (torch.Tensor): 
-            Reference position matrix (n2 x d)
-        L (torch.Tensor): 
-            Output matrix (n1 x n2), will be filled in-place
-
-    Return:
-    
-    """
-    dist = torch.norm(s_new.unsqueeze(1) - s.unsqueeze(0), dim=2)
-    L[:] = thinPlateSplines(dist= dist,
-                            d   = s_new.shape[1]
-                            )
-
-    return L
-
-# using in predictThinPlateMatrix
-# check = none
-def thinPlateSplines(
-    dist: torch.Tensor,
-    d: int
-) -> torch.Tensor:
-    """
-    Compute Thin Plate Splines (TPS) radial basis function.
-
-    Parameters
-    ----------
-    dist : torch.Tensor
-        Distance tensor (non-negative).
-    d : int
-        Dimension of the positions (1, 2, or 3).
-
-    Returns
-    -------
-    torch.Tensor
-        TPS value corresponding to each element in `dist`.
-    """
-    if d == 1:
-        ret = dist.pow(3) / 12.0
-
-    elif d == 2:
-        ret = torch.zeros_like(dist)
-        nonzero_mask = dist != 0
-        ret[nonzero_mask] = ((dist[nonzero_mask] ** 2) * torch.log(dist[nonzero_mask])) / (8.0 * torch.pi)
-
-    elif d == 3:
-        ret = -dist / 8.0
-
-    else:
-        error_msg = f"Invalid dimension: d must be 1, 2, or 3."
-        LOGGER.error(error_msg)
-        raise ValueError(error_msg)
-
-    return ret
-

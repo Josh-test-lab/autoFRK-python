@@ -1,8 +1,11 @@
 """
 Title: Setup file of autoFRK-Python Project
 Author: Hsu, Yao-Chih
-Version: 1141012
-Reference:
+Version: 1141017
+Reviewer: 
+Reviewed Version:
+Reference: 
+Description: 
 """
 
 # development only
@@ -15,9 +18,10 @@ import torch
 import numpy as np
 import faiss
 import gc
-from typing import Optional, Union, Any
+from typing import Optional, Dict, Union, Any
 from sklearn.neighbors import NearestNeighbors
 from scipy.optimize import minimize_scalar
+from scipy.sparse.linalg import eigsh
 from autoFRK.utils.logger import setup_logger
 
 # logger config
@@ -181,7 +185,7 @@ def selectBasis(
     num_neighbors: int = 3,
     max_knot: int = 5000,
     DfromLK: dict = None,
-    Fk: torch.Tensor = None,
+    Fk: dict = None,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> torch.Tensor:
@@ -255,12 +259,25 @@ def selectBasis(
     # Fk 為 None 時初始化 basis function 值
     if Fk is None:
         from autoFRK.mrts import MRTS
-        mrts = MRTS(locs    = loc,
-                    k       = max(K),
-                    dtype   = dtype,
+        mrts = MRTS(dtype   = dtype,
                     device  = device
-                    )  # 待修 (knot, max(K), loc, max_knot) need fix
-        Fk = mrts.forward()
+                    )
+        Fk = mrts.forward(knot      = knot,
+                          k         = max(K),
+                          x         = loc,
+                          maxknot   = max_knot,
+                          dtype     = dtype,
+                          device    = device
+                          )
+
+        # old version
+        #from autoFRK.mrts_old import MRTS
+        #mrts = MRTS(locs    = loc,
+        #            k       = max(K),
+        #            dtype   = dtype,
+        #            device  = device
+        #            )  # 待修 (knot, max(K), loc, max_knot) need fix
+        #Fk = mrts.forward()
 
     AIC_list = to_tensor([float('inf')] * len(K), dtype=dtype, device=device)
     num_data_columns = data.shape[1]
@@ -268,7 +285,7 @@ def selectBasis(
     if method == "EM" and DfromLK is None:
         for k in range(len(K)):
             AIC_list[k] = indeMLE(data  = data,
-                                  Fk    = Fk[pick, :K[k]],
+                                  Fk    = Fk["MRTS"][pick, :K[k]],
                                   D     = D,
                                   maxit = maxit,
                                   avgtol= avgtol,
@@ -285,7 +302,7 @@ def selectBasis(
             data = fast_mode_knn_sklearn(data=data, loc=loc, n_neighbor=num_neighbors) 
         if DfromLK is None:
             iD = torch.linalg.solve(D, torch.eye(D.shape[0], dtype=dtype, device=device))
-            iDFk = iD @ Fk[pick, :]
+            iDFk = iD @ Fk["MRTS"][pick, :]
             iDZ = iD @ data
         else:
             wX = DfromLK["wX"][pick, :]
@@ -293,14 +310,14 @@ def selectBasis(
             weight = DfromLK["weights"][pick]
             wwX = torch.diag(torch.sqrt(weight)) @ wX
             wXiG = torch.linalg.solve(G, wwX.T).T
-            iDFk = weight * Fk[pick, :] - wXiG @ (wwX.T @ Fk[pick, :])
+            iDFk = weight * Fk["MRTS"][pick, :] - wXiG @ (wwX.T @ Fk["MRTS"][pick, :])
             iDZ = weight * data - wXiG @ (wwX.T @ data)
 
         sample_covariance_trace = torch.sum(iDZ * data) / num_data_columns
 
         for k in range(len(K)):
-            Fk_k = Fk[pick, :K[k]]
-            iDFk_k = iDFk[:, :K[k]]
+            Fk_k = Fk["MRTS"][pick, :K[k]]
+            iDFk_k = iDFk["MRTS"][:, :K[k]]
             inverse_square_root_matrix = get_inverse_square_root_matrix(left_matrix  = Fk_k,
                                                                         right_matrix = iDFk_k
                                                                         )
@@ -330,8 +347,8 @@ def selectBasis(
 
     AIC_list = AIC_list + 2 * df
     Kopt = K[torch.argmin(AIC_list)].item()
-    out = Fk[:, :Kopt]
-    return out
+    Fk["MRTS"] = Fk["MRTS"][:, :Kopt]
+    return Fk
 
 # check = ok
 def get_inverse_square_root_matrix(
@@ -398,7 +415,7 @@ def subKnot(
                 brk[0] -= 1e-8
                 grp = torch.bucketize(x[:, kk], brk) - 1
             gvec += kconst * grp
-            kconst *= nmbin[kk]
+            kconst = kconst * nmbin[kk]
 
         cnt += 1
 
@@ -1639,12 +1656,12 @@ def cMLElk(
     wXiG = wwX @ torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
     iDFk = weight.unsqueeze(1) * Fk - wXiG @ wwX.T @ Fk
 
-    projection = computeProjectionMatrix(Fk1    =Fk,
-                                         Fk2    =iDFk,
-                                         data   =data,
-                                         S      =None,
-                                         dtype  =dtype,
-                                         device =device
+    projection = computeProjectionMatrix(Fk1    = Fk,
+                                         Fk2    = iDFk,
+                                         data   = data,
+                                         S      = None,
+                                         dtype  = dtype,
+                                         device = device
                                          )
     inverse_square_root_matrix = projection["inverse_square_root_matrix"]
     matrix_JSJ = projection["matrix_JSJ"]
@@ -1972,66 +1989,441 @@ def setLKnFRKOption(
 
 # using in MRTS.forward
 # check = none
-def predictMrts(s, xobs_diag, s_new, k, dtype=torch.float64, device="cpu"):
+def predictMrts(
+    s: torch.Tensor,
+    xobs_diag: torch.Tensor,
+    s_new: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Dict[str, torch.Tensor]:
     """
-    Predict on new locations by MRTS method (PyTorch version)
-    
+    Internal function: Predict on new locations by MRTS method (PyTorch version)
+
     Parameters
     ----------
-    s : torch.Tensor, shape (n, d)
-        Original location matrix
-    xobs_diag : torch.Tensor, shape (n, n)
+    s : torch.Tensor
+        Location matrix of shape (n, d)
+    xobs_diag : torch.Tensor
         Observation matrix (diagonal or related)
-    s_new : torch.Tensor, shape (n2, d)
-        New location matrix
+    s_new : torch.Tensor
+        New location matrix of shape (n2, d)
     k : int
         Rank
+    dtype : torch.dtype, optional
+        Tensor data type (default: torch.float64)
+    device : Union[torch.device, str], optional
+        Device to run on (default: 'cpu')
+
+    Returns
+    -------
+    Dict[str, torch.Tensor]
+        {
+            "X": torch.Tensor,
+            "UZ": torch.Tensor,
+            "BBBH": torch.Tensor,
+            "nconst": torch.Tensor,
+            "X1": torch.Tensor
+        }
     """
     n, d = s.shape
     n2 = s_new.shape[0]
 
-    # 1. 初始化矩陣
-    Phi = torch.zeros((n, n), dtype=dtype, device=device)  # placeholder, Rcpp 會更新
-    X = torch.zeros((n, k), dtype=dtype, device=device)
-    UZ = torch.zeros((n, k), dtype=dtype, device=device)
-    B = torch.zeros((n, d+1), dtype=dtype, device=device)
-    BBB = torch.zeros((n, k), dtype=dtype, device=device)
-    gamma = torch.zeros((k,), dtype=dtype, device=device)
-    lambda_ = torch.zeros((k,), dtype=dtype, device=device)
-    nconst = torch.zeros((k,), dtype=dtype, device=device)
+    # Update B, BBB, lambda, gamma
+    Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s       = s,
+                                                            k       = k,
+                                                            dtype   = dtype,
+                                                            device  = device
+                                                            )
     
-    # 2. 更新 B, BBB, lambda, gamma (對應 updateMrtsBasisComponents)
-    # 這裡需要你自己實作 updateMrtsBasisComponents
-    updateMrtsBasisComponents(s, k, Phi, B, BBB, lambda_, gamma)
+    # Update X, nconst
+    X, nconst = updateMrtsCoreComponentX(s      = s,
+                                         gamma  = gamma,
+                                         k      = k,
+                                         dtype  = dtype,
+                                         device = device
+                                         )
+
+    # Update UZ
+    UZ = updateMrtsCoreComponentUZ(s        = s,
+                                   xobs_diag= xobs_diag,
+                                   B        = B,
+                                   BBB      = BBB,
+                                   lambda_  = lambda_,
+                                   gamma    = gamma,
+                                   k        = k,
+                                   dtype    =dtype,
+                                   device   =device
+                                   )
+
+    # Create thin plate splines, Phi_new by new positions `s_new`
+    Phi_new = predictThinPlateMatrix(s_new  = s_new,
+                                     s      = s,
+                                     dtype  = dtype,
+                                     device = device
+                                     )
     
-    # 3. 更新 X, UZ, nconst (對應 updateMrtsCoreComponentX / updateMrtsCoreComponentUZ)
-    updateMrtsCoreComponentX(s, Phi, B, BBB, lambda_, gamma, k, X, nconst)
-    updateMrtsCoreComponentUZ(s, xobs_diag, Phi, B, BBB, lambda_, gamma, k, UZ)
-    
-    # 4. 新位置 Phi_new
-    Phi_new = torch.zeros((n2, n), dtype=dtype, device=device)
-    # predictThinPlateMatrix(s_new, s, Phi_new) -> 需自行實作 thin-plate spline
-    Phi_new = predictThinPlateMatrix(s_new, s)  # shape (n2, n)
-    
-    # 5. 計算 X1
-    X1 = Phi_new @ UZ[:, :k]  # shape (n2, k)
-    
-    # 6. B_new 矩陣
+    X1 = Phi_new @ UZ[:n, :k]
     B_new = torch.ones((n2, d + 1), dtype=dtype, device=device)
-    B_new[:, 1:] = s_new  # 後 d 欄放 s_new
+    B_new[:, -d:] = s_new
     
-    # 7. 計算 X1 修正
-    X1_corrected = X1 - B_new * ((BBB * Phi) @ UZ[:, :k])  # element-wise * 對應 Rcpp
+    return {"X":        X,
+            "UZ":       UZ,
+            "BBBH":     BBB * Phi,
+            "nconst":   nconst,
+            "X1":       X1 - B_new * ((BBB * Phi) @ UZ[:n, :k])
+            }
+
+# using in predictMrts
+# check = none
+def updateMrtsBasisComponents(
+    s: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Dict[str, torch.Tensor]:
+    """
+    PyTorch translation of the Eigen/C++ function updateMrtsBasisComponents.
+
+    Parameters
+    ----------
+    s : torch.Tensor
+        (n, d) location matrix
+    k : int
+        number of eigenvalues requested (1 <= k <= n-1)
+    dtype : torch.dtype
+    device : torch.device or str
+    chol_jitter : float
+        small diagonal jitter added to BtB for numerical stability before Cholesky
+
+    Returns
+    -------
+    dict with keys:
+        "Phi" : (n, n) thin-plate spline matrix
+        "B"   : (n, d+1) design matrix (ones + s)
+        "BBB" : (d+1, n) = B @ (B^T B)^{-1}
+                 (matches Eigen: BBB = (B (B'B)^{-1} B') but shaped to match usage)
+        "lambda" : (k,) leading eigenvalues (or shape (k,1) depending on your decomposer)
+        "gamma"  : (n, k) corresponding eigenvectors
+    """
+    n, d = s.shape
+
+    # Create thin plate splines Phi
+    Phi = createThinPlateMatrix(s       = s,
+                                dtype   = dtype,
+                                device  = device
+                                )
     
-    # 8. 回傳 dict 對應 Rcpp::List
-    result = {
-        "X": X,
-        "UZ": UZ,
-        "BBBH": BBB * Phi,
-        "nconst": nconst,
-        "X1": X1_corrected
+    B = torch.ones((n, d + 1), dtype=dtype, device=device)
+    B[:, -d:] = s
+    Bt = B.t()
+    BtB = Bt @ B
+
+    L = torch.linalg.cholesky(BtB)
+    # BBB := B(B'B)^{-1}B'
+    BBB = torch.cholesky_solve(Bt, L)  # need fix
+    # Phi_proj := \Phi((I-B(B'B)^{-1}B')
+    Phi_proj = Phi - (Phi @ B) @ BBB
+    # quadratic := ((I-B(B'B)^{-1}B')\Phi((I-B(B'B)^{-1}B')
+    quadratic = Phi_proj - BBB.t() @ (Bt @ Phi_proj)
+
+    # Set a convergence threshold for eigen-decomposition
+    ncv = min(n, max(2 * k + 1, 20))
+    eg = decomposeSymmetricMatrix(M     = quadratic,
+                                  k     = k,
+                                  ncv   = ncv,
+                                  dtype = dtype,
+                                  device= device
+                                  )
+
+    return Phi, B, BBB, eg["lambda"], eg["gamma"]
+
+# using in updateMrtsBasisComponents
+# check = none
+def createThinPlateMatrix(
+    s: torch.Tensor,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+    
+    """
+    d = s.shape[1]
+    diff = s[:, None, :] - s[None, :, :]
+    dist = torch.linalg.norm(diff, dim=2)
+    L = thinPlateSplines(dist   = dist,
+                         d      = d,
+                         dtype  = dtype,
+                         device = device
+                         )
+    L = torch.triu(L, 1) + torch.triu(L, 1).T
+    return L
+
+# using in createThinPlateMatrix
+# check = none
+def thinPlateSplines(
+    dist: torch.Tensor,
+    d: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+
+    """
+    if d == 1:
+        return dist ** 3 / 12
+    elif d == 2:
+        ret = torch.zeros_like(dist, dtype=dtype, device=device)
+        mask = dist != 0
+        ret[mask] = dist[mask]**2 * torch.log(dist[mask]) / (8 * torch.pi)
+        return ret
+    elif d == 3:
+        return - dist / 8
+    else:
+        error_msg = f"Invalid dimension {d}, must be 1, 2, or 3"
+        LOGGER.error(error_msg)
+        raise ValueError(error_msg)
+
+# using in updateMrtsBasisComponents
+# check = none
+def decomposeSymmetricMatrix(
+    M: torch.Tensor,
+    k: int,
+    ncv: int = None,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> Dict[str, torch.Tensor]:
+    """
+    Compute the largest k eigenvalues and eigenvectors of a symmetric matrix.
+    
+    Parameters:
+    -----------
+    M : torch.Tensor
+        Symmetric matrix (n x n)
+    k : int
+        Number of largest eigenvalues requested
+    ncv : int, optional
+        Lanczos subspace size, only used for large matrices via scipy
+    dtype : torch.dtype
+    device : str or torch.device
+    
+    Returns:
+    --------
+    dict:
+        'lambda': largest k eigenvalues
+        'gamma': corresponding eigenvectors
+    """
+    n = M.shape[0]
+    
+    if n > 1000:
+        M_np = M.cpu().numpy()
+        if ncv is None:
+            ncv = max(2 * k + 1, 20)
+        lambda_, gamma = eigsh(M_np, k=k, which='LA', ncv=ncv)
+        lambda_ = torch.from_numpy(lambda_).to(dtype=dtype, device=device)
+        gamma = torch.from_numpy(gamma).to(dtype=dtype, device=device)
+        idx = lambda_.argsort(descending=True)
+        lambda_ = lambda_[idx]
+        gamma = gamma[:, idx]
+    else:
+        eigenvalues, eigenvectors = torch.linalg.eigh(M)
+        lambda_ = eigenvalues[-k:].flip(0)
+        gamma = eigenvectors[:, -k:].flip(1)
+
+    return lambda_, gamma
+
+# using in predictMrts
+# check = none
+def updateMrtsCoreComponentX(
+    s: torch.Tensor,
+    gamma: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> dict:
+    """
+    Compute MRTS core component X and nconst.
+    
+    Parameters
+    ----------
+    s : (n, d) torch.Tensor
+        Input position matrix
+    Phi, B, BBB : torch.Tensor
+        Precomputed matrices (not used directly in X here, keep for API consistency)
+    lambda_ : (k,) torch.Tensor
+        Eigenvalues
+    gamma : (n, k) torch.Tensor
+        Eigenvectors corresponding to top k eigenvalues
+    k : int
+        Number of eigenvectors
+    dtype : torch.dtype
+        Tensor type
+    device : str
+        Device
+    
+    Returns
+    -------
+    X : (n, k + d + 1) torch.Tensor
+    nconst : (d,) torch.Tensor
+    """
+    n, d = s.shape
+    root = torch.sqrt(torch.tensor(float(n), dtype=dtype, device=device))
+    X = torch.ones((n, k + d + 1), dtype=dtype, device=device)
+
+    X_center = s - s.mean(dim=0, keepdim=True)
+    nconst = torch.norm(X_center, dim=0)
+
+    X[:n, 1:(d + 1)] = X_center * (root / nconst)
+    X[:n, (d + 1):(d + 1 + k)] = gamma * root
+
+    nconst = nconst / root
+
+    return X, nconst
+
+# using in predictMrts
+# check = none
+def updateMrtsCoreComponentUZ(
+    s: torch.Tensor,
+    xobs_diag: torch.Tensor,
+    B: torch.Tensor,
+    BBB: torch.Tensor,
+    lambda_: torch.Tensor,
+    gamma: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+    Compute MRTS core component UZ.
+    
+    Parameters
+    ----------
+    s : (n, d) torch.Tensor
+    xobs_diag : (d, d) torch.Tensor
+    Phi, B, BBB : torch.Tensor (used for computation)
+    lambda_ : (k,) torch.Tensor
+    gamma : (n, k) torch.Tensor
+    k : int
+    dtype : torch.dtype
+    device : str
+    
+    Returns
+    -------
+    UZ : (n + d + 1, k + d + 1) torch.Tensor
+    """
+    n, d = s.shape
+    root = torch.sqrt(torch.tensor(float(n), dtype=dtype, device=device))
+
+    gammas = gamma - B @ (BBB @ gamma)
+    gammas = gammas / lambda_.unsqueeze(0) * root
+
+    UZ = torch.zeros((n + d + 1, k + d + 1), dtype=dtype, device=device)
+    UZ[:n, :k] = gammas
+    UZ[n, k] = 1.0
+    UZ[(n + 1):(n + 1 + d), (k + 1):(k + 1 + d)] = xobs_diag
+
+    return UZ
+
+# using in predictMrts
+# check = none
+def predictThinPlateMatrix(
+    s_new: torch.Tensor,
+    s: torch.Tensor,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+    Compute thin plate spline matrix between new and reference locations.
+
+    Parameters
+    ----------
+    s_new : (n1, d) torch.Tensor
+    s     : (n2, d) torch.Tensor
+
+    Returns
+    -------
+    L : (n1, n2) torch.Tensor
+    """
+    d = s.shape[1]
+    diff = s_new[:, None, :] - s[None, :, :]
+    dist = torch.linalg.norm(diff, dim=2)
+    L = thinPlateSplines(dist   = dist,
+                         d      = d,
+                         dtype  = dtype,
+                         device = device
+                         )
+            
+    return L
+    
+# using in MRTS.forward
+# check = none
+def computeMrts(
+    s: torch.Tensor,
+    xobs_diag: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> Dict[str, torch.Tensor]:
+    """
+    Compute MRTS (Multi-Resolution Thin-Plate Spline) core matrices.
+
+    Parameters
+    ----------
+    s : (n, d) torch.Tensor
+        Position matrix
+    xobs_diag : torch.Tensor
+        Observation matrix (typically diagonal or measurements)
+    k : int
+        Number of eigenvalues/components to keep
+    dtype : torch.dtype
+        Tensor dtype (default: torch.float64)
+    device : torch.device or str
+        Device (default: 'cpu')
+
+    Returns
+    -------
+    dict containing:
+        X     : (n, k) base matrix
+        UZ    : (n+d+1, k+d+1) transformed matrix
+        BBBH  : projection matrix * Phi
+        nconst: column normalization constants
+    """
+    # Update B, BBB, lambda, gamma
+    Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s       = s,
+                                                            k       = k,
+                                                            dtype   = dtype,
+                                                            device  = device
+                                                            )
+    
+    # Update X, nconst
+    X, nconst = updateMrtsCoreComponentX(s      = s,
+                                         gamma  = gamma,
+                                         k      = k,
+                                         dtype  = dtype,
+                                         device = device
+                                         )
+
+    # Update UZ
+    UZ = updateMrtsCoreComponentUZ(s        = s,
+                                   xobs_diag= xobs_diag,
+                                   B        = B,
+                                   BBB      = BBB,
+                                   lambda_  = lambda_,
+                                   gamma    = gamma,
+                                   k        = k,
+                                   dtype    =dtype,
+                                   device   =device
+                                   )
+
+    return {
+        "X":        X,
+        "UZ":       UZ,
+        "BBBH":     BBB @ Phi,
+        "nconst":   nconst
     }
 
-    return result
+
+
+
 
 

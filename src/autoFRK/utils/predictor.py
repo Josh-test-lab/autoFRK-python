@@ -29,6 +29,7 @@ def predict_FRK(
     basis: torch.Tensor = None,
     mu_new: Union[float, torch.Tensor] = 0,
     se_report: bool = False,
+    calculate_with_spherical: bool = False,
     dtype: torch.dtype=torch.float64,
     device: Optional[Union[torch.device, str]] = 'cpu'
 ) -> dict:
@@ -112,10 +113,11 @@ def predict_FRK(
             device = check_device(obj   = obj,
                                   device= device
                                   )
-            basis = predict_mrts(obj    = obj["G"],
-                                 newx   = newloc,
-                                 dtype  = dtype,
-                                 device = device
+            basis = predict_mrts(obj                        = obj["G"],
+                                 newx                       = newloc,
+                                 calculate_with_spherical   = calculate_with_spherical,
+                                 dtype                      = dtype,
+                                 device                     = device
                                  )
 
     if basis.ndim == 1:
@@ -192,10 +194,11 @@ def predict_FRK(
                 G = obj["G"]["MRTS"][pick]
             else:
                 De = torch.eye(len(pick), dtype=dtype, device=device)
-                G = predict_mrts(obj    = obj["G"],
-                                 newx   = obsloc[pick],
-                                 dtype  = dtype,
-                                 device = device
+                G = predict_mrts(obj                        = obj["G"],
+                                 newx                       = obsloc[pick],
+                                 calculate_with_spherical   = calculate_with_spherical,
+                                 dtype                      = dtype,
+                                 device                     = device
                                  )
 
             M = obj["M"]
@@ -350,6 +353,7 @@ def predict_FRK(
 def predict_mrts(
     obj: dict,
     newx: Optional[torch.Tensor] = None,
+    calculate_with_spherical: bool = False,
     dtype: torch.dtype=torch.float64,
     device: Union[str, torch.device] = 'cpu'
 ) -> torch.Tensor:
@@ -405,15 +409,16 @@ def predict_mrts(
     )
 
     if kstar > 0:
-        X1 = predictMrtsWithBasis(s         = Xu,
-                                  xobs_diag = xobs_diag,
-                                  s_new     = x0,
-                                  BBBH      = obj["BBBH"],
-                                  UZ        = obj["UZ"],
-                                  nconst    = obj["nconst"],
-                                  k         = k,
-                                  dtype     = dtype,
-                                  device    = device
+        X1 = predictMrtsWithBasis(s                         = Xu,
+                                  xobs_diag                 = xobs_diag,
+                                  s_new                     = x0,
+                                  BBBH                      = obj["BBBH"],
+                                  UZ                        = obj["UZ"],
+                                  nconst                    = obj["nconst"],
+                                  k                         = k,
+                                  calculate_with_spherical  = calculate_with_spherical,
+                                  dtype                     = dtype,
+                                  device                    = device
                                   )["X1"]
         
         X1 = X1[:, :kstar]
@@ -431,6 +436,7 @@ def predictMrtsWithBasis(
     UZ: torch.Tensor,
     nconst: torch.Tensor,
     k: int,
+    calculate_with_spherical: bool = False,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> Dict[str, torch.Tensor]:
@@ -468,10 +474,11 @@ def predictMrtsWithBasis(
     """
     n, d = s.shape
     n2 = s_new.shape[0]
-    Phi_new = predictThinPlateMatrix(s_new  = s_new,
-                                     s      = s,
-                                     dtype  = dtype,
-                                     device = device
+    Phi_new = predictThinPlateMatrix(s_new                      = s_new,
+                                     s                          = s,
+                                     calculate_with_spherical   = calculate_with_spherical,
+                                     dtype                      = dtype,
+                                     device                     = device
                                      )
 
     X1 = Phi_new @ UZ[:n, :k]

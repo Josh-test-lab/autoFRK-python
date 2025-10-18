@@ -130,6 +130,7 @@ class AutoFRK(nn.Module):
         method: str="fast", 
         n_neighbor: int=3, 
         maxknot: int=5000,
+        calculate_with_spherical: bool = False,
         dtype: Optional[torch.dtype]=None,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
@@ -172,20 +173,21 @@ class AutoFRK(nn.Module):
         if G is not None:
             Fk["MRTS"] = G
         else:
-            Fk = selectBasis(data           = data, 
-                             loc            = loc,
-                             D              = D, 
-                             maxit          = maxit, 
-                             avgtol         = tolerance,
-                             max_rank       = maxK, 
-                             sequence_rank  = Kseq, 
-                             method         = method, 
-                             num_neighbors  = n_neighbor,
-                             max_knot       = maxknot, 
-                             DfromLK        = None,
-                             Fk             = None,
-                             dtype          = dtype,
-                             device         = device
+            Fk = selectBasis(data                       = data, 
+                             loc                        = loc,
+                             D                          = D, 
+                             maxit                      = maxit, 
+                             avgtol                     = tolerance,
+                             max_rank                   = maxK, 
+                             sequence_rank              = Kseq, 
+                             method                     = method, 
+                             num_neighbors              = n_neighbor,
+                             max_knot                   = maxknot, 
+                             DfromLK                    = None,
+                             Fk                         = None,
+                             calculate_with_spherical   = calculate_with_spherical,
+                             dtype                      = dtype,
+                             device                     = device
                              )
         
         K = Fk["MRTS"].shape[1]
@@ -256,6 +258,7 @@ class AutoFRK(nn.Module):
                           )
         
         obj['G'] = Fk
+        obj['calculate_with_spherical'] = calculate_with_spherical
         
         if finescale:
             """
@@ -293,16 +296,17 @@ class AutoFRK(nn.Module):
         if obj is None:
             obj = self.obj
             
-        return predict_FRK(obj          = obj,
-                           obsData      = obsData,
-                           obsloc       = obsloc,
-                           mu_obs       = mu_obs,
-                           newloc       = newloc,
-                           basis        = basis,
-                           mu_new       = mu_new,
-                           se_report    = se_report,
-                           dtype        = self.dtype,
-                           device       = self.device
+        return predict_FRK(obj                      = obj,
+                           obsData                  = obsData,
+                           obsloc                   = obsloc,
+                           mu_obs                   = mu_obs,
+                           newloc                   = newloc,
+                           basis                    = basis,
+                           mu_new                   = mu_new,
+                           se_report                = se_report,
+                           calculate_with_spherical = obj['calculate_with_spherical'],
+                           dtype                    = self.dtype,
+                           device                   = self.device
                            )
 
 

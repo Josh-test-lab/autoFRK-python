@@ -52,6 +52,7 @@ class MRTS(nn.Module):
         k: int=None, 
         x: torch.Tensor=None,
         maxknot: int=5000,
+        calculate_with_spherical: bool = False,
         dtype: torch.dtype=torch.float64,
         device: Union[torch.device, str]='cpu'
     ) -> dict:
@@ -119,12 +120,13 @@ class MRTS(nn.Module):
         
         if x is not None:
             if k - ndims - 1 > 0:
-                result = predictMrts(s          = Xu,
-                                     xobs_diag  = xobs_diag,
-                                     s_new      = x,
-                                     k          = k - ndims - 1,
-                                     dtype      = dtype,
-                                     device     = device
+                result = predictMrts(s                          = Xu,
+                                     xobs_diag                  = xobs_diag,
+                                     s_new                      = x,
+                                     k                          = k - ndims - 1,
+                                     calculate_with_spherical   = calculate_with_spherical,
+                                     dtype                      = dtype,
+                                     device                     = device
                                      )
             else:
                 shift = Xu.mean(dim=0, keepdim=True)
@@ -144,11 +146,12 @@ class MRTS(nn.Module):
 
         else:
             if k - ndims - 1 > 0:
-                result = computeMrts(s          = Xu,
-                                     xobs_diag  = xobs_diag,
-                                     k          = k - ndims - 1,
-                                     dtype      = dtype,
-                                     device     = device
+                result = computeMrts(s                          = Xu,
+                                     xobs_diag                  = xobs_diag,
+                                     k                          = k - ndims - 1,
+                                     calculate_with_spherical   = calculate_with_spherical,
+                                     dtype                      = dtype,
+                                     device                     = device
                                      )
             else:
                 shift = Xu.mean(dim=0, keepdim=True)

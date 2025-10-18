@@ -478,11 +478,9 @@ def predictMrtsWithBasis(
     B = torch.ones((n2, d + 1), dtype=dtype, device=device)
     B[:, -d:] = s_new
 
-    out = {
-                "X": s,
-                "UZ": UZ,
-                "BBBH": BBBH,
-                "nconst": nconst,
-                "X1": X1 - B * (BBBH * UZ[:n, :k])
+    return {"X": s,
+            "UZ": UZ,
+            "BBBH": BBBH,
+            "nconst": nconst,
+            "X1": X1 - B @ (BBBH @ UZ[:n, :k])
             }
-    return out

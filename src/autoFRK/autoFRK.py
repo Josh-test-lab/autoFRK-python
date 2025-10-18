@@ -154,6 +154,12 @@ class AutoFRK(nn.Module):
         else:
             self.dtype = dtype
 
+        # method check
+        if method not in ["fast", "fast_faiss", "EM"]:
+            error_msg = f"The specified method '{method}' is not supported. Available methods are 'fast', 'fast_faiss', and 'EM'."
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+
         # convert all major parameters
         mu = to_tensor(mu, dtype=dtype, device=device)
         D = to_tensor(D, dtype=dtype, device=device) if D is not None else None
@@ -191,12 +197,12 @@ class AutoFRK(nn.Module):
                              )
         
         K = Fk["MRTS"].shape[1]
-        if method == "fast":  # have OpenMP issue
+        if method == "fast":
             data = fast_mode_knn_sklearn(data       = data,
                                          loc        = loc, 
                                          n_neighbor = n_neighbor
                                          )
-        elif method == "fast_faiss":
+        elif method == "fast_faiss":  # have OpenMP issue
             data = fast_mode_knn_faiss(data         = data,
                                        loc          = loc, 
                                        n_neighbor   = n_neighbor

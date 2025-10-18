@@ -1,19 +1,21 @@
 """
 Title: Predictor of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141017
-Reviewer: 
-Reviewed Version: 
-Description: 
-Reference: 
+Version: 1141018
+Reviewer: Yao-Chih Hsu
+Reviewed Version: 1141018
+Description: This file contain prediction-related functions for the autoFRK-Python project.
+Reference: None
 """
 
 # import modules
 import torch
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Tuple
+from autoFRK.utils.utils import to_tensor
 from autoFRK.utils.logger import setup_logger
-from autoFRK.utils.device import *
-from autoFRK.utils.utils import *
+from autoFRK.utils.device import check_device
+from autoFRK.utils.matrix_operator import invCz, decomposeSymmetricMatrix
+from autoFRK.mrts import createThinPlateMatrix, thinPlateSplines
 
 # logger config
 LOGGER = setup_logger()
@@ -32,62 +34,45 @@ def predict_FRK(
     calculate_with_spherical: bool = False,
     dtype: torch.dtype=torch.float64,
     device: Optional[Union[torch.device, str]] = 'cpu'
-) -> dict:
+) -> Dict[str, Union[torch.Tensor, None]]:
     """
-    Predict method for Fixed Rank Kriging
+    Predict values and estimate of standard errors based on Fixed Rank Kriging (autoFRK) model.
 
-    Predicted values and standard error estimates based on a model object 
-    obtained from `autoFRK`.
+    This function provides predictions at specified locations and times based on an `autoFRK` 
+    model object, optionally including standard errors.
 
-    Parameters:
-        obj (dict): 
-            A model object obtained from `autoFRK`.
-        
-        obsData (torch.Tensor, optional):
-            Vector of observed data used for prediction.
-            Default is None, which uses the `Data` field from `obj`.
-        
-        obsloc (torch.Tensor, optional):
-            Matrix with rows being coordinates of observation locations for `obsData`.
-            Only models using `mrts` basis functions can have `obsloc` different from 
-            the `loc` field in `obj`. Not applicable for user-specified basis functions.
-            Default is None, which uses the `loc` field from `obj`.
-        
-        mu_obs (float or torch.Tensor, optional):
-            Vector or scalar for the deterministic mean values at `obsloc`.
-            Default is 0.
-        
-        newloc (torch.Tensor, optional):
-            Matrix with rows being coordinates of new locations for prediction.
-            Default is None, which gives prediction at the observed locations.
-        
-        basis (torch.Tensor, optional):
-            Matrix where each column is a basis function evaluated at `newloc`.
-            Can be omitted if the model was fitted using default `mrts` basis functions.
-        
-        mu_new (float or torch.Tensor, optional):
-            Vector or scalar for the deterministic mean values at `newloc`.
-            Default is 0.
-        
-        se_report (bool, optional):
-            If True, the standard error of the prediction is also returned.
-        
-        device (torch.device or str, optional):
-            Device to perform computation on. Default is `'cpu'`.
-        
-        dtype (torch.dtype, optional):
-            Tensor dtype for computation. Default is `torch.float64`.
+    Parameters
+    ----------
+    obj : dict
+        Model object obtained from `autoFRK`.
+    obsData : torch.Tensor, optional
+        Observed data used for prediction. Default is None, which uses `Data` from `obj`.
+    obsloc : torch.Tensor, optional
+        Coordinates of observation locations for `obsData`. Only applicable for models
+        fitted using `MRTS` basis functions. Default is None, which uses `loc` from `obj`.
+    mu_obs : float or torch.Tensor, optional
+        Deterministic mean values at observation locations. Default is 0.
+    newloc : torch.Tensor, optional
+        Coordinates of new locations for prediction. Default is None, which predicts at observed locations.
+    basis : torch.Tensor, optional
+        Basis matrix at `newloc`. Can be omitted if model uses default `MRTS` basis functions.
+    mu_new : float or torch.Tensor, optional
+        Deterministic mean values at `newloc`. Default is 0.
+    se_report : bool, optional
+        If True, returns standard errors of predictions. Default is False.
+    calculate_with_spherical : bool, optional
+        If True, use spherical coordinates in prediction. Default is False.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
 
-    Returns:
-        dict
-            A dictionary with the following components:
-            
-            - **pred_value** (`torch.Tensor`):  
-            A matrix where element (i, t) is the predicted value at the i-th location and time t.
-            
-            - **se** (`torch.Tensor`, optional):  
-            A vector where element i is the standard error of the predicted value at the i-th location.
-            Only returned if `se_report=True`.
+    Returns
+    -------
+    dict
+        Dictionary with the following keys:
+        - **pred.value** (`torch.Tensor`): Predicted values, shape (num_locations, num_times).
+        - **se** (`torch.Tensor` or None): Standard errors of predictions, only if `se_report=True`.
     """
     obj = to_tensor(obj     = obj,
                     dtype   = dtype,
@@ -358,37 +343,36 @@ def predict_mrts(
     device: Union[str, torch.device] = 'cpu'
 ) -> torch.Tensor:
     """
-    Multi-Resolution Thin-plate Spline Basis Functions
-
     Evaluate multi-resolution thin-plate spline basis functions at given locations.
-    This provides a generic prediction method for 'mrts' objects, 
-    similar to `predict.ns` or `predict.bs` in R's 'splines' package.
 
-    Parameters:
-        obj (dict): 
-            Object produced from calling `mrts`. Must contain:
-            - "Xu": torch.Tensor of knot locations
-            - "nconst": normalization constants (1D tensor)
-            - "BBBH": precomputed thin-plate spline matrix
-            - "UZ": orthogonal basis
-            - Itself (obj["basis"]) representing the evaluated basis matrix.
+    This function provides a generic prediction method for `autoFRK` model objects.
 
-        newx (torch.Tensor, optional): 
-            (n × d) tensor of coordinates corresponding to n new locations.
-            If None, returns `obj` directly.
+    Parameters
+    ----------
+    obj : dict
+        Object produced from calling `G`. Must contain:
+        - 'Xu': (n × d) tensor of knot locations
+        - 'nconst': normalization constants (1D tensor)
+        - 'BBBH': precomputed thin-plate spline matrix
+        - 'UZ': orthogonal basis matrix
+        - 'MRTS': evaluated multi-resolution thin-plate spline basis basis matrix
+    newx : torch.Tensor, optional
+        (n × d) tensor of coordinates of new locations.
+        If None, returns `obj['MRTS']`.
+    calculate_with_spherical : bool, optional
+        Whether to use spherical coordinates in the evaluation. Default is False.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
 
-        device (torch.device or str, optional): 
-            Device for computation (default 'cpu').
-
-        dtype (torch.dtype, optional): 
-            Tensor dtype for computation (default torch.float64).
-
-    Returns:
-        torch.Tensor
-            (n × k) tensor of k basis function values at newx.
+    Returns
+    -------
+    torch.Tensor
+        (n × k) tensor of k MRTS basis function values evaluated at `newx`.
     """
     if newx is None:
-        return obj["basis"]
+        return obj["MRTS"]
 
     Xu = obj["Xu"]
     n = Xu.shape[0]
@@ -441,36 +425,43 @@ def predictMrtsWithBasis(
     device: Union[torch.device, str]='cpu'
 ) -> Dict[str, torch.Tensor]:
     """
-    Internal function: Predict on new locations by MRTS method (PyTorch version)
+    Predict MRTS basis values at new locations.
 
-    Parameters:
-        s (torch.Tensor): 
-            Location matrix, shape (n, d)
-        xobs_diag (torch.Tensor): 
-            Matrix of observations, shape (n, n)
-        s_new (torch.Tensor): 
-            New location matrix, shape (n2, d)
-        BBBH (torch.Tensor): 
-            Matrix for internal computing use, shape (d+1, k)
-        UZ (torch.Tensor): 
-            Matrix for internal computing use, shape (n, k)
-        nconst (torch.Tensor): 
-            Vector of column means, shape (d+1,)
-        k (int): 
-            Rank
-        device (Union[torch.device, str], optional): 
-            Device to use ("cpu" or "cuda"), if not consistent with inputs, 
-            will be auto-detected using `check_device()`.
+    This function computes the thin-plate spline basis for new locations (`s_new`) 
+    using precomputed matrices and transformations from a fitted MRTS model.
 
-    Returns:
-        Dict[str, torch.Tensor]
-            {
-                "X": s,
-                "UZ": UZ,
-                "BBBH": BBBH,
-                "nconst": nconst,
-                "X1": torch.Tensor
-            }
+    Parameters
+    ----------
+    s : torch.Tensor
+        Original location matrix, shape (n, d).
+    xobs_diag : torch.Tensor
+        Observation-related matrix, shape (n, n).
+    s_new : torch.Tensor
+        New location matrix for prediction, shape (n2, d).
+    BBBH : torch.Tensor
+        Precomputed internal matrix for transformation, shape (d + 1, k).
+    UZ : torch.Tensor
+        Orthogonal basis matrix from the fitted MRTS, shape (n, k).
+    nconst : torch.Tensor
+        Column mean vector, shape (d + 1, ).
+    k : int
+        Rank (number of basis functions used).
+    calculate_with_spherical : bool, optional
+        Whether to use spherical coordinates in the evaluation. Default is False.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    Dict[str, torch.Tensor]
+        Dictionary containing:
+        - "X" (torch.Tensor): Original locations matrix `s`.
+        - "UZ" (torch.Tensor): Orthogonal basis matrix `UZ`.
+        - "BBBH" (torch.Tensor): Precomputed matrix `BBBH`.
+        - "nconst" (torch.Tensor): Column means or normalization constants.
+        - "X1" (torch.Tensor): Predicted basis matrix at `s_new`, adjusted by `BBBH` and `UZ`.
     """
     n, d = s.shape
     n2 = s_new.shape[0]
@@ -491,3 +482,317 @@ def predictMrtsWithBasis(
             "nconst": nconst,
             "X1": X1 - B @ (BBBH @ UZ[:n, :k])
             }
+
+# using in MRTS.forward
+# check = none
+def predictMrts(
+    s: torch.Tensor,
+    xobs_diag: torch.Tensor,
+    s_new: torch.Tensor,
+    k: int,
+    calculate_with_spherical: bool = False,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Dict[str, torch.Tensor]:
+    """
+    Predict on new locations using the MRTS method.
+
+    Computes the MRTS basis for new locations `s_new` given a fitted MRTS model 
+    represented by matrices computed from original locations `s`.
+
+    Parameters
+    ----------
+    s : torch.Tensor
+        Original location matrix, shape (n, d).
+    xobs_diag : torch.Tensor
+        Observation-related matrix, typically diagonal or similar, shape (n, n).
+    s_new : torch.Tensor
+        New location matrix for prediction, shape (n2, d).
+    k : int
+        Rank (number of basis functions).
+    calculate_with_spherical : bool, optional
+        Whether to use spherical coordinates in the evaluation. Default is False.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    Dict[str, torch.Tensor]
+        Dictionary containing:
+        - "X" (torch.Tensor): Core location matrix.
+        - "UZ" (torch.Tensor): Orthogonal basis matrix.
+        - "BBBH" (torch.Tensor): Transformed internal matrix for computation.
+        - "nconst" (torch.Tensor): Column means or normalization constants.
+        - "X1" (torch.Tensor): Predicted basis matrix at `s_new`, adjusted by transformations.
+    """
+    n, d = s.shape
+    n2 = s_new.shape[0]
+
+    # Update B, BBB, lambda, gamma
+    Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s                           = s,
+                                                            k                           = k,
+                                                            calculate_with_spherical    = calculate_with_spherical,
+                                                            dtype                       = dtype,
+                                                            device                      = device
+                                                            )
+    
+    # Update X, nconst
+    X, nconst = updateMrtsCoreComponentX(s      = s,
+                                         gamma  = gamma,
+                                         k      = k,
+                                         dtype  = dtype,
+                                         device = device
+                                         )
+
+    # Update UZ
+    UZ = updateMrtsCoreComponentUZ(s        = s,
+                                   xobs_diag= xobs_diag,
+                                   B        = B,
+                                   BBB      = BBB,
+                                   lambda_  = lambda_,
+                                   gamma    = gamma,
+                                   k        = k,
+                                   dtype    = dtype,
+                                   device   = device
+                                   )
+
+    # Create thin plate splines, Phi_new by new positions `s_new`
+    Phi_new = predictThinPlateMatrix(s_new                      = s_new,
+                                     s                          = s,
+                                     calculate_with_spherical   = calculate_with_spherical,
+                                     dtype                      = dtype,
+                                     device                     = device
+                                     )
+    
+    X1 = Phi_new @ UZ[:n, :k]
+    B_new = torch.ones((n2, d + 1), dtype=dtype, device=device)
+    B_new[:, -d:] = s_new
+
+    return {"X":        X,
+            "UZ":       UZ,
+            "BBBH":     BBB @ Phi,
+            "nconst":   nconst,
+            "X1":       X1 - B_new @ ((BBB @ Phi) @ UZ[:n, :k])
+            }
+
+# using in predictMrts
+# check = none
+def updateMrtsBasisComponents(
+    s: torch.Tensor,
+    k: int,
+    calculate_with_spherical: bool=False,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Compute MRTS basis components via eigen-decomposition of the projected thin-plate spline matrix.
+
+    Parameters
+    ----------
+    s : torch.Tensor
+        Location matrix of shape (n, d), where n is the number of locations and d the dimension.
+    k : int
+        Number of leading eigenvalues/eigenvectors to compute (1 <= k <= n-1).
+    calculate_with_spherical : bool, optional
+        Whether to compute Phi using spherical coordinates. Default is False.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+        - Phi (torch.Tensor): Thin-plate spline matrix, shape (n, n)
+        - B (torch.Tensor): Design matrix [1 | s], shape (n, d+1)
+        - BBB (torch.Tensor): Projection matrix B(B'B)^{-1}, shape (d+1, n)
+        - lambda (torch.Tensor): Leading k eigenvalues of the projected Phi matrix, shape (k,)
+        - gamma (torch.Tensor): Corresponding eigenvectors, shape (n, k)
+    """
+    n, d = s.shape
+
+    # Create thin plate splines Phi
+    Phi = createThinPlateMatrix(s                       = s,
+                                calculate_with_spherical= calculate_with_spherical,
+                                dtype                   = dtype,
+                                device                  = device
+                                )
+    
+    B = torch.ones((n, d + 1), dtype=dtype, device=device)
+    B[:, -d:] = s
+    Bt = B.t()
+    BtB = Bt @ B
+    BtB = (BtB + BtB.T) / 2
+
+    L = torch.linalg.cholesky(BtB)
+    # BBB := B(B'B)^{-1}B'
+    BBB = torch.cholesky_solve(Bt, L)  # need fix
+    # Phi_proj := \Phi((I-B(B'B)^{-1}B')
+    Phi_proj = Phi - (Phi @ B) @ BBB
+    # quadratic := ((I-B(B'B)^{-1}B')\Phi((I-B(B'B)^{-1}B')
+    quadratic = Phi_proj - BBB.t() @ (Bt @ Phi_proj)
+
+    # Set a convergence threshold for eigen-decomposition
+    ncv = min(n, max(2 * k + 1, 20))
+    lambda_, gamma = decomposeSymmetricMatrix(M     = quadratic,
+                                              k     = k,
+                                              ncv   = ncv,
+                                              dtype = dtype,
+                                              device= device
+                                              )
+
+    return Phi, B, BBB, lambda_, gamma
+
+# using in predictMrts
+# check = none
+def updateMrtsCoreComponentX(
+    s: torch.Tensor,
+    gamma: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Compute MRTS core component X and normalization constants (nconst).
+
+    Parameters
+    ----------
+    s : torch.Tensor, shape (n, d)
+        Input location matrix with n samples in d dimensions.
+    gamma : torch.Tensor, shape (n, k)
+        Leading k eigenvectors of the projected thin-plate spline matrix.
+    k : int
+        Number of eigenvectors to use.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    Tuple[torch.Tensor, torch.Tensor]
+        - X : torch.Tensor, shape (n, d + 1 + k)
+            MRTS core component matrix combining bias, centered/scaled coordinates, and eigenvectors.
+        - nconst : torch.Tensor, shape (d,)
+            Normalization constants (column norms) used to scale the coordinates.
+    """
+    n, d = s.shape
+    root = torch.sqrt(torch.tensor(float(n), dtype=dtype, device=device))
+    X = torch.ones((n, k + d + 1), dtype=dtype, device=device)
+
+    X_center = s - s.mean(dim=0, keepdim=True)
+    nconst = torch.norm(X_center, dim=0)
+
+    X[:n, 1:(d + 1)] = X_center * (root / nconst)
+    X[:n, (d + 1):(d + 1 + k)] = gamma * root
+
+    nconst = nconst / root
+
+    return X, nconst
+
+# using in predictMrts
+# check = none
+def updateMrtsCoreComponentUZ(
+    s: torch.Tensor,
+    xobs_diag: torch.Tensor,
+    B: torch.Tensor,
+    BBB: torch.Tensor,
+    lambda_: torch.Tensor,
+    gamma: torch.Tensor,
+    k: int,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+    Compute MRTS core component UZ matrix.
+
+    Parameters
+    ----------
+    s : torch.Tensor, shape (n, d)
+        Input location matrix with n samples in d dimensions.
+    xobs_diag : torch.Tensor, shape (d, d)
+        Diagonal matrix used to scale observations.
+    B : torch.Tensor, shape (n, d + 1)
+        Design matrix of ones + coordinates.
+    BBB : torch.Tensor, shape (d + 1, n)
+        Matrix B(B^T B)^{-1} used for projections.
+    lambda_ : torch.Tensor, shape (k,)
+        Leading eigenvalues of the projected thin-plate spline matrix.
+    gamma : torch.Tensor, shape (n, k)
+        Leading eigenvectors of the projected thin-plate spline matrix.
+    k : int
+        Number of eigenvectors.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    torch.Tensor, shape (n + d + 1, k + d + 1)
+        UZ matrix combining scaled/projected eigenvectors and observation diagonal.
+    """
+    n, d = s.shape
+    root = torch.sqrt(torch.tensor(float(n), dtype=dtype, device=device))
+
+    gammas = gamma - B @ (BBB @ gamma)
+    gammas = gammas / lambda_.unsqueeze(0) * root
+
+    UZ = torch.zeros((n + d + 1, k + d + 1), dtype=dtype, device=device)
+    UZ[:n, :k] = gammas
+    UZ[n, k] = 1.0
+    UZ[(n + 1):(n + 1 + d), (k + 1):(k + 1 + d)] = xobs_diag
+
+    return UZ
+
+# using in predictMrts
+# check = none
+def predictThinPlateMatrix(
+    s_new: torch.Tensor,
+    s: torch.Tensor,
+    calculate_with_spherical: bool=False,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str]='cpu'
+) -> torch.Tensor:
+    """
+    Compute the thin-plate spline (TPS) matrix between new locations and reference locations.
+
+    The TPS matrix L is used in multi-resolution thin-plate spline basis computations.
+    Each element L[i, j] represents the TPS kernel between the i-th row of `s_new` 
+    and the j-th row of `s`.
+
+    Parameters
+    ----------
+    s_new : torch.Tensor
+        New locations at which TPS values are to be evaluated, shape (n1, d).
+    s : torch.Tensor
+        Reference locations corresponding to the TPS basis, shape (n2, d).
+    calculate_with_spherical : bool, optional
+        If True, distances are computed on the sphere instead of Euclidean.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    torch.Tensor, shape (n1, n2)
+        TPS matrix, where element (i, j) is the thin-plate spline between 
+        s_new[i] and s[j].
+    """
+    d = s.shape[1]
+    diff = s_new[:, None, :] - s[None, :, :]
+    dist = torch.linalg.norm(diff, dim=2)
+    L = thinPlateSplines(dist                       = dist,
+                         calculate_with_spherical   = calculate_with_spherical,
+                         d                          = d,
+                         n_integral                 = None,
+                         n_min                      = 1e4,
+                         n_max                      = 1e10,
+                         dtype                      = dtype,
+                         device                     = device
+                         )
+            
+    return L

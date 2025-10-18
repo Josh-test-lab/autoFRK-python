@@ -1,6 +1,18 @@
-library(autoFRK)
+---
+title: "test autoFRK"
+output: html_document
+date: "2025-10-18"
+---
 
-# generate data
+## Library
+
+```{r}
+library(autoFRK)
+```
+
+## Generate data
+
+```{r}
 set.seed(0)
 ns <- 100
 nt <- 30
@@ -18,7 +30,11 @@ yt <- fn %*% wt
 obs <- sample(900, ns)
 zt <- yt[obs, ] + matrix(rnorm(ns * nt), ns, nt) * sqrt(s)
 X <- grids[obs, ]
+```
 
+## Test on known locations
+
+```{r}
 # Fit the model
 fit <- autoFRK(data = zt, loc = X)
 PRED <- predict(fit)
@@ -45,3 +61,46 @@ for (i in 1:nt) {
   )
   abline(0, 1)
 }
+```
+
+## Test on unknown locations
+```{r}
+### Split data into train and test
+
+test_index <- 71:100
+
+train_data <- zt[1:70, ]
+train_loc  <- X[1:70, ]
+
+test_data  <- zt[test_index, ]
+test_loc   <- X[test_index, ]
+
+### Fit the model on training data
+
+fit <- autoFRK(data = train_data, loc = train_loc)
+pred <- predict(fit, newloc = test_loc)
+
+# MSE
+options(digits = 15)
+res <- pred$pred.value - test_data
+squ_res <- res^2
+cat("MSPE(ALL TIME):", mean(squ_res))
+
+for (i in 1:nt) {
+  temp <- mean(squ_res[, i])
+  cat(paste("\nMSPE(TIME", i, ") =", round(temp, 4)))
+}
+
+for (i in 1:nt) {
+  # mse
+  temp <- mean(squ_res[, i])
+  plot(pred$pred.value[, i],
+    test_data[, i],
+    main = paste("MSPE(TIME", i, ") =", round(temp, 4)),
+    xlab = "Predicted",
+    ylab = "Observed"
+  )
+  abline(0, 1)
+}
+```
+

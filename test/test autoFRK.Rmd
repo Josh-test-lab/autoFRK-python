@@ -88,7 +88,7 @@ cat("MSPE(ALL TIME):", mean(squ_res))
 
 for (i in 1:nt) {
   temp <- mean(squ_res[, i])
-  cat(paste("\nMSPE(TIME", i, ") =", round(temp, 4)))
+  cat(paste("\nMSPE(TIME", i, ") =", temp))
 }
 
 for (i in 1:nt) {

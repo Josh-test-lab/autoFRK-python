@@ -2,7 +2,7 @@
 
 [![PyPI Version](https://img.shields.io/pypi/v/autoFRK.svg)](https://pypi.org/project/autoFRK/)
 [![Downloads](https://img.shields.io/pypi/dm/autoFRK.svg)](https://pypi.org/project/autoFRK/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Josh-test-lab/autoFRK-python/LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Josh-test-lab/autoFRK-python/blob/main/LICENSE)
 
 - **Repository:** [https://github.com/Josh-test-lab/autoFRK-python](https://github.com/Josh-test-lab/autoFRK-python)
 
@@ -166,7 +166,7 @@ print("Prediction standard errors:", pred.get('se'))
 
 ## License
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Josh-test-lab/autoFRK-python/LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Josh-test-lab/autoFRK-python/blob/main/LICENSE)
 - GPL (>= 3)
 
 

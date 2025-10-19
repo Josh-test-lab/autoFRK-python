@@ -1,3 +1,12 @@
+"""
+Title: Setup Logger of autoFRK-Python Project
+Author: Yao-Chih Hsu
+Version: 1141019
+Description: Check and setup logger for autoFRK-Python Project.
+Reference: References from the SSSDS4 model by Wen-Ting Wang from https://github.com/egpivo/SSSD_CP/
+"""
+
+# import modules
 import logging
 import colorlog
 
@@ -31,5 +40,9 @@ def setup_logger() -> logging.Logger:
 
     # Add the handler to the logger
     logger.addHandler(console_handler)
+    logger.propagate = False
 
     return logger
+
+# setup logger
+LOGGER = setup_logger()

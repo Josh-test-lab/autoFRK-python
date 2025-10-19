@@ -1,10 +1,7 @@
 """
-Title: Automatic Fixed Rank Kriging.
-Author: Hsu, Yao-Chih
-Author: Hsu, Yao-Chih
-Version: 1141017
-Reviewer: 
-Reviewed Version:
+Title: Automatic Fixed Rank Kriging
+Author: Yao-Chih Hsu
+Version: 1141019
 Description: `autoFRK` is an R package to mitigate the intensive computation for modeling regularly/irregularly located spatial data using a class of basis functions with multi-resolution features and ordered in terms of their resolutions, and this project is to implement the `autoFRK` in Python.
 Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng Huang
 """
@@ -13,87 +10,52 @@ Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng
 import torch
 import torch.nn as nn
 from typing import Optional, Union
-from .utils.logger import setup_logger
+from .utils.logger import LOGGER
 from .utils.device import setup_device
-from .utils.utils import *
-from .utils.predictor import *
-
-# logger config
-LOGGER = setup_logger()
+from .utils.utils import to_tensor
+from .utils.helper import fast_mode_knn_sklearn, fast_mode_knn_faiss, selectBasis
+from .utils.estimator import indeMLE
+from .utils.predictor import predict_FRK
 
 # class AutoFRK
 class AutoFRK(nn.Module):
     """
-    Automatic Fixed Rank Kriging
+    Automatic Fixed Rank Kriging (autoFRK)
 
-    This function performs resolution-adaptive fixed rank kriging on spatial
-    data observed at one or multiple time points using a spatial random-effects
-    model:
+    This function performs resolution-adaptive Fixed Rank Kriging (FRK) based on 
+    spatial data observed at one or multiple time points, using a hierarchical 
+    multi-resolution basis and model-based estimation. The spatial process is modeled as:
 
-        z[t] = mu + G @ w[t] + eta[t] + e[t], 
-        w[t] ~ N(0, M), 
-        e[t] ~ N(0, s * D), 
-        t = 1, ..., T
+        z[t] = μ + G @ w[t] + η[t] + e[t],
+        w[t] ~ N(0, M),
+        e[t] ~ N(0, s * D),
+        for t = 1, ..., T
 
     where:
-        - z[t] is an n-vector of (partially) observed data at n locations
-        - mu is an n-vector of deterministic mean values
-        - D is a given n x n covariance matrix of measurement errors
-        - G is a given n x K basis function matrix
-        - eta[t] is an n-vector of random variables corresponding to a stationary spatial process
-        - w[t] is a K-vector of unobservable random weights
+    - z[t]: observed data at n spatial locations,
+    - μ: deterministic mean term,
+    - G: spatial basis matrix,
+    - w[t]: latent random effects,
+    - η[t]: fine-scale process (optional),
+    - D: covariance of measurement error.
 
-    Parameters:
-        data (torch.Tensor): 
-            n x T data matrix (can contain NaN) with z[t] as the t-th column.
-        loc (torch.Tensor): 
-            n x d matrix of coordinates corresponding to n locations.
-        mu (torch.Tensor or float, optional): 
-            n-vector or scalar for the mean mu. Default is 0.
-        D (torch.Tensor, optional): 
-            n x n covariance matrix for measurement errors. Default is identity matrix.
-        G (torch.Tensor, optional): 
-            n x K matrix of basis function values. Default is None (automatically determined).
-        finescale (bool, optional): 
-            If True, include an approximate stationary finer-scale process eta[t].
-            Only the diagonals of D are used. Default is False.
-        maxit (int, optional): 
-            Maximum number of iterations. Default is 50.
-        tolerance (float, optional): 
-            Precision tolerance for convergence check. Default is 1e-6.
-        maxK (int, optional): 
-            Maximum number of basis functions considered. Default: 10*sqrt(n) if n>100 else n.
-        Kseq (torch.Tensor, optional): 
-            User-specified sequence of number of basis functions. Default is None.
-        method (str, optional): 
-            "fast" for k-nearest-neighbor imputation; "EM" for EM algorithm. Default is "fast".
-        n_neighbor (int, optional): 
-            Number of neighbors for the "fast" method. Default is 3.
-        maxknot (int, optional): 
-            Maximum number of knots for generating basis functions. Default is 5000.
+    Methods
+    -------
+    __init__(dtype, device)
+        Initialize model configuration, including computation device and precision.
+    forward(data, loc, ...)
+        Fit the FRK model to spatial data, estimating basis coefficients and covariance terms.
+    predict(loc_new, ...)
+        Predict at new spatial locations using the fitted FRK model.
 
-    Returns:
-        dict
-            Object of class FRK, with keys:
-                - 'M': ML estimate of M
-                - 's': estimate of the scale parameter of measurement errors
-                - 'negloglik': negative log-likelihood
-                - 'w': K x T matrix with w[t] as the t-th column
-                - 'V': K x K prediction error covariance matrix of w[t]
-                - 'G': user-specified or automatically generated basis function matrix
-                - 'LKobj': list from calling LKrig.MLE if useLK=True; else None
-
-    Notes:
-    Computes the ML estimate of M using the closed-form expression in
-    Tzeng and Huang (2018). For large n, it is recommended to provide D as
-    a sparse matrix.
-
-    References:
-    - Tzeng, S., & Huang, H.-C. (2018). Resolution Adaptive Fixed Rank Kriging,
-      Technometrics. https://doi.org/10.1080/00401706.2017.1345701
-    - Nychka D, Hammerling D, Sain S, Lenssen N (2016). LatticeKrig: Multiresolution
-      Kriging Based on Markov Random Fields. R package version 8.4.
-      https://github.com/NCAR/LatticeKrig
+    References
+    ----------
+    - Tzeng, S. & Huang, H.-C. (2018). *Resolution Adaptive Fixed Rank Kriging*. 
+      Technometrics. https://doi.org/10.1080/00401706.2017.1345701  
+    - Nychka, D., Hammerling, D., Sain, S., & Lenssen, N. (2016). 
+      *LatticeKrig: Multiresolution Kriging Based on Markov Random Fields*.
+    - Tzeng S, Huang H, Wang W, Nychka D, Gillespie C (2021). autoFRK: Automatic Fixed
+      Rank Kriging_. R package version 1.4.3. https://CRAN.R-project.org/package=autoFRK
     """
     def __init__(
         self,
@@ -101,12 +63,21 @@ class AutoFRK(nn.Module):
         device: Optional[Union[torch.device, str]]=None
         ):
         """
-        Initialize autoFRK model.
+        Initialize an autoFRK model instance.
+
+        Parameters
+        ----------
+        dtype : torch.dtype, optional
+            Data type for all internal tensors (default: torch.float64).
+        device : torch.device or str, optional
+            Computation device ("cpu" or "cuda"). Automatically detected if None.
         """
         super().__init__()
 
         # setup device
-        self.device = setup_device(device=device)
+        self.device = setup_device(device = device,
+                                   logger = True
+                                   )
 
         # dtype check
         if not isinstance(dtype, torch.dtype):
@@ -130,18 +101,76 @@ class AutoFRK(nn.Module):
         method: str="fast", 
         n_neighbor: int=3, 
         maxknot: int=5000,
-        calculate_with_spherical: bool = False,
-        dtype: Optional[torch.dtype]=None,
+        calculate_with_spherical: bool=False,
+        dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
         """
+        `autoFRK` forward method
 
+        Perform model fitting and estimation for the autoFRK process.
+
+        Parameters
+        ----------
+        data : torch.Tensor
+            (n, T) data matrix of observed values. Each column corresponds to one time step.
+            Missing values are allowed (`torch.nan`).
+        loc : torch.Tensor
+            (n, d) coordinate matrix specifying spatial locations.
+        mu : float or torch.Tensor, optional
+            Mean term (scalar or (n,) tensor). Default is 0.0.
+        D : torch.Tensor, optional
+            (n, n) covariance matrix of measurement errors. If None, identity is used.
+        G : torch.Tensor, optional
+            (n, K) matrix of basis functions evaluated at `loc`. If None, basis functions
+            are automatically generated using thin-plate spline (TPS) bases.
+        finescale : bool, optional
+            Whether to include an approximate stationary fine-scale process η[t].
+            When True, only the diagonal elements of D are used. Default is False.
+        maxit : int, optional
+            Maximum number of iterations for optimization. Default is 50.
+        tolerance : float, optional
+            Convergence tolerance for iterative optimization. Default is 1e-6.
+        maxK : int, optional
+            Maximum number of basis functions to consider. Default is `10 * sqrt(n)` if n > 100, else n.
+        Kseq : torch.Tensor, optional
+            Sequence of candidate numbers of basis functions to test. Default is None.
+        method : str, optional
+            Method for estimation. Supported values:
+            - `"fast"`: approximate imputation using nearest neighbors (default)
+            - `"fast_faiss"`: approximate imputation using Faiss module for nearest neighbors
+            - `"EM"`: expectation–maximization
+        n_neighbor : int, optional
+            Number of neighbors used for "fast" imputation. Default is 3.
+        maxknot : int, optional
+            Maximum number of knots for multi-resolution TPS basis generation. Default is 5000.
+        calculate_with_spherical : bool, optional
+            If True, calculates thin-plate spline distances using spherical coordinates.
+            Useful for global (longitude/latitude) datasets. Default is False.
+        dtype : torch.dtype, optional
+            Data type used in computations (e.g., `torch.float64`). Default is `torch.float64`.
+        device : torch.device or str, optional
+            Target computation device ("cpu" or "cuda"). If None, automatically selected.
+
+        Returns
+        -------
+        dict
+            A dictionary containing model estimates and components:
+            - **M** (`torch.Tensor`): estimated covariance matrix of random effects.
+            - **s** (`float`): estimated measurement error variance.
+            - **negloglik** (`float`): final negative log-likelihood value.
+            - **w** (`torch.Tensor`): (K, T) matrix of random-effect estimates per time step.
+            - **V** (`torch.Tensor`): (K, K) covariance matrix of prediction errors for `w[t]`.
+            - **G** (`dict`): basis function matrix used in fitting.
+            - **LKobj** (`dict`): results from LatticeKrig-style fine-scale modeling (if enabled).
         """
         # setup device
         if device is None:
             device = self.device
         else:
-            device = setup_device(device=device)
+            device = setup_device(device = device,
+                                  logger = True
+                                  )
             self.device = device
 
         # dtype check
@@ -297,9 +326,45 @@ class AutoFRK(nn.Module):
         se_report: bool = False
     ) -> dict:
         """
-        
+        `autoFRK` predict method
+
+        Predict values and (optionally) standard errors from a fitted autoFRK model.
+
+        Parameters
+        ----------
+        obj : dict, optional
+            Model object returned by `forward()`. If None, uses `self.obj`.
+        obsData : torch.Tensor, optional
+            Observed data used for prediction. Default uses data stored in `obj`.
+        obsloc : torch.Tensor, optional
+            Coordinates of observation locations corresponding to `obsData`.
+            Only applicable if `obj['G']` uses automatically generated TPS basis functions.
+            Default uses the locations stored in `obj`.
+        mu_obs : float or torch.Tensor, optional
+            Deterministic mean values at `obsloc`. Default is 0.
+        newloc : torch.Tensor, optional
+            Coordinates of new locations for prediction. Default is `None`, 
+            which predicts at the observation locations.
+        basis : torch.Tensor, optional
+            Basis function matrix evaluated at `newloc`. Each column is a basis function.
+            Can be omitted if `obj` used automatically generated TPS basis functions.
+        mu_new : float or torch.Tensor, optional
+            Deterministic mean values at `newloc`. Default is 0.
+        se_report : bool, optional
+            If True, standard errors of the predictions are returned. Default is False.
+
+        Returns
+        -------
+        dict
+            Dictionary containing prediction results:
+            - **pred.value** (`torch.Tensor`): predicted values at the new locations.
+            - **se** (`torch.Tensor`, optional): standard errors of predictions (if `se_report=True`).
         """
-        if obj is None:
+        if obj is None and not hasattr(self, "obj"):
+            error_msg = f'No input "obj" is provided and `AutoFRK.forward` has not been called before `AutoFRK.predict`.'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+        elif obj is None and hasattr(self, "obj"):
             obj = self.obj
             
         return predict_FRK(obj                      = obj,
@@ -314,7 +379,6 @@ class AutoFRK(nn.Module):
                            dtype                    = self.dtype,
                            device                   = self.device
                            )
-
 
 # main program
 if __name__ == "__main__":

@@ -1,29 +1,52 @@
+"""
+Title: Setup device of autoFRK-Python Project
+Author: Yao-Chih Hsu
+Version: 1141019
+Description: This file is to set up and check the computation device for the autoFRK-Python project.
+Reference: None
+"""
+
+# import modules
 import torch
 from typing import Optional, Union, Any
-from autoFRK.utils.logger import setup_logger
-
-# logger config
-LOGGER = setup_logger()
+from autoFRK.utils.logger import LOGGER
 
 # setup device
 def setup_device(
-    device: Optional[Union[torch.device, str]]=None
+    device: Optional[Union[torch.device, str]]=None,
+    logger: bool=True
 ) -> torch.device:
     """
-    Set up the device for computations.
+    Set up the computation device.
 
-    Args:
-        device: The device to use for computations. If None, it defaults to 'cpu'. If a string is provided, it should be a valid device name.
+    If no device is specified, the function automatically selects CUDA if available;
+    otherwise, it defaults to CPU. Logs device selection and handles invalid input gracefully.
+
+    Parameters
+    ----------
+    device : torch.device or str or None, optional
+        The computation device. Can be a `torch.device` object or a string such as
+        'cpu', 'cuda', or 'cuda:0'. If None, automatically detects available device.
+    logger : bool, optional
+        Whether to log messages about device selection. Default is True.
+
+    Returns
+    -------
+    torch.device
+        The selected device for computation.
     """
     try:
         if device is None:
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            LOGGER.warning(f'Parameter "device" was not set. Value "{device}" detected and used.')
+            if logger:
+                LOGGER.warning(f'Parameter "device" was not set. Value "{device}" detected and used.')
         else:
             device = torch.device(device)
-            LOGGER.info(f'Successfully using device "{device}".')
+            if logger:
+                LOGGER.info(f'Successfully using device "{device}".')
     except (TypeError, ValueError) as e:
-        LOGGER.warning(f'Parameter "device" is not a valid device ({device}). Default value "cpu" is used. Error: {e}')
+        if logger:
+            LOGGER.warning(f'Parameter "device" is not a valid device ({device}). Default value "cpu" is used. Error: {e}')
         device = torch.device('cpu')
 
     return device
@@ -36,22 +59,22 @@ def check_device(
     """
     Automatically determine the torch.device of an input object or nested structure.
 
-    This function recursively inspects the input to locate a torch.Tensor and
-    infer the device it resides on. It supports arbitrary nesting, such as dicts,
-    lists, tuples, sets, or combinations of these. If a device argument is provided
-    but differs from the detected device, a warning is issued, and the detected
-    device is used instead.
+    Recursively inspects the input to find a `torch.Tensor` and infer its device.
+    Supports arbitrarily nested containers such as dicts, lists, tuples, or sets.
+    If a preferred device is provided but differs from the detected one, a warning
+    is issued and the detected device is used instead.
 
-    Parameters:
-        obj (Any): 
-            Input object to inspect. Can be a tensor, or container (dict, list, tuple, set)
-            containing tensors.
-        device (torch.device, str, None, optional): 
-            Preferred device. If None, it will be inferred automatically.
-    
-    Returns:
-        torch.device
-            The detected or validated device.
+    Parameters
+    ----------
+    obj : Any
+        Input object to inspect. Can be a tensor or a container containing tensors.
+    device : torch.device, str, or None, optional
+        Preferred device. If None, the device is inferred automatically.
+
+    Returns
+    -------
+    torch.device
+        The detected or validated device.
     """
     def _find_device_recursive(obj):
         """

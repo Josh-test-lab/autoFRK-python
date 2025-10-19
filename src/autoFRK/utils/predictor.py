@@ -2,23 +2,18 @@
 Title: Predictor of autoFRK-Python Project
 Author: Yao-Chih Hsu
 Version: 1141018
-Reviewer: Yao-Chih Hsu
-Reviewed Version: 1141018
 Description: This file contain prediction-related functions for the autoFRK-Python project.
-Reference: None
+Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
 
 # import modules
 import torch
 from typing import Optional, Union, Dict, Tuple
 from autoFRK.utils.utils import to_tensor
-from autoFRK.utils.logger import setup_logger
+from autoFRK.utils.logger import LOGGER
 from autoFRK.utils.device import check_device
 from autoFRK.utils.matrix_operator import invCz, decomposeSymmetricMatrix
-from autoFRK.mrts import createThinPlateMatrix, thinPlateSplines
-
-# logger config
-LOGGER = setup_logger()
+from autoFRK.mrts import createThinPlateMatrix, predictThinPlateMatrix
 
 # predictor of autoFRK
 # check = none
@@ -746,53 +741,3 @@ def updateMrtsCoreComponentUZ(
     UZ[(n + 1):(n + 1 + d), (k + 1):(k + 1 + d)] = xobs_diag
 
     return UZ
-
-# using in predictMrts
-# check = none
-def predictThinPlateMatrix(
-    s_new: torch.Tensor,
-    s: torch.Tensor,
-    calculate_with_spherical: bool=False,
-    dtype: torch.dtype = torch.float64,
-    device: Union[torch.device, str]='cpu'
-) -> torch.Tensor:
-    """
-    Compute the thin-plate spline (TPS) matrix between new locations and reference locations.
-
-    The TPS matrix L is used in multi-resolution thin-plate spline basis computations.
-    Each element L[i, j] represents the TPS kernel between the i-th row of `s_new` 
-    and the j-th row of `s`.
-
-    Parameters
-    ----------
-    s_new : torch.Tensor
-        New locations at which TPS values are to be evaluated, shape (n1, d).
-    s : torch.Tensor
-        Reference locations corresponding to the TPS basis, shape (n2, d).
-    calculate_with_spherical : bool, optional
-        If True, distances are computed on the sphere instead of Euclidean.
-    dtype : torch.dtype, optional
-        Desired torch dtype for computation (default: torch.float64).
-    device : torch.device or str, optional
-        Target device for computation (default: 'cpu').
-
-    Returns
-    -------
-    torch.Tensor, shape (n1, n2)
-        TPS matrix, where element (i, j) is the thin-plate spline between 
-        s_new[i] and s[j].
-    """
-    d = s.shape[1]
-    diff = s_new[:, None, :] - s[None, :, :]
-    dist = torch.linalg.norm(diff, dim=2)
-    L = thinPlateSplines(dist                       = dist,
-                         calculate_with_spherical   = calculate_with_spherical,
-                         d                          = d,
-                         n_integral                 = None,
-                         n_min                      = 1e4,
-                         n_max                      = 1e10,
-                         dtype                      = dtype,
-                         device                     = device
-                         )
-            
-    return L

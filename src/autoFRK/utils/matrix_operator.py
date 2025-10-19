@@ -1,11 +1,9 @@
 """
 Title: Matrix operator utilities for autoFRK-Python Project
-Author: Hsu, Yao-Chih
+Author: Yao-Chih Hsu
 Version: 1141017
-Reviewer: Hsu, Yao-Chih
-Reviewed Version: 1141017
 Description: This file provides functions for matrix operations used in the autoFRK-Python Project.
-Reference: None
+Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
 
 # import modules

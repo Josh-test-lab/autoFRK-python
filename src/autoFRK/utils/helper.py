@@ -1,31 +1,20 @@
 """
-Title: Setup file of autoFRK-Python Project
-Author: Hsu, Yao-Chih
+Title: Some helpful functions of autoFRK-Python Project
+Author: Yao-Chih Hsu
 Version: 1141018
-Reviewer: 
-Reviewed Version:
-Reference: 
-Description: 
+Description: This file contains some helper functions used in the autoFRK-Python project.
+Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
-
-# development only
-#import os
-#import sys
-#sys.path.append(os.path.abspath("./src"))
 
 # import modules
 import torch
 import numpy as np
 import faiss
-import gc
-from typing import Optional, Dict, Union, Any
+from typing import Dict, Union
 from sklearn.neighbors import NearestNeighbors
-from scipy.optimize import minimize_scalar
-from scipy.sparse.linalg import eigsh
-from autoFRK.utils.logger import setup_logger
-
-# logger config
-LOGGER = setup_logger()
+from autoFRK.utils.logger import LOGGER
+from autoFRK.utils.utils import to_tensor
+from autoFRK.utils.matrix_operator import getInverseSquareRootMatrix, invCz
 
 # convert dense tensor to sparse matrix, using in indeMLE
 # python 不需要，在 R 中僅作為節省記憶體的角色
@@ -37,7 +26,6 @@ LOGGER = setup_logger()
 #         warn_msg = f'Expected tensor, but got {type(mat)}'
 #         LOGGER.warning(warn_msg)
 #         mat = torch.tensor(mat)
-    
 #     if mat.is_sparse:
 #         if verbose:
 #             info_msg = f'The input is already a sparse tensor'
@@ -55,15 +43,27 @@ def fast_mode_knn_faiss(
     n_neighbor: int = 3
 ) -> torch.Tensor:
     """
-    The fast mode for autoFRK by using KNN for missing data imputation.
+    Impute missing values in data using fast KNN with Faiss.
 
-    Parameters:
-        data: (N, T) or (samples, time_points) tensor.
-        loc: (N, spatial_dim) tensor, e.g., 2D space N x 2.
-        n_neighbor: Number of neighbors to use for KNN.
-        
-    Returns:
-        torch.Tensor: The data tensor with missing values imputed.
+    This function performs nearest-neighbor imputation for missing values in
+    spatial data. For each time point (column), missing entries are replaced
+    by the mean of their k nearest neighbors, computed via Faiss.
+
+    Parameters
+    ----------
+    data : torch.Tensor
+        Input data of shape (N, T), where N is the number of spatial locations
+        and T is the number of time points. Missing values should be NaN.
+    loc : torch.Tensor
+        Coordinates of spatial locations, shape (N, spatial_dim).
+    n_neighbor : int, optional
+        Number of nearest neighbors to use for imputation. Default is 3.
+
+    Returns
+    -------
+    torch.Tensor
+        Data tensor with missing values imputed, same shape and dtype/device
+        as the input.
     """
     dtype=data.dtype
     device=data.device
@@ -114,7 +114,28 @@ def fast_mode_knn_sklearn(
     n_neighbor: int = 3
 ) -> torch.Tensor:
     """
-    
+    Impute missing values in data using fast KNN with scikit-learn.
+
+    This function performs nearest-neighbor imputation for missing values in
+    spatial data. For each time point (column), missing entries are replaced
+    by the mean of their k nearest neighbors, computed via scikit-learn's
+    NearestNeighbors.
+
+    Parameters
+    ----------
+    data : torch.Tensor
+        Input data of shape (N, T), where N is the number of spatial locations
+        and T is the number of time points. Missing values should be NaN.
+    loc : torch.Tensor
+        Coordinates of spatial locations, shape (N, spatial_dim).
+    n_neighbor : int, optional
+        Number of nearest neighbors to use for imputation. Default is 3.
+
+    Returns
+    -------
+    torch.Tensor
+        Data tensor with missing values imputed, same shape and dtype/device
+        as the input.
     """
     dtype = data.dtype
     device = data.device
@@ -163,35 +184,81 @@ def selectBasis(
     calculate_with_spherical: bool = False,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
-) -> torch.Tensor:
+) -> Dict[str, torch.Tensor]:
     """
-    
+    Selecting basis functions in autoFRK.
+
+    This function selects the optimal set of multi-resolution thin-plate spline (MRTS)
+    basis functions for a given dataset, optionally handling missing values
+    using fast KNN imputation or EM-based optimization. It evaluates candidate
+    numbers of basis functions (K) using a negative log-likelihood criterion.
+
+    Parameters
+    ----------
+    data : torch.Tensor
+        An (n, T) data matrix where each column corresponds to a time point.
+        Missing values (NaN) are allowed.
+    loc : torch.Tensor
+        An (n, d) matrix of spatial coordinates for the n observations.
+    D : torch.Tensor, optional
+        Diagonal matrix for measurement error covariance. Defaults to identity.
+    maxit : int, optional
+        Maximum number of iterations for indeMLE optimization. Default is 50.
+    avgtol : float, optional
+        Convergence tolerance for indeMLE. Default is 1e-6.
+    max_rank : int, optional
+        Maximum number of basis functions. Default is computed from sequence_rank or data size.
+    sequence_rank : torch.Tensor, optional
+        Candidate numbers of basis functions to test.
+    method : str, optional
+        Method for estimation. Options:
+            - "fast": approximate KNN imputation (default)
+            - "fast_faiss": approximate KNN using Faiss
+            - "EM": expectation-maximization
+    num_neighbors : int, optional
+        Number of neighbors for KNN imputation. Default is 3.
+    max_knot : int, optional
+        Maximum number of knots to use when generating basis functions. Default is 5000.
+    DfromLK : dict, optional
+        Precomputed fine-scale components for LatticeKrig-style modeling.
+    Fk : dict, optional
+        Precomputed basis function values. If None, computed internally.
+    calculate_with_spherical : bool, optional
+        If True, TPS distances are computed using spherical coordinates. Default is False.
+    dtype : torch.dtype, optional
+        Data type for computations. Default is torch.float64.
+    device : torch.device or str, optional
+        Target device for computations ("cpu" or "cuda"). Default is 'cpu'.
+
+    Returns
+    -------
+    dict
+        A dictionary containing:
+        - **MRTS** : (n, k) tensor of basis function values at the evaluation locations
+        - **UZ** : transformed matrix for internal computation (if available)
+        - **Xu** : (n, d) tensor of unique knots used
+        - **nconst** : normalization constants for each basis function
+        - **BBBH** : (optional) projection matrix times Phi
     """
-    # 去除全為 NaN 的欄位
+    from autoFRK.utils.estimator import indeMLE, cMLE
+
     not_all_nan = ~torch.isnan(data).all(dim=0)
     data = data[:, not_all_nan]
-
-    # 檢查資料中是否有缺失值
     is_data_with_missing_values = torch.isnan(data).any()
 
-    # 找出整行都是 NaN 的列（完全缺失）
     na_rows = torch.isnan(data).all(dim=1)
     pick = torch.arange(data.shape[0], dtype=torch.int64, device=device)
     if na_rows.any():
         data = data[~na_rows]
-        loc = loc[~na_rows]  # 同步刪除 loc 中相同的行  # need fix
+        loc = loc[~na_rows]
         D = D[~na_rows][:, ~na_rows]
         pick = pick[~na_rows]
         is_data_with_missing_values = torch.isnan(data).any()
 
-    # 如果 D 未提供，則初始化為單位對角矩陣
     if D is None:
         D = torch.eye(data.shape[0], dtype=dtype, device=device)
 
-    # 取得位置維度
     d = loc.shape[1]
-
-    # 計算 klim 與選 knot
     N = len(pick)
     klim = int(min(N, np.round(10 * np.sqrt(N))))
     if N < max_knot:
@@ -205,7 +272,6 @@ def selectBasis(
                        device   = device
                        )
 
-    # 處理 K 值
     if max_rank is not None:
         max_rank = torch.round(max_rank)
     else:
@@ -231,7 +297,6 @@ def selectBasis(
         if len(K) > 30:
             K = torch.linspace(d + 1, max_rank, 30, dtype=dtype, device=device).round().to(torch.int).unique()
 
-    # Fk 為 None 時初始化 basis function 值
     if Fk is None:
         from autoFRK.mrts import MRTS
         mrts = MRTS(dtype   = dtype,
@@ -245,15 +310,6 @@ def selectBasis(
                           dtype                     = dtype,
                           device                    = device
                           )
-
-        # old version
-        #from autoFRK.mrts_old import MRTS
-        #mrts = MRTS(locs    = loc,
-        #            k       = max(K),
-        #            dtype   = dtype,
-        #            device  = device
-        #            )  # 待修 (knot, max(K), loc, max_knot) need fix
-        #Fk = mrts.forward()
 
     AIC_list = to_tensor([float('inf')] * len(K), dtype=dtype, device=device)
     num_data_columns = data.shape[1]
@@ -346,7 +402,33 @@ def subKnot(
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
-    
+    Sample knots for multi-resolution thin-plate splines (MRTS).
+
+    This function selects a subset of spatial locations ("knots") from the input
+    dataset, ensuring coverage across each dimension. It is used in constructing
+    MRTS basis functions when the number of available locations exceeds the desired
+    number of knots.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input locations (n x d) where n is the number of samples and d is the dimension.
+    nknot : int
+        Number of knots to sample.
+    xrng : torch.Tensor, optional
+        Optional array (2 x d) specifying the min and max range for each dimension.
+        If None, the range is computed from the data.
+    nsamp : int, optional
+        Number of points to sample per bin when stratifying the data. Default is 1.
+    dtype : torch.dtype, optional
+        Data type for computations. Default is torch.float64.
+    device : torch.device or str, optional
+        Target device for computations ("cpu" or "cuda"). Default is 'cpu'.
+
+    Returns
+    -------
+    torch.Tensor
+        Subset of input locations selected as knots (nknot x d).
     """
     x = torch.sort(x, dim=0).values
     xdim = x.shape
@@ -420,28 +502,55 @@ def computeNegativeLikelihood(
     ldet: float = 0.0,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor]]:
     """
-    Compute negative log-likelihood.
-    
-    Parameters:
-        nrow_Fk: (int) Number of rows in basis matrix Fk.
-        ncol_Fk: (int) Number of basis functions (columns of Fk).
-        s: (int) Effective sample size.
-        p: (int) Number of variables (e.g. number of spatial points).
-        matrix_JSJ: (torch.Tensor) Covariance-like matrix (should be symmetric).
-        sample_covariance_trace: (float) Trace of sample covariance matrix.
-        vfixed: (float, optional) Fixed noise variance (if provided).
-        ldet: (float, optional) Log determinant of transformation matrix.
-        device: (str) 'cpu' or 'cuda'.
+    Compute the negative log-likelihood for a given basis matrix and covariance information.
 
-    Returns:
-        dict: {
-            'negative_log_likelihood': float,
-            'P': torch.Tensor (eigenvectors),
-            'v': float,
-            'd_hat': torch.Tensor
-        }
+    This function is used internally in MRTS/FRK computations to evaluate the
+    fit of a model, optionally estimating the noise variance if not fixed. 
+    Eigen decomposition is used to compute principal components and corresponding
+    negative log-likelihood.
+
+    Parameters
+    ----------
+    nrow_Fk : int
+        Number of rows of the basis function matrix Fk (usually the number of observations).
+    ncol_Fk : int
+        Number of basis functions (columns of Fk) to use in the likelihood.
+    s : int
+        Effective sample size parameter for the model.
+    p : int
+        Number of variables or data columns (e.g., spatial locations).
+    matrix_JSJ : torch.Tensor
+        Symmetric covariance-like matrix (shape [nrow_Fk, nrow_Fk]).
+    sample_covariance_trace : float
+        Trace of the sample covariance matrix.
+    vfixed : float, optional
+        Fixed noise variance. If None, the variance is estimated from data.
+    ldet : float, optional
+        Log-determinant adjustment for the likelihood. Default is 0.0.
+    dtype : torch.dtype, optional
+        Tensor data type for computations. Default is torch.float64.
+    device : torch.device or str, optional
+        Device to perform computations ('cpu' or 'cuda'). Default is 'cpu'.
+
+    Returns
+    -------
+    dict
+        A dictionary containing:
+        - 'negative_log_likelihood' : float
+            The computed negative log-likelihood value.
+        - 'P' : torch.Tensor
+            Eigenvectors of matrix_JSJ corresponding to largest eigenvalues.
+        - 'v' : float
+            Noise variance (estimated or fixed).
+        - 'd_hat' : torch.Tensor
+            Estimated eigenvalues adjusted by noise variance.
+    
+    Raises
+    ------
+    ValueError
+        If matrix_JSJ is not symmetric or its rank is insufficient.
     """
     if not torch.allclose(matrix_JSJ, matrix_JSJ.T, atol=1e-10):
         err_msg = f'Please input a symmetric matrix'
@@ -501,16 +610,33 @@ def estimateV(
     device: Union[torch.device, str]='cpu'
 ) -> float:
     """
-    Estimate the v parameter.
+    Estimate the parameter v.
 
-    Parameters:
-        d: (torch.Tensor) 1D tensor of nonnegative eigenvalues (length k)
-        s: (float) A positive numeric constant
-        sample_covariance_trace: (float) Trace of sample covariance
-        n: (int) Sample size
+    Parameters
+    ----------
+    d : torch.Tensor
+        1D tensor of nonnegative eigenvalues (length k).
+    s : float
+        Positive numeric constant representing a lower bound adjustment.
+    sample_covariance_trace : float
+        Trace of the sample covariance matrix.
+    n : int
+        Total sample size.
+    dtype : torch.dtype, optional
+        Data type for intermediate tensor computations. Default is torch.float64.
+    device : torch.device or str, optional
+        Device for tensor computations ('cpu' or 'cuda'). Default is 'cpu'.
 
-    Returns:
-        v: (float) Estimated noise variance
+    Returns
+    -------
+    float
+        Estimated parameter v.
+
+    Raises
+    ------
+    ValueError
+        If no eligible eigenvalues are found for the computation, indicating
+        that inputs d, sample_covariance_trace, or n may be inconsistent.
     """
     if torch.max(d) < max(sample_covariance_trace / n, s):
         return max(sample_covariance_trace / n - s, 0.0)
@@ -546,13 +672,19 @@ def estimateEta(
     """
     Estimate the eta parameter.
 
-    Parameters:
-        d: (torch.Tensor) 1D tensor of nonnegative values (eigenvalues)
-        s: (float) A positive numeric
-        v: (float) A positive numeric
+    Parameters
+    ----------
+    d : torch.Tensor
+        1D tensor of nonnegative eigenvalues.
+    s : float
+        Positive numeric adjustment factor.
+    v : float
+        Positive numeric noise variance.
 
-    Returns:
-        torch.Tensor: A tensor of estimated eta values
+    Returns
+    -------
+    torch.Tensor
+        Tensor of estimated eta values, same shape as input d.
     """
     return torch.clamp(d - s - v, min=0.0)
 
@@ -568,17 +700,29 @@ def neg2llik(
     device: Union[torch.device, str]='cpu'
 ) -> float:
     """
-    Estimate the negative log-likelihood (up to constant)
+    Estimate the negative log-likelihood.
 
-    Parameters:
-        d: Tensor of nonnegative values (eigenvalues)
-        s: A positive scalar
-        v: A positive scalar
-        sample_covariance_trace: Scalar trace value
-        sample_size: Number of samples (int)
+    Parameters
+    ----------
+    d : torch.Tensor
+        1D tensor of nonnegative eigenvalues.
+    s : float
+        Positive numeric adjustment.
+    v : float
+        Positive noise variance.
+    sample_covariance_trace : float
+        Trace of the sample covariance matrix.
+    sample_size : int
+        Number of samples.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
 
-    Returns:
-        Scalar negative log-likelihood value
+    Returns
+    -------
+    float
+        Estimated negative log-likelihood value.
     """
     k = d.shape[0]
     eta = estimateEta(d = d,
@@ -608,20 +752,30 @@ def computeLikelihood(
     device: Union[torch.device, str]='cpu'
 ) -> float:
     """
-    Compute negative log-likelihood (-2 * log(likelihood)).
+    Compute the negative log-likelihood (-2 * log-likelihood).
 
-    Parameters:
-        data (n x T): Observation matrix with possible NaNs.
-        Fk (n x K): Basis function matrix.
-        M (K x K): Symmetric matrix.
-        s (float): Scalar multiplier.
-        Depsilon (n x n): Diagonal matrix.
-        device: CPU or GPU.
+    Parameters
+    ----------
+    data : torch.Tensor
+        Observation matrix of shape (n, T), may contain NaNs.
+    Fk : torch.Tensor
+        Basis function matrix of shape (n, K).
+    M : torch.Tensor
+        Symmetric matrix of shape (K, K).
+    s : float
+        Scalar multiplier.
+    Depsilon : torch.Tensor
+        Diagonal matrix of shape (n, n).
+    dtype : torch.dtype, optional
+        Data type for computations (default: torch.float64).
+    device : str or torch.device, optional
+        Device for computations ('cpu' or 'cuda', default: 'cpu').
 
-    Returns:
-        float: Negative log-likelihood value.
+    Returns
+    -------
+    float
+        Negative log-likelihood value.
     """
-
     non_missing_points_matrix = ~torch.isnan(data)
     num_columns = data.shape[1]
 
@@ -668,16 +822,25 @@ def calculateLogDeterminant(
     device: Union[torch.device, str]='cpu'
 ) -> float:
     """
-    Internal function: calculate the log determinant for the likelihood use.
+    Calculate the log-determinant of a matrix for likelihood computations.
 
-    Parameters:
-        R (torch.Tensor): (p x p) positive-definite matrix
-        L (torch.Tensor): (p x K) matrix
-        K (int): A numeric
-        device (str or torch.device): computation device
+    Parameters
+    ----------
+    R : torch.Tensor
+        Positive-definite matrix of shape (p, p).
+    L : torch.Tensor
+        Matrix of shape (p, K).
+    K : int, optional
+        Number of columns of L to consider (default: all columns of L).
+    dtype : torch.dtype, optional
+        Data type for computations (default: torch.float64).
+    device : str or torch.device, optional
+        Device for computations ('cpu' or 'cuda', default: 'cpu').
 
-    Returns:
-        float: log-determinant value
+    Returns
+    -------
+    float
+        Log-determinant value of the matrix.
     """
     if K is None:
         K = L.shape[1]
@@ -693,14 +856,17 @@ def logDeterminant(
     mat: torch.Tensor
 ) -> torch.Tensor:
     """
-    Internal function: log-determinant of a square matrix
+    Compute the log-determinant of a square matrix.
 
-    Parameters:
-        mat (torch.Tensor): 
-            Square matrix whose log-determinant will be computed.
+    Parameters
+    ----------
+    mat : torch.Tensor
+        Square matrix of shape (n, n). The matrix should be positive-definite
+        or symmetric to ensure a real-valued log-determinant.
 
-    Returns:
-        torch.Tensor:
-            The log-determinant of the input matrix.
+    Returns
+    -------
+    torch.Tensor
+        Log-determinant of the input matrix.
     """
     return torch.logdet(mat.abs())

@@ -1,25 +1,20 @@
 """
-Title: Multi-Resolution Thin-plate Spline basis function for Spatial Data, and calculate the basis function by using rectangular or spherical coordinates.
-Author: Hsu, Yao-Chih
-Version: 1141017
-Reviewer: 
-Reviewed Version:
-Description: 
+Title: Multi-Resolution Thin-plate Spline (MRTS) basis function for Spatial Data, and calculate the basis function by using rectangular or spherical coordinates
+Author: Yao-Chih Hsu
+Version: 1141019
+Description: The MRTS method for autoFRK-Python project.
 Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng Huang
 """
 
 # import modules
-import numpy as np
+import inspect
 import torch
 import torch.nn as nn
-from scipy.integrate import quad
-from typing import Optional, Union, Any
-from .utils.logger import setup_logger
+from typing import Union, Dict
+from .utils.logger import LOGGER
 from .utils.device import setup_device
-from .utils.utils import *
-
-# logger config
-LOGGER = setup_logger()
+from .utils.utils import to_tensor
+from .utils.helper import subKnot
 
 # function
 # using in updateMrtsBasisComponents
@@ -31,74 +26,129 @@ def createThinPlateMatrix(
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
-    
+    Construct the thin-plate spline (TPS) matrix for a set of spatial locations.
+
+    This function computes the pairwise TPS values based on the distance matrix 
+    derived from input locations. Optionally, distances can be computed using 
+    spherical coordinates for global datasets.
+
+    Parameters
+    ----------
+    s : torch.Tensor
+        An (n, d) tensor representing the coordinates of n points in d-dimensional space.
+    calculate_with_spherical : bool, optional
+        If True, computes distances on a sphere (useful for latitude/longitude data). Default is False.
+    dtype : torch.dtype, optional
+        Data type of the output matrix. Default is torch.float64.
+    device : torch.device or str, optional
+        Device for computation. Default is 'cpu'.
+
+    Returns
+    -------
+    torch.Tensor
+        An (n, n) symmetric thin-plate spline matrix.
     """
     d = s.shape[1]
-    diff = s[:, None, :] - s[None, :, :]
-    dist = torch.linalg.norm(diff, dim=2)
-    L = thinPlateSplines(dist                       = dist,
-                         calculate_with_spherical   = calculate_with_spherical,
-                         d                          = d,
-                         n_integral                 = None,
-                         n_min                      = 1e4,
-                         n_max                      = 1e10,
-                         dtype                      = dtype,
-                         device                     = device
+    dist = calculate_distance(locs                      = s,
+                              new_locs                  = s,
+                              calculate_with_spherical  = calculate_with_spherical,
+                              )
+    L = thinPlateSplines(dist   = dist,
+                         d      = d,
+                         dtype  = dtype,
+                         device = device
                          )
     L = torch.triu(L, 1) + torch.triu(L, 1).T
     return L
 
-# using in createThinPlateMatrix
+# using in predictMrts
 # check = none
-def thinPlateSplines(
-    dist: torch.Tensor,
+def predictThinPlateMatrix(
+    s_new: torch.Tensor,
+    s: torch.Tensor,
     calculate_with_spherical: bool=False,
-    d: int = None,
-    n_integral: int = None,
-    n_min: int = 1e4,
-    n_max: int = 1e10,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
+    Compute the thin-plate spline (TPS) matrix between new locations and reference locations.
 
+    The TPS matrix L is used in multi-resolution thin-plate spline basis computations.
+    Each element L[i, j] represents the TPS kernel between the i-th row of `s_new` 
+    and the j-th row of `s`.
+
+    Parameters
+    ----------
+    s_new : torch.Tensor
+        New locations at which TPS values are to be evaluated, shape (n1, d).
+    s : torch.Tensor
+        Reference locations corresponding to the TPS basis, shape (n2, d).
+    calculate_with_spherical : bool, optional
+        If True, distances are computed on the sphere instead of Euclidean.
+    dtype : torch.dtype, optional
+        Desired torch dtype for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for computation (default: 'cpu').
+
+    Returns
+    -------
+    torch.Tensor, shape (n1, n2)
+        TPS matrix, where element (i, j) is the thin-plate spline between 
+        s_new[i] and s[j].
     """
-    if type(calculate_with_spherical) is not bool:
-        calculate_with_spherical = False
-        LOGGER.warning(f'Parameter "calculate_with_spherical" should be a boolean, the type you input is "{type(calculate_with_spherical).__name__}". Default value \"False\" is used.')
+    d = s.shape[1]
+    dist = calculate_distance(locs                      = s,
+                              new_locs                  = s_new,
+                              calculate_with_spherical  = calculate_with_spherical,
+                              )
+    L = thinPlateSplines(dist   = dist,
+                         d      = d,
+                         dtype  = dtype,
+                         device = device
+                         )
+            
+    return L
 
-    if not calculate_with_spherical:
-        LOGGER.info(f'Calculate TPS with rectangular coordinates.')
-        return tps_rectangular(dist     = dist,
-                               d        = d,
-                               dtype    = dtype,
-                               device   = device
-                               )
-    else:
-        LOGGER.info(f'Calculate TPS with spherical coordinates.')
-
-        error_msg = f"The feature \"Calculate TPS with spherical coordinates\" is currently not available."
-        LOGGER.error(error_msg)
-        raise NotImplementedError(error_msg)
-    
-        return tps_spherical(locs       = None,
-                             n_integral = None,
-                             n_min      = 1e4,
-                             n_max      = 1e10,
-                             dtype      = dtype,
-                             device     = device
-                             )
-
-# using in thinPlateSplines
+# using in createThinPlateMatrix, predictThinPlateMatrix
 # check = none
-def tps_rectangular(
+def thinPlateSplines(
     dist: torch.Tensor,
     d: int,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
+    Evaluate the thin-plate spline (TPS) radial basis function for given distances.
 
+    The TPS kernel depends on the dimension of the input points. This function
+    supports 1D, 2D, and 3D points in rectangular (Euclidean) coordinates.
+
+    Parameters
+    ----------
+    dist : torch.Tensor
+        Pairwise distance matrix or vector.
+    d : int
+        Dimension of the positions (1, 2, or 3).
+    dtype : torch.dtype, optional
+        Data type of the output tensor. Default is torch.float64.
+    device : torch.device or str, optional
+        Device for computation. Default is 'cpu'.
+
+    Returns
+    -------
+    torch.Tensor
+        TPS function evaluated at each element of `dist`. Shape matches `dist`.
+
+    Raises
+    ------
+    ValueError
+        If `d` is not 1, 2, or 3.
+
+    Notes
+    -----
+    - 1D: TPS kernel is dist^3 / 12
+    - 2D: TPS kernel is (dist^2 * log(dist)) / (8 * pi), with 0 handled separately
+    - 3D: TPS kernel is -dist / 8
     """
     if d == 1:
         return dist ** 3 / 12
@@ -114,70 +164,82 @@ def tps_rectangular(
         LOGGER.error(error_msg)
         raise ValueError(error_msg)
 
-# using in thinPlateSplines
+# using in createThinPlateMatrix, predictThinPlateMatrix
 # check = none
-def tps_spherical(
+def calculate_distance(
     locs: torch.Tensor,
-    n_integral: int = None,
-    n_min: int = 1e4,
-    n_max: int = 1e10,
-    dtype: torch.dtype = torch.float64,
-    device: Union[torch.device, str] = 'cpu'
+    new_locs: Union[torch.Tensor, None],
+    calculate_with_spherical: bool=False
 ) -> torch.Tensor:
     """
-    Compute the TPS radial basis matrix using spherical coordinates (vectorized).
+    Compute pairwise distances between points, either in rectangular or spherical coordinates.
 
-    Args:
-        locs: [N, 2] tensor of locations (latitude, longitude in degrees)
-        n_integral: number of subintervals for Simpson's Rule
-    Returns:
-        [N, N] TPS radial basis matrix
-    """
-    if locs.ndim != 2:
-        error_msg = f"Invalid dimension {locs.ndim}, to calculate thin plate splines with spherical coordinate, the dimension must be 2."
-        LOGGER.error(error_msg)
-        raise ValueError(error_msg)
+    Parameters
+    ----------
+    locs : torch.Tensor
+        Tensor of shape (N, d) representing the coordinates of points. For spherical distances,
+        columns are (latitude, longitude) in degrees.
+    new_locs : torch.Tensor or None, optional
+        Tensor of shape (M, d) for new locations to compute distances to. If None, computes
+        distances among `locs` themselves. Default is None.
+    calculate_with_spherical : bool, optional
+        If True, compute distances on the sphere (great-circle distance). Otherwise, use
+        rectangular Euclidean distance. Default is False.
 
-    # convert to radians
-    locs = locs * torch.pi / 180.0
-    x = locs[:, 0].unsqueeze(1)
-    y = locs[:, 1].unsqueeze(1)
-
-    # compute cos(theta) for all pairs
-    sin_x = torch.sin(x)
-    cos_x = torch.cos(x)
-    cos_theta = sin_x @ sin_x.T + (cos_x @ cos_x.T) * torch.cos(y - y.T)
-    cos_theta = torch.clamp(cos_theta, -1.0, 1.0)
-
-    # initialize result
-    ret = torch.ones_like(cos_theta, dtype=dtype, device=device) * (1 - (torch.pi ** 2) / 6)
-
-    # mask for cos_theta != -1
-    mask =  ~torch.eye(cos_theta.shape[0], dtype=torch.bool, device=cos_theta.device)
-    upper = (cos_theta[mask] + 1) / 2  # upper limit of integral
-    a = torch.zeros_like(upper, dtype=dtype, device=device)
-    b = upper
-    n = n_integral if n_integral is not None else torch.clamp((10 * torch.max(b - a)).ceil().to(torch.int64), n_min, n_max)
-    n = int(n)
-    h = (b - a) / n  # step size
+    Returns
+    -------
+    torch.Tensor
+        Pairwise distance matrix of shape (N, M) with distances between points.
+        Distances are in the same units as coordinates (km for spherical).
     
-    # x values for Simpson's rule
-    xs = a.unsqueeze(1) + h.unsqueeze(1) * torch.arange(0, n + 1, dtype=dtype, device=device).unsqueeze(0)
-    # integrand f(x) = log(1-x)/x
-    f = torch.log(1 - xs) / xs
-    f[:, 0] = 0.0  # handle x=0 singularity
+    Notes
+    -----
+    - For rectangular coordinates, standard Euclidean distance is used.
+    - For spherical coordinates, the great-circle distance formula is applied, assuming
+      a sphere with radius 6371 km.
+    - The function is vectorized for efficiency and supports GPU computation if `device`
+      is specified.
+    """
+    if new_locs is None:
+        new_locs = locs
 
-    # Simpson coefficients
-    coeff = torch.ones(n + 1, dtype=dtype, device=device)
-    coeff[1:-1:2] = 4
-    coeff[2:-2:2] = 2
-    integral = (h / 3) * torch.sum(f * coeff, dim=1)
+    if not calculate_with_spherical:
+        diff = new_locs[:, None, :] - locs[None, :, :]
+        dist = torch.linalg.norm(diff, dim=2)
 
-    # subtract integral from baseline
-    ret[mask] -= integral
-    ret[~mask] = 1.0
+        return dist
+    
+    else:
+        if locs.ndim != 2 or new_locs.ndim != 2:
+            error_msg = f"Invalid dimension of \"locs\" ({locs.ndim}) or \"new_locs\" ({new_locs.ndim}), to calculate thin plate splines with spherical coordinate, the dimension must be 2."
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+        
+        warn_msg = f"Calculating distances using spherical coordinates are experimental feature, please make sure your data are in latitude and longitude format (in degrees)."
+        LOGGER.warning(warn_msg)
+        
+        lat1 = locs[:, 0] * torch.pi / 180.0
+        lon1 = locs[:, 1] * torch.pi / 180.0
+        lat2 = new_locs[:, 0] * torch.pi / 180.0
+        lon2 = new_locs[:, 1] * torch.pi / 180.0
 
-    return ret
+        x1 = torch.cos(lat1) * torch.cos(lon1)
+        y1 = torch.cos(lat1) * torch.sin(lon1)
+        z1 = torch.sin(lat1)
+        vec1 = torch.stack([x1, y1, z1], dim=1)
+
+        x2 = torch.cos(lat2) * torch.cos(lon2)
+        y2 = torch.cos(lat2) * torch.sin(lon2)
+        z2 = torch.sin(lat2)
+        vec2 = torch.stack([x2, y2, z2], dim=1)
+
+        diff = vec1.unsqueeze(1) - vec2.unsqueeze(0)
+        chord_len = torch.linalg.norm(diff, dim=2)
+
+        radius = 1.0  # Earth's radius in kilometers is 6371.0
+        dist = radius * 2 * torch.asin(torch.clamp(chord_len / 2, max=1.0))
+
+        return dist
 
 # using in MRTS.forward
 # check = none
@@ -190,29 +252,41 @@ def computeMrts(
     device: Union[torch.device, str]='cpu'
 ) -> Dict[str, torch.Tensor]:
     """
-    Compute MRTS (Multi-Resolution Thin-Plate Spline) core matrices.
+    Compute core matrices for the Multi-Resolution Thin-Plate Spline (MRTS) method.
+
+    This internal function is used in the MRTS forward pass to construct 
+    the basis and projection matrices required for multi-resolution modeling.
 
     Parameters
     ----------
-    s : (n, d) torch.Tensor
-        Position matrix
+    s : torch.Tensor of shape (n, d)
+        Position matrix of n locations in d dimensions.
     xobs_diag : torch.Tensor
-        Observation matrix (typically diagonal or measurements)
+        Observation matrix, typically diagonal or measurement values.
     k : int
-        Number of eigenvalues/components to keep
-    dtype : torch.dtype
-        Tensor dtype (default: torch.float64)
-    device : torch.device or str
-        Device (default: 'cpu')
+        Number of eigenvalues/components to retain.
+    calculate_with_spherical : bool, optional
+        Whether to compute TPS distances using spherical coordinates. Default is False.
+    dtype : torch.dtype, optional
+        Data type for computation (default: torch.float64).
+    device : torch.device or str, optional
+        Device for computation (default: 'cpu').
 
     Returns
     -------
-    dict containing:
-        X     : (n, k) base matrix
-        UZ    : (n+d+1, k+d+1) transformed matrix
-        BBBH  : projection matrix * Phi
-        nconst: column normalization constants
+    dict[str, torch.Tensor]
+        Dictionary containing the core MRTS components:
+        - **X** : torch.Tensor of shape (n, k)
+            Base matrix for the first k components.
+        - **UZ** : torch.Tensor of shape (n+d+1, k+d+1)
+            Transformed matrix used for projection.
+        - **BBBH** : torch.Tensor
+            Projection matrix multiplied by Phi basis.
+        - **nconst** : torch.Tensor
+            Column normalization constants.
     """
+    from .utils.predictor import updateMrtsBasisComponents, updateMrtsCoreComponentX, updateMrtsCoreComponentUZ
+
     # Update B, BBB, lambda, gamma
     Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s                       = s,
                                                             k                       = k,
@@ -251,7 +325,21 @@ def computeMrts(
 # classes
 class MRTS(nn.Module):
     """
-    Multi-Resolution Thin-plate Spline Basis Functions
+    Multi-Resolution Thin-Plate Spline (MRTS) Basis Functions
+
+    This class generates multi-resolution thin-plate spline basis functions, which are
+    ordered by decreasing smoothness. Higher-order functions capture large-scale features,
+    while lower-order functions capture small-scale details. These basis functions are
+    typically used in spatio-temporal random effects models, such as Fixed Rank Kriging.
+
+    Methods
+    -------
+    __init__(dtype=torch.float64, device='cpu')
+        Initialize an MRTS object with specified dtype and computation device.
+
+    forward(knot, k, x=None, maxknot=5000, calculate_with_spherical=False, dtype=torch.float64, device='cpu')
+        Compute multi-resolution TPS basis functions at the given knot locations
+        and optionally evaluate them at new locations.
     """
     def __init__(
         self,
@@ -259,12 +347,28 @@ class MRTS(nn.Module):
         device: Union[torch.device, str]='cpu'
     ):
         """
-        Initialize MRTS model.
+        Initialize an MRTS object.
+
+        Parameters
+        ----------
+        dtype : torch.dtype, optional
+            Tensor data type for computation. Default is torch.float64.
+        device : torch.device or str, optional
+            Target device for computation ("cpu" or "cuda"). Default is "cpu".
+            
+        Raises
+        ------
+        TypeError
+            If `dtype` is not a valid torch.dtype instance.
         """
         super().__init__()
 
         # setup device
-        self.device = setup_device(device=device)
+        caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
+        use_logger = caller in ("__main__", "ipykernel_launcher")
+        self.device = setup_device(device = device,
+                                   logger = use_logger
+                                   )
 
         # dtype check
         if not isinstance(dtype, torch.dtype):
@@ -282,21 +386,56 @@ class MRTS(nn.Module):
         calculate_with_spherical: bool = False,
         dtype: torch.dtype=torch.float64,
         device: Union[torch.device, str]='cpu'
-    ) -> dict:
+    ) -> Dict[str, torch.Tensor]:
         """
-        Forward pass to compute the basis functions. Constructs the basis functions based on the input locations and parameters.
+        Compute Multi-Resolution Thin-Plate Spline (MRTS) basis functions.
 
-        Returns:
-            A tensor of shape [N, k] representing the basis functions.
+        The basis functions are ordered by decreasing smoothness: higher-order functions
+        capture large-scale features, lower-order functions capture small-scale details.
+        Useful for spatio-temporal random effects modeling.
+
+        Parameters
+        ----------
+        knot : torch.Tensor
+            An (m, d) tensor of knot locations (d <= 3). Missing values are not allowed.
+        k : int
+            Number of basis functions to generate (k <= m).
+        x : torch.Tensor, optional
+            An (n, d) tensor of locations at which to evaluate basis functions.
+            If None, the basis is evaluated at the knots.
+        maxknot : int, optional
+            Maximum number of knots to use. If less than m, a subset of knots is selected deterministically.
+            Default is 5000.
+        calculate_with_spherical : bool, optional
+            If True, calculates TPS distances using spherical coordinates (for global data). Default is False.
+        dtype : torch.dtype, optional
+            Tensor data type for computation. Default is torch.float64.
+        device : torch.device or str, optional
+            Device for computation ("cpu" or "cuda"). Default is "cpu".
+
+        Returns
+        -------
+        dict
+            A dictionary containing:
+            - **MRTS** : (n, k) tensor of basis function values at the evaluation locations
+            - **UZ** : transformed matrix for internal computation (if available)
+            - **Xu** : (n, d) tensor of unique knots used
+            - **nconst** : normalization constants for each basis function
+            - **BBBH** : (optional) projection matrix times Phi
         """
         # setup device
         if device is None:
             device = self.device
         else:
-            device = setup_device(device=device)
+            # setup device
+            caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
+            use_logger = caller in ("__main__", "ipykernel_launcher")
+            device = setup_device(device = device,
+                                  logger = use_logger
+                                  )
             self.device = device
 
-        # dtype check
+        # check dtype
         if dtype is None:
             dtype = self.dtype
         elif not isinstance(dtype, torch.dtype):
@@ -305,6 +444,17 @@ class MRTS(nn.Module):
             dtype = self.dtype
         else:
             self.dtype = dtype
+
+        # check calculate_with_spherical
+        if type(calculate_with_spherical) is not bool:
+            calculate_with_spherical = False
+            LOGGER.warning(f'Parameter "calculate_with_spherical" should be a boolean, the type you input is "{type(calculate_with_spherical).__name__}". Default value \"False\" is used.')
+
+        if not calculate_with_spherical:
+            LOGGER.info(f'Calculate TPS with rectangular coordinates.')
+        else:
+            LOGGER.info(f'Calculate TPS with spherical coordinates.')
+        self.calculate_with_spherical = calculate_with_spherical
 
         # convert all major parameters
         xobs = to_tensor(obj   = knot,
@@ -347,6 +497,7 @@ class MRTS(nn.Module):
         
         if x is not None:
             if k - ndims - 1 > 0:
+                from .utils.predictor import predictMrts
                 result = predictMrts(s                          = Xu,
                                      xobs_diag                  = xobs_diag,
                                      s_new                      = x,
@@ -406,6 +557,7 @@ class MRTS(nn.Module):
         obj["BBBH"] = result.get("BBBH", None)
 
         if x is None:
+            self.obj = obj
             return obj
         else:
             shift = Xu.mean(dim=0, keepdim=True)
@@ -434,8 +586,49 @@ class MRTS(nn.Module):
             else:
                 obj0["MRTS"] = X2
 
+            self.obj = obj0
             return obj0
+    def predict(
+        self,
+        obj: Dict[str, torch.Tensor]=None,
+        newx: Union[torch.Tensor, None] = None,
+        calculate_with_spherical: Union[bool, None] = None
+    ) -> torch.Tensor:
+        """
 
+        """
+        if obj is None and not hasattr(self, "obj"):
+            error_msg = f'No input "obj" is provided and `MRTS.forward` has not been called before `MRTS.predict`.'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+        elif obj is None and hasattr(self, "obj"):
+            obj = self.obj
+        
+        if newx is None and obj is not None:
+            return obj
+        
+        if calculate_with_spherical is None and hasattr(self, "calculate_with_spherical"):
+            warn_msg = f'No input "calculate_with_spherical" is provided, use the default value `False` for MMRTS.predict.'
+            LOGGER.warning(warn_msg)
+            calculate_with_spherical = False
+        else:
+            if calculate_with_spherical is None:
+                calculate_with_spherical = self.calculate_with_spherical
+            if type(calculate_with_spherical) is not bool:
+                calculate_with_spherical = False
+                LOGGER.warning(f'Parameter "calculate_with_spherical" should be a boolean, the type you input is "{type(calculate_with_spherical).__name__}". Default value \"False\" is used.')
+            if not calculate_with_spherical:
+                LOGGER.info(f'Calculate TPS with rectangular coordinates.')
+            else:
+                LOGGER.info(f'Calculate TPS with spherical coordinates.')
+
+        from autoFRK.utils.predictor import predict_mrts
+        return predict_mrts(obj                     = obj,
+                            newx                    = newx,
+                            calculate_with_spherical= calculate_with_spherical,
+                            dtype                   = self.dtype,
+                            device                  = self.device
+                            )
 
 # main program
 if __name__ == "__main__":

@@ -1,15 +1,20 @@
 """
 Title: __init__ file of autoFRK-Python Project
-Author: Hsu, Yao-Chih
-Version: 1141017
-Reviewer: 
-Reviewed Version:
-Description: 
-Reference: 
+Author: Yao-Chih Hsu
+Version: 1141019
+Description: This is the initialization file for the autoFRK-Python package, and it imports key classes and functions to be accessible at the package level.
+Reference: None
+License:
+    This software is released under the GNU General Public License v3 (GPLv3).
+    The full license text can be found in the LICENSE file at the root of this
+    module.
 """
+
+# import modules
 from .autoFRK import AutoFRK
 from .mrts import MRTS
 from .utils.predictor import predict_FRK
-from .utils.utils import to_tensor
+from .utils.utils import to_tensor, p
 
-__all__ = ["AutoFRK", "MRTS", "predict_FRK", "to_tensor"]
+# export key classes and functions
+__all__ = ["AutoFRK", "MRTS", "predict_FRK", "to_tensor", "p"]

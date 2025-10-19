@@ -1,31 +1,19 @@
 """
-Title: Setup file of autoFRK-Python Project
-Author: Hsu, Yao-Chih
-Version: 1141017
-Reviewer: 
-Reviewed Version:
-Reference: 
-Description: 
+Title: Estimator functions for autoFRK-Python Project
+Author: Yao-Chih Hsu
+Version: 1141019
+Description: This file contains some estimator functions used in the autoFRK-Python project.
+Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
-
-# development only
-#import os
-#import sys
-#sys.path.append(os.path.abspath("./src"))
 
 # import modules
 import torch
-import numpy as np
-import faiss
 import gc
-from typing import Optional, Dict, Union, Any
-from sklearn.neighbors import NearestNeighbors
-from scipy.optimize import minimize_scalar
-from scipy.sparse.linalg import eigsh
-from autoFRK.utils.logger import setup_logger
-
-# logger config
-LOGGER = setup_logger()
+from typing import Optional, Dict, Union
+from autoFRK.utils.logger import LOGGER
+from autoFRK.utils.utils import to_tensor
+from autoFRK.utils.matrix_operator import isDiagonal, convertToPositiveDefinite, computeProjectionMatrix
+from autoFRK.utils.helper import computeNegativeLikelihood, logDeterminant, computeLikelihood, invCz
 
 # compute negative log likelihood for autoFRK, using in selectBasis
 # check = ok
@@ -42,31 +30,46 @@ def cMLE(
     vfixed: float = None,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, None]]:
     """
-    Internal function: maximum likelihood estimate with the likelihood
+    Maximum likelihood estimate based on likelihood.
 
-    Parameters:
-        Fk: (N, K) torch.Tensor, basis functions.
-        num_columns: (int) Number of columns in the data.
-        sample_covariance_trace: (float) Trace of the sample covariance matrix.
-        inverse_square_root_matrix: (N, K) torch.Tensor, inverse square root matrix.
-        matrix_JSJ: (K, K) torch.Tensor, covariance-like matrix.
-        s: (float) Effective sample size, default is 0.
-        ldet: (float) Log determinant of the transformation matrix, default is 0.
-        wSave: (bool) Whether to save the L matrix, default is False.
-        onlylogLike: (bool) If True, only return the negative log likelihood.
-        vfixed: (float, optional) Fixed noise variance, if provided.
-        device: (str) 'cpu' or 'cuda'.
+    Parameters
+    ----------
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix evaluated at n locations with K basis functions.
+    num_columns : int
+        Number of columns in the data (T).
+    sample_covariance_trace : float
+        Trace of the sample covariance matrix.
+    inverse_square_root_matrix : torch.Tensor, shape (n, K)
+        Precomputed inverse square root matrix.
+    matrix_JSJ : torch.Tensor, shape (K, K)
+        Symmetric covariance-like matrix.
+    s : float, default 0
+        Effective sample size.
+    ldet : float, default 0
+        Log-determinant of transformation matrix.
+    wSave : bool, default False
+        If True, returns the L matrix.
+    onlylogLike : bool, optional
+        If True, only compute and return the negative log-likelihood.
+    vfixed : float, optional
+        Fixed noise variance if provided.
+    dtype : torch.dtype, default torch.float64
+        Data type used for computations.
+    device : str or torch.device, default 'cpu'
+        Computation device.
 
-    Returns:
-        dict: {
-            'v': (float) Estimated noise variance,
-            'M': (torch.Tensor) Matrix M,
-            's': (int) Effective sample size,
-            'negloglik': (float) Negative log likelihood,
-            'L': (torch.Tensor, optional) L matrix if wSave is True.
-        }
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'v' (float): Estimated noise variance.
+        - 'M' (torch.Tensor): Covariance matrix.
+        - 's' (float): Effective sample size.
+        - 'negloglik' (float): Negative log-likelihood.
+        - 'L' (torch.Tensor or None): L matrix if wSave=True, else None.
     """
     nrow_Fk = Fk.shape[0]
 
@@ -122,35 +125,45 @@ def indeMLE(
     verbose: bool = True,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, Dict]]:
     """
-    Internal function: indeMLE
+    Independent maximum likelihood estimation for autoFRK.
 
-    Parameters:
-        data (torch.Tensor): 
-            n x T data matrix (NA allowed), where each column is z[t].
-        Fk (torch.Tensor): 
-            n x K matrix of basis function values; each column is a basis function evaluated at observation locations.
-        D (torch.Tensor, optional): 
-            n x n diagonal matrix.
-        maxit (int, default 50): 
-            Maximum number of iterations.
-        avgtol (float, default 1e-6): 
-            Average tolerance for convergence.
-        wSave (bool, default False): 
-            Whether to compute and return weight and covariance matrices.
-        DfromLK (dict, optional): 
-            n x n matrix or dictionary of low-rank kernel precomputations.
-        vfixed (float, optional): 
-            Fixed variance parameter (if provided, overrides estimation).
-        verbose (bool, default True): 
-            Print useful information during computation.
-        device (str or torch.device, default 'cpu'): 
-            Device to perform computation on.
+    Parameters
+    ----------
+    data : torch.Tensor, shape (n, T)
+        Observation matrix, NA allowed; each column corresponds to z[t].
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix evaluated at observation locations.
+    D : torch.Tensor, optional
+        Diagonal matrix of size (n, n), default is identity.
+    maxit : int, default 50
+        Maximum number of iterations for EM algorithm if missing values exist.
+    avgtol : float, default 1e-6
+        Convergence tolerance for iterative estimation.
+    wSave : bool, default False
+        Whether to save and return weight/covariance matrices.
+    DfromLK : dict, optional
+        Precomputed low-rank kernel information for faster computation.
+    vfixed : float, optional
+        Fixed variance parameter; if provided, variance is not estimated.
+    verbose : bool, default True
+        Print progress information.
+    dtype : torch.dtype, default torch.float64
+        Computation data type.
+    device : str or torch.device, default 'cpu'
+        Computation device.
 
-    Returns:
-        dict
-            Dictionary containing estimated matrices, variance parameters, and optional diagnostic information.
+    Returns
+    -------
+    dict
+        Contains estimated variance parameters, covariance matrices, and optionally weight matrices and diagnostic info:
+        - 'v' : Estimated v
+        - 'M' : Covariance matrix
+        - 's' : Effective sample size
+        - 'negloglik' : Negative log-likelihood
+        - 'w' : Weight matrix (if wSave=True)
+        - 'pinfo' : Dictionary of auxiliary info (D, pick)
     """
     withNA = torch.isnan(data).any().item()
 
@@ -282,9 +295,39 @@ def cMLEimat(
     onlylogLike: Optional[bool] = None,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, None]]:
     """
-    
+    Maximum likelihood estimation.
+
+    Parameters
+    ----------
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix, each column evaluated at observation locations.
+    data : torch.Tensor, shape (n, T)
+        Observation matrix with possible NaN values; each column corresponds to z[t].
+    s : float
+        Positive numeric scalar, effective sample size.
+    wSave : bool, default False
+        Whether to compute and return weight matrices.
+    S : torch.Tensor, optional
+        Optional n x n matrix for pre-computation of projections.
+    onlylogLike : bool, optional
+        If True, only return negative log-likelihood; default is not wSave.
+    dtype : torch.dtype, default torch.float64
+        Data type for computation.
+    device : str or torch.device, default 'cpu'
+        Device for computation.
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'v' : Estimated v.
+        - 'M' : Estimated covariance matrix.
+        - 's' : Effective sample size.
+        - 'negloglik' : Negative log-likelihood value.
+        - 'w' : Weight matrix (if wSave=True).
+        - 'V' : Variance matrix (if wSave=True).
     """
     if onlylogLike is None:
         onlylogLike = not wSave
@@ -387,9 +430,49 @@ def EM0miss(
     verbose: bool=True,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, Dict]]:
     """
+    EM algorithm for maximum likelihood estimation with missing data.
 
+    This function estimates the covariance matrix and variance parameter in the 
+    presence of missing values using an EM approach (zero-mean assumption).
+
+    Parameters
+    ----------
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix evaluated at observation locations.
+    data : torch.Tensor, shape (n, T)
+        Observation matrix with possible NaN values; each column corresponds to a time point.
+    Depsilon : torch.Tensor, shape (n, n)
+        Diagonal matrix of observation noise variances.
+    maxit : int, default 100
+        Maximum number of EM iterations.
+    avgtol : float, default 1e-4
+        Average tolerance for convergence criterion.
+    wSave : bool, default False
+        Whether to save the estimated latent weights and covariance matrices.
+    DfromLK : dict, optional
+        Precomputed low-rank kernel matrices and weights (used for efficiency).
+    vfixed : float, optional
+        Fixed variance parameter; if provided, variance estimation is skipped.
+    verbose : bool, default True
+        Print iteration information and convergence messages.
+    dtype : torch.dtype, default torch.float64
+        Data type for computations.
+    device : str or torch.device, default 'cpu'
+        Device to perform computation on (CPU or GPU).
+
+    Returns
+    -------
+    dict
+        Dictionary containing estimated parameters and optional diagnostic information:
+        - 'M' : Estimated covariance matrix.
+        - 's' : Estimated variance parameter.
+        - 'negloglik' : Negative log-likelihood value.
+        - 'w' : Estimated latent weights (if wSave=True).
+        - 'V' : Variance matrix of latent weights (if wSave=True).
+        - 'pinfo' : Precomputed info from low-rank kernels (if DfromLK is used).
+        - 'missing' : Info about missing data and EM settings.
     """
     O = ~torch.isnan(data)
     TT = data.shape[1]
@@ -615,33 +698,33 @@ def cMLEsp(
     wSave: bool = False,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, None]]:
     """
-    Internal function: cMLEsp
+    Maximum likelihood estimation with independent diagonal covariance (Depsilon).
 
-    Parameters:
-        Fk (torch.Tensor): 
-            (n × K) matrix of basis function values at observation locations.
+    Parameters
+    ----------
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix evaluated at observation locations.
+    data : torch.Tensor, shape (n, T)
+        Observation matrix with possible NaN values; each column corresponds to a time point.
+    Depsilon : torch.Tensor, shape (n, n)
+        Diagonal matrix of measurement error variances.
+    wSave : bool, default False
+        Whether to compute and return latent weights and covariance matrices.
+    dtype : torch.dtype, default torch.float64
+        Precision for computations.
+    device : str or torch.device, default 'cpu'
+        Device for computation.
 
-        data (torch.Tensor): 
-            (n × T) data matrix (can contain NaN).
-
-        Depsilon (torch.Tensor): 
-            (n × n) diagonal covariance matrix (measurement error variances).
-
-        wSave (bool, default=False): 
-            Whether to compute and return weight and covariance matrices.
-
-        device (torch.device or str, optional): 
-            Device for computation.
-
-        dtype (torch.dtype, optional): 
-            Data precision.
-
-    Returns:
-        dict
-            Dictionary containing:
-            - 'M', 's', and (if wSave=True) 'w', 'V'
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'M' : Estimated covariance matrix.
+        - 's' : Estimated variance parameter (renamed from 'v').
+        - 'w' : Latent weights (if wSave=True).
+        - 'V' : Covariance of latent weights (if wSave=True).
     """
     iD = torch.linalg.inv(Depsilon)
     ldetD = logDeterminant(mat = Depsilon).item()
@@ -706,43 +789,43 @@ def cMLElk(
     vfixed: float = None,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
-) -> dict:
+) -> Dict[str, Union[float, torch.Tensor, Dict]]:
     """
-    Internal function: cMLElk
+    Maximum likelihood estimation using precomputed low-rank kernel (LK) information.
 
-    Parameters:
-        Fk (torch.Tensor):
-            (n × K) matrix of basis function values, where each column
-            represents a basis function evaluated at the observation locations.
+    Parameters
+    ----------
+    Fk : torch.Tensor, shape (n, K)
+        Basis function matrix; each column corresponds to a basis function evaluated at observation locations.
+    data : torch.Tensor, shape (n, T)
+        Observation matrix (can contain NaNs) with z[t] as the t-th column.
+    Depsilon : torch.Tensor, shape (n, n)
+        Diagonal covariance matrix of measurement errors.
+    wSave : bool, default False
+        Whether to compute and return additional latent weights and covariance matrices.
+    DfromLK : dict
+        Dictionary containing precomputed quantities from the low-rank kernel step:
+        - 'lambda' (float): regularization parameter.
+        - 'pick' (list[int]): indices of selected observations.
+        - 'wX' (torch.Tensor): weighted design matrix.
+        - 'weights' (torch.Tensor): vector of observation weights.
+        - 'Q' (torch.Tensor): penalty matrix.
+    vfixed : float, optional
+        Fixed variance parameter (if provided, overrides estimation).
+    dtype : torch.dtype, default torch.float64
+        Precision for computations.
+    device : str or torch.device, default 'cpu'
+        Device for computation.
 
-        data (torch.Tensor):
-            (n × T) data matrix (can contain NaN) with z[t] as the t-th column.
-
-        Depsilon (torch.Tensor):
-            (n × n) diagonal covariance matrix of measurement errors.
-
-        wSave (bool, default=False):
-            Whether to compute and return additional weight and covariance matrices.
-
-        DfromLK (dict):
-            Dictionary containing precomputed quantities from the low-rank kernel step:
-                - 'lambda' (float): regularization parameter.
-                - 'pick' (list[int]): indices of selected observations.
-                - 'wX' (torch.Tensor): weighted design matrix.
-                - 'weights' (torch.Tensor): vector of weights.
-                - 'Q' (torch.Tensor): penalty matrix.
-
-        vfixed (float, optional):
-            Fixed variance parameter (if provided, overrides estimation).
-
-    Returns:
-        dict:
-            Dictionary containing:
-                - 'M' (torch.Tensor): estimated model matrix.
-                - 's' (float): variance parameter.
-                - 'w' (torch.Tensor, optional): estimated weights if wSave=True.
-                - 'V' (torch.Tensor, optional): covariance matrix of weights.
-                - 'pinfo' (dict, optional): diagnostic info with 'wlk' and 'pick'.
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'M' : Estimated covariance-like matrix.
+        - 's' : Estimated variance parameter (renamed from 'v').
+        - 'w' : Latent weights (if wSave=True).
+        - 'V' : Covariance matrix of latent weights (if wSave=True).
+        - 'pinfo' : Diagnostic info with 'wlk' (weights from low-rank kernel) and 'pick' indices.
     """
     num_columns = data.shape[1]
     lambda_ = DfromLK["lambda"]

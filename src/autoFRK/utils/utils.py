@@ -2,10 +2,8 @@
 Title: Useful tools for autoFRK-Python Project
 Author: Yao-Chih Hsu
 Version: 1141018
-Reviewer: Yao-Chih Hsu
-Reviewed Version: 1141018
 Description: This file provides general-purpose utility functions.
-Reference: None
+Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
 
 # development only
@@ -19,10 +17,7 @@ import platform
 import torch
 import gc
 from typing import Dict, Union, Any, List
-from autoFRK.utils.logger import setup_logger
-
-# logger config
-LOGGER = setup_logger()
+from autoFRK.utils.logger import LOGGER
 
 # convert input into torch.Tensor recursively, using in autoFRK-Python Project
 # check = ok

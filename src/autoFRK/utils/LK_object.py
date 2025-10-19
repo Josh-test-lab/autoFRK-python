@@ -1,9 +1,7 @@
 """
-Title: Setup file of autoFRK-Python Project
+Title: Rework `LatticeKrig` package of autoFRK-Python Project
 Author: Yao-Chih Hsu
 Version: 1141018
-Reviewer: Yao-Chih Hsu
-Reviewed Version: 1141018
 Description: Provides functions about `LatticeKrig` package which in R Language.
 Reference: None
 """

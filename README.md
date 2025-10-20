@@ -1,8 +1,8 @@
 # autoFRK-python
 
 [![PyPI Version](https://img.shields.io/pypi/v/autoFRK.svg)](https://pypi.org/project/autoFRK/)
-[![Downloads](https://img.shields.io/pypi/dm/autoFRK.svg)](https://pypi.org/project/autoFRK/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Josh-test-lab/autoFRK-python/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Josh-test-lab/autoFRK-python.svg?style=social)](https://github.com/Josh-test-lab/autoFRK-python/stargazers)
 
 - **Repository:** [https://github.com/Josh-test-lab/autoFRK-python](https://github.com/Josh-test-lab/autoFRK-python)
 

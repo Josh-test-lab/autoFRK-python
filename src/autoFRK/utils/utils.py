@@ -15,6 +15,7 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 import os
 import platform
 import torch
+import pandas as pd
 import gc
 from typing import Dict, Union, Any, List
 from autoFRK.utils.logger import LOGGER
@@ -27,23 +28,23 @@ def to_tensor(
     device: Union[torch.device, str] = 'cpu'
 ) -> Union[torch.Tensor, Dict[str, Any], List[Any], None]:
     """  
-    Recursively convert various Python or NumPy objects into torch.Tensor or nested tensor structures.  
-    Handles: bool, numbers, lists/tuples, np.ndarray, dict, and torch.Tensor.  
+    Recursively convert various Python, NumPy, or pandas objects into torch.Tensor or nested tensor structures.
+    Handles: bool, numbers, list/tuple, np.ndarray, dict, torch.Tensor, pandas.Series, pandas.DataFrame, or None.
 
-    Parameters  
-    ----------  
-    obj : Any  
+    Parameters
+    ----------
+    obj : Any
         Input object to be converted. Supported types include bool, int, float, list, tuple, np.ndarray, 
-        dict (possibly nested), torch.Tensor, or None.  
-    dtype : torch.dtype, optional  
-        Desired torch dtype for numeric conversion (default: torch.float64).  
-    device : torch.device or str, optional  
-        Target device for tensor allocation (default: 'cpu').  
+        dict (possibly nested), torch.Tensor, pandas.Series, pandas.DataFrame, or None.
+    dtype : torch.dtype, optional
+        Desired torch dtype for numeric conversion (default: torch.float64).
+    device : torch.device or str, optional
+        Target device for tensor allocation (default: 'cpu').
 
-    Returns  
-    -------  
-    Union[torch.Tensor, Dict[str, Any], List[Any], None]  
-        A torch.Tensor, a nested dictionary/list of tensors, or None.  
+    Returns
+    -------
+    Union[torch.Tensor, Dict[str, Any], List[Any], None]
+        A torch.Tensor, a nested dictionary/list of tensors, or None.
     """
     if isinstance(obj, torch.Tensor):
         if obj.dtype != dtype or obj.device != device:
@@ -62,13 +63,13 @@ def to_tensor(
             t = converted
     elif isinstance(obj, dict):
         t = {k: to_tensor(v, dtype=dtype, device=device) for k, v in obj.items()}
+    elif isinstance(obj, (pd.Series, pd.DataFrame)):
+        t = torch.tensor(obj.values, dtype=dtype, device=device)
     elif hasattr(obj, 'shape'):
         t = torch.tensor(obj, dtype=dtype, device=device)
     elif obj is None:
         t = obj
-    elif isinstance(obj, (torch.dtype, type)):
-        t = obj
-    elif isinstance(obj, (torch.device, str)):
+    elif isinstance(obj, (torch.dtype, type, torch.device, str)):
         t = obj
     else:
         error_msg = f"Unsupported type: {type(obj)}"

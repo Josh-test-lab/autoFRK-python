@@ -158,11 +158,13 @@ print("Prediction standard errors:", pred.get('se'))
 
 ## Authors
 
-- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en)
-- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang")
-- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang")
-- [Yao-Chih Hsu](https://github.com/Josh-test-lab/)
-- [Yi-Xuan Xie](https://github.com/yixuan-dev)
+- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en) — *Original Paper Author*  
+- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang") — *Original Paper Author*  
+- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang") — *R Package Author*  
+- [Yao-Chih Hsu](https://github.com/Josh-test-lab/) — *Python Package Author*  
+- [Yi-Xuan Xie](https://github.com/yixuan-dev) — *Python Package Tester*  
+- [Xuan-Chun Wang](https://github.com/wangxc1117) — *Python Package Tester*
+
 
 ## License
 

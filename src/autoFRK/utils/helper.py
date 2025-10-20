@@ -166,6 +166,55 @@ def fast_mode_knn_sklearn(
 
     return torch.tensor(data, dtype=dtype, device=device)
 
+# fast mode KNN for missing data imputation, using in autoFRK, torch version
+def fast_mode_knn_torch(
+    data: torch.Tensor,
+    loc: torch.Tensor,
+    n_neighbor: int = 3
+) -> torch.Tensor:
+    """
+    Impute missing values in data using fast KNN with PyTorch.
+
+    Parameters
+    ----------
+    data : torch.Tensor
+        (N, T) tensor with NaNs indicating missing values.
+    loc : torch.Tensor
+        (N, D) coordinates of spatial points.
+    n_neighbor : int, optional
+        Number of nearest neighbors used for imputation. Default = 3.
+
+    Returns
+    -------
+    torch.Tensor
+        Same shape as input, with missing values imputed.
+    """
+    imputed = data.clone()
+
+    for tt in range(data.shape[1]):
+        col = imputed[:, tt]
+        mask = torch.isnan(col)
+
+        if not mask.any():
+            continue
+
+        known_idx = (~mask).nonzero(as_tuple=True)[0]
+        unknown_idx = mask.nonzero(as_tuple=True)[0]
+
+        if 0 < len(known_idx) < n_neighbor:
+            err_msg = f'Column {tt} has too few known values to impute ({len(known_idx)} < {n_neighbor}).'
+            LOGGER.warning(err_msg)
+            raise ValueError(err_msg)
+
+        dist_known = torch.cdist(loc[unknown_idx], loc[known_idx])
+        knn_idx_local = dist_known.topk(k = n_neighbor, largest=False).indices
+        neighbor_vals = col[known_idx][knn_idx_local]
+        col_clone = col.clone()
+        col_clone[unknown_idx] = torch.nanmean(neighbor_vals, dim=1)
+        imputed[:, tt] = col_clone
+
+    return imputed
+
 # select basis function for autoFRK, using in autoFRK
 # check = none
 def selectBasis(
@@ -212,7 +261,8 @@ def selectBasis(
         Candidate numbers of basis functions to test.
     method : str, optional
         Method for estimation. Options:
-            - "fast": approximate KNN imputation (default)
+            - "fast": approximate KNN imputation using PyTorch (default)
+            - "fast_sklearn": approximate KNN using scikit-learn
             - "fast_faiss": approximate KNN using Faiss
             - "EM": expectation-maximization
     num_neighbors : int, optional
@@ -332,6 +382,11 @@ def selectBasis(
     else:
         if is_data_with_missing_values:
             if method == "fast":
+                data = fast_mode_knn_torch(data       = data,
+                                           loc        = loc, 
+                                           n_neighbor = num_neighbors
+                                           )
+            elif method == "fast_sklearn":
                 data = fast_mode_knn_sklearn(data       = data,
                                              loc        = loc, 
                                              n_neighbor = num_neighbors

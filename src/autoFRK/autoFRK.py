@@ -13,7 +13,7 @@ from typing import Optional, Union
 from .utils.logger import LOGGER, set_logger_level
 from .utils.device import setup_device
 from .utils.utils import to_tensor
-from .utils.helper import fast_mode_knn_sklearn, fast_mode_knn_faiss, selectBasis
+from .utils.helper import fast_mode_knn_torch, fast_mode_knn_sklearn, fast_mode_knn_faiss, selectBasis
 from .utils.estimator import indeMLE
 from .utils.predictor import predict_FRK
 
@@ -115,6 +115,7 @@ class AutoFRK(nn.Module):
         method: str="fast", 
         n_neighbor: int=3, 
         maxknot: int=5000,
+        requires_grad: bool=False,
         calculate_with_spherical: bool=False,
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
@@ -151,13 +152,16 @@ class AutoFRK(nn.Module):
             Sequence of candidate numbers of basis functions to test. Default is None.
         method : str, optional
             Method for estimation. Supported values:
-            - `"fast"`: approximate imputation using nearest neighbors (default)
+            - `"fast"`: approximate imputation using nearest neighbors by PyTorch module (default)
+            - `"fast_sklearn"`: approximate imputation using scikit-learn module for nearest neighbors
             - `"fast_faiss"`: approximate imputation using Faiss module for nearest neighbors
             - `"EM"`: expectation–maximization
         n_neighbor : int, optional
             Number of neighbors used for "fast" imputation. Default is 3.
         maxknot : int, optional
             Maximum number of knots for multi-resolution TPS basis generation. Default is 5000.
+        requires_grad : bool, optional
+            If True, enables gradient computation for `data` tensor. Default is False.
         calculate_with_spherical : bool, optional
             If True, calculates thin-plate spline distances using spherical coordinates.
             Useful for global (longitude/latitude) datasets. Default is False.
@@ -218,7 +222,11 @@ class AutoFRK(nn.Module):
         # reshape data
         if data.ndim == 1:
             data = data.reshape(-1, 1)
-        
+
+        # requires_grad check
+        if requires_grad is True:
+            data.requires_grad_(requires_grad=True)
+
         data = data - mu
         Fk = {}
         if G is not None:
@@ -243,6 +251,11 @@ class AutoFRK(nn.Module):
         
         K = Fk["MRTS"].shape[1]
         if method == "fast":
+            data = fast_mode_knn_torch(data       = data,
+                                       loc        = loc, 
+                                       n_neighbor = n_neighbor
+                                       )
+        elif method == "fast_sklearn":
             data = fast_mode_knn_sklearn(data       = data,
                                          loc        = loc, 
                                          n_neighbor = n_neighbor
@@ -329,6 +342,7 @@ class AutoFRK(nn.Module):
         
         obj['dtype'] = dtype
         obj['device'] = device
+        obj['requires_grad'] = requires_grad
 
         self.obj = obj
         return self.obj

@@ -13,8 +13,8 @@ License:
 # import modules
 from .autoFRK import AutoFRK
 from .mrts import MRTS
-from .utils.predictor import predict_FRK
+from .utils.predictor import predict_FRK, predict_mrts
 from .utils.utils import to_tensor, p
 
 # export key classes and functions
-__all__ = ["AutoFRK", "MRTS", "predict_FRK", "to_tensor", "p"]
+__all__ = ["AutoFRK", "MRTS", "predict_FRK", "predict_mrts", "to_tensor", "p"]

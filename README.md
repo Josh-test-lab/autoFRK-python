@@ -16,7 +16,7 @@
 - Supports single or multiple time points
 - Offers approximate or EM-based model estimation
 - Suitable for global latitude-longitude data
-- Implemented in PyTorch, supporting CPU and GPU
+- Implemented in PyTorch, supporting CPU and GPU (requires PyTorch with CUDA support for GPU)
 
 
 
@@ -187,7 +187,7 @@ print("Prediction standard errors:", pred.get('se'))
 - Nychka, D., Hammerling, D., Sain, S., & Lenssen, N. (2016). *LatticeKrig: Multiresolution Kriging Based on Markov Random Fields*
 
 
-### Citation
+## Citation
 
 - To cite the Python package `autoFRK-python` in publications use:
 
@@ -226,3 +226,16 @@ print("Prediction standard errors:", pred.get('se'))
     url = {https://CRAN.R-project.org/package=autoFRK},
   }
 ```
+
+## Release Notes
+
+### v1.1.0
+
+- Added `dtype` and `device` parameters to `AutoFRK.predict()` and `MRTS.predict()`.
+- Added `logger_level` parameter to `AutoFRK.__init__()` and `MRTS.__init__()` (default: 20). Options include `NOTSET`(0), `DEBUG`(10), `INFO`(20), `WARNING`(30), `ERROR`(40), `CRITICAL`(50).
+- Enhanced automatic device selection, including MPS support.
+- Fixed device assignment issue when `device` is not specified, preventing redundant parameter transfers.
+
+### v1.0.0
+
+- Ported R package `autoFRK` to Python.

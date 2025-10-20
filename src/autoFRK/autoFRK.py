@@ -10,7 +10,7 @@ Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng
 import torch
 import torch.nn as nn
 from typing import Optional, Union
-from .utils.logger import LOGGER
+from .utils.logger import LOGGER, set_logger_level
 from .utils.device import setup_device
 from .utils.utils import to_tensor
 from .utils.helper import fast_mode_knn_sklearn, fast_mode_knn_faiss, selectBasis
@@ -59,6 +59,7 @@ class AutoFRK(nn.Module):
     """
     def __init__(
         self,
+        logger_level: int | str= 20,
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
         ):
@@ -67,12 +68,25 @@ class AutoFRK(nn.Module):
 
         Parameters
         ----------
+        logger_level : int, str, optional
+            Logging level for the process (e.g., logging.INFO or 20). Default is 20.
+            Possible values:
+            - `logging.NOTSET` or 0        : No specific level; inherits parent logger level
+            - `logging.DEBUG`  or 10       : Detailed debugging information
+            - `logging.INFO`   or 20       : General information about program execution
+            - `logging.WARNING` or 30     : Warning messages, indicate potential issues
+            - `logging.ERROR`  or 40       : Error messages, something went wrong
+            - `logging.CRITICAL` or 50    : Severe errors, program may not continue
         dtype : torch.dtype, optional
             Data type for all internal tensors (default: torch.float64).
         device : torch.device or str, optional
             Computation device ("cpu" or "cuda"). Automatically detected if None.
         """
         super().__init__()
+
+        # set logger level
+        if logger_level != 20:
+            set_logger_level(LOGGER, logger_level)
 
         # setup device
         self.device = setup_device(device = device,
@@ -163,6 +177,8 @@ class AutoFRK(nn.Module):
             - **V** (`torch.Tensor`): (K, K) covariance matrix of prediction errors for `w[t]`.
             - **G** (`dict`): basis function matrix used in fitting.
             - **LKobj** (`dict`): results from LatticeKrig-style fine-scale modeling (if enabled).
+            - **dtype** (`torch.dtype`): data type used in computations.
+            - **device** (`torch.device`): computation device used.
         """
         # setup device
         if device is None:
@@ -309,8 +325,11 @@ class AutoFRK(nn.Module):
             obj['pinfo']["loc"] = loc
             obj['pinfo']["weights"] = 1.0 / torch.diag(D)
         else:
-            obj['LKobj'] = None   
+            obj['LKobj'] = None
         
+        obj['dtype'] = dtype
+        obj['device'] = device
+
         self.obj = obj
         return self.obj
     
@@ -323,7 +342,9 @@ class AutoFRK(nn.Module):
         newloc: torch.Tensor = None,
         basis: torch.Tensor = None,
         mu_new: Union[float, torch.Tensor] = 0,
-        se_report: bool = False
+        se_report: bool = False,
+        dtype: torch.dtype=torch.float64,
+        device: Optional[Union[torch.device, str]]=None
     ) -> dict:
         """
         `autoFRK` predict method
@@ -366,6 +387,53 @@ class AutoFRK(nn.Module):
             raise ValueError(error_msg)
         elif obj is None and hasattr(self, "obj"):
             obj = self.obj
+
+        # setup object type
+        change_tensor = False
+
+        # setup device
+        obj['device'] = obj.get('device', None)
+        if device is None:
+            if obj['device'] is not None:
+                device = obj['device']
+            else:
+                device = self.device
+        elif device == obj['device']:
+            device = obj['device']
+        elif device == self.device:
+            device = self.device
+        else:
+            device = setup_device(device = device,
+                                  logger = True
+                                  )
+            change_tensor = True
+        self.device = device
+
+        # check dtype
+        obj['dtype'] = obj.get('dtype', None)
+        if dtype is None:
+            if obj['dtype'] is not None:
+                dtype = obj['dtype']
+            else:
+                dtype = self.dtype
+        elif dtype == obj['dtype']:
+            dtype = obj['dtype']
+        elif dtype == self.dtype:
+            dtype = self.dtype
+        elif not isinstance(dtype, torch.dtype):
+            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            LOGGER.warning(warn_msg)
+            dtype = obj['dtype']
+        else:
+            change_tensor = True
+        self.dtype = dtype
+
+        # convert all major parameters
+        if change_tensor:
+            obj = to_tensor(obj     = obj,
+                            dtype   = self.dtype,
+                            device  = self.device
+                            )
             
         return predict_FRK(obj                      = obj,
                            obsData                  = obsData,

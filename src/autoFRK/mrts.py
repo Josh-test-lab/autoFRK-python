@@ -10,8 +10,8 @@ Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng
 import inspect
 import torch
 import torch.nn as nn
-from typing import Union, Dict
-from .utils.logger import LOGGER
+from typing import Union, Dict, Optional
+from .utils.logger import LOGGER, set_logger_level
 from .utils.device import setup_device
 from .utils.utils import to_tensor
 from .utils.helper import subKnot
@@ -343,14 +343,24 @@ class MRTS(nn.Module):
     """
     def __init__(
         self,
+        logger_level: int | str= 20,
         dtype: torch.dtype=torch.float64,
-        device: Union[torch.device, str]='cpu'
+        device: Optional[Union[torch.device, str]]=None
     ):
         """
         Initialize an MRTS object.
 
         Parameters
         ----------
+        logger_level : int, str, optional
+            Logging level for the process (e.g., logging.INFO or 20). Default is 20.
+            Possible values:
+            - `logging.NOTSET` or 0        : No specific level; inherits parent logger level
+            - `logging.DEBUG`  or 10       : Detailed debugging information
+            - `logging.INFO`   or 20       : General information about program execution
+            - `logging.WARNING` or 30     : Warning messages, indicate potential issues
+            - `logging.ERROR`  or 40       : Error messages, something went wrong
+            - `logging.CRITICAL` or 50    : Severe errors, program may not continue
         dtype : torch.dtype, optional
             Tensor data type for computation. Default is torch.float64.
         device : torch.device or str, optional
@@ -362,6 +372,10 @@ class MRTS(nn.Module):
             If `dtype` is not a valid torch.dtype instance.
         """
         super().__init__()
+
+        # set logger level
+        if logger_level != 20:
+            set_logger_level(LOGGER, logger_level)
 
         # setup device
         caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
@@ -385,7 +399,7 @@ class MRTS(nn.Module):
         maxknot: int=5000,
         calculate_with_spherical: bool = False,
         dtype: torch.dtype=torch.float64,
-        device: Union[torch.device, str]='cpu'
+        device: Optional[Union[torch.device, str]]=None
     ) -> Dict[str, torch.Tensor]:
         """
         Compute Multi-Resolution Thin-Plate Spline (MRTS) basis functions.
@@ -555,6 +569,9 @@ class MRTS(nn.Module):
         obj["Xu"] = Xu
         obj["nconst"] = result.get("nconst", None)
         obj["BBBH"] = result.get("BBBH", None)
+        
+        obj['dtype'] = self.dtype
+        obj['device'] = self.device
 
         if x is None:
             self.obj = obj
@@ -592,7 +609,9 @@ class MRTS(nn.Module):
         self,
         obj: Dict[str, torch.Tensor]=None,
         newx: Union[torch.Tensor, None] = None,
-        calculate_with_spherical: Union[bool, None] = None
+        calculate_with_spherical: Union[bool, None] = None,
+        dtype: torch.dtype=torch.float64,
+        device: Optional[Union[torch.device, str]]=None
     ) -> torch.Tensor:
         """
 
@@ -603,6 +622,55 @@ class MRTS(nn.Module):
             raise ValueError(error_msg)
         elif obj is None and hasattr(self, "obj"):
             obj = self.obj
+
+        # setup object type
+        change_tensor = False
+
+        # setup device
+        obj['device'] = obj.get('device', None)
+        if device is None:
+            if obj['device'] is not None:
+                device = obj['device']
+            else:
+                device = self.device
+        elif device == obj['device']:
+            device = obj['device']
+        elif device == self.device:
+            device = self.device
+        else:
+            caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
+            use_logger = caller in ("__main__", "ipykernel_launcher")
+            device = setup_device(device = device,
+                                  logger = use_logger
+                                  )
+            change_tensor = True
+        self.device = device
+
+        # check dtype
+        obj['dtype'] = obj.get('dtype', None)
+        if dtype is None:
+            if obj['dtype'] is not None:
+                dtype = obj['dtype']
+            else:
+                dtype = self.dtype
+        elif dtype == obj['dtype']:
+            dtype = obj['dtype']
+        elif dtype == self.dtype:
+            dtype = self.dtype
+        elif not isinstance(dtype, torch.dtype):
+            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            LOGGER.warning(warn_msg)
+            dtype = obj['dtype']
+        else:
+            change_tensor = True
+        self.dtype = dtype
+
+        # convert all major parameters
+        if change_tensor:
+            obj = to_tensor(obj     = obj,
+                            dtype   = self.dtype,
+                            device  = self.device
+                            )
         
         if newx is None and obj is not None:
             return obj

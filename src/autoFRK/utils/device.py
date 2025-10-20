@@ -37,7 +37,7 @@ def setup_device(
     """
     try:
         if device is None:
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            device = detect_device()
             if logger:
                 LOGGER.warning(f'Parameter "device" was not set. Value "{device}" detected and used.')
         else:
@@ -48,6 +48,40 @@ def setup_device(
         if logger:
             LOGGER.warning(f'Parameter "device" is not a valid device ({device}). Default value "cpu" is used. Error: {e}')
         device = torch.device('cpu')
+
+    return device
+
+# detect device
+def detect_device() -> torch.device:
+    """
+    Automatically select the best available PyTorch device.
+
+    Returns
+    -------
+    torch.device
+        The available device for PyTorch operations.
+    """
+
+    # CUDA: NVIDIA GPU
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        return device
+
+    # MPS: Apple Silicon GPU
+    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        device = torch.device("mps:0")
+        return device
+
+    # TPU: via torch_xla
+    try:
+        import torch_xla.core.xla_model as xm
+        device = xm.xla_device()
+        return device
+    except ImportError:
+        pass
+
+    # Default to CPU
+    device = torch.device("cpu")
 
     return device
 

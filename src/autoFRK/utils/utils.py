@@ -66,6 +66,10 @@ def to_tensor(
         t = torch.tensor(obj, dtype=dtype, device=device)
     elif obj is None:
         t = obj
+    elif isinstance(obj, (torch.dtype, type)):
+        t = obj
+    elif isinstance(obj, (torch.device, str)):
+        t = obj
     else:
         error_msg = f"Unsupported type: {type(obj)}"
         LOGGER.error(error_msg)

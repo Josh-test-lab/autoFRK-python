@@ -155,6 +155,7 @@ print("Prediction standard errors:", pred.get('se'))
 ## Experimental Features
 
 - Spherical coordinate basis function computation
+- Gradient tracking (torch's `requires_grad_()`).
 
 
 ## Authors

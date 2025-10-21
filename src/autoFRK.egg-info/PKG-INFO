@@ -19,6 +19,7 @@ Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy>=1.23
+Requires-Dist: pandas>=2.0
 Requires-Dist: torch>=2.0
 Requires-Dist: scipy>=1.10
 Requires-Dist: faiss-cpu>=1.7.4
@@ -185,6 +186,7 @@ print("Prediction standard errors:", pred.get('se'))
 ## Experimental Features
 
 - Spherical coordinate basis function computation
+- Gradient tracking (torch's `requires_grad_()`).
 
 
 ## Authors

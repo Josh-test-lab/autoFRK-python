@@ -226,6 +226,8 @@ class AutoFRK(nn.Module):
         # requires_grad check
         if requires_grad is True:
             data.requires_grad_(requires_grad=True)
+            info_msg = f"(Experimental) Gradient tracking has been enabled for autoFRK."
+            LOGGER.info(info_msg)
 
         data = data - mu
         Fk = {}

@@ -181,6 +181,8 @@ class AutoFRK(nn.Module):
             - **V** (`torch.Tensor`): (K, K) covariance matrix of prediction errors for `w[t]`.
             - **G** (`dict`): basis function matrix used in fitting.
             - **LKobj** (`dict`): results from LatticeKrig-style fine-scale modeling (if enabled).
+            - **calculate_with_spherical** (`bool`): whether spherical distance calculation was used.
+            - **requires_grad** (`bool`): whether gradient computation was enabled.
             - **dtype** (`torch.dtype`): data type used in computations.
             - **device** (`torch.device`): computation device used.
         """
@@ -226,10 +228,10 @@ class AutoFRK(nn.Module):
         # requires_grad check
         if requires_grad is True:
             data.requires_grad_(requires_grad=True)
-            info_msg = f"(Experimental) Gradient tracking has been enabled for autoFRK."
+            info_msg = f"Gradient tracking has been enabled for autoFRK."
             LOGGER.info(info_msg)
             if method in ["fast_sklearn", "fast_faiss"]:
-                warn_msg = f'(Experimental) Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
+                warn_msg = f' Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
                 LOGGER.warning(warn_msg)
                 method = "fast"
 
@@ -346,9 +348,9 @@ class AutoFRK(nn.Module):
         else:
             obj['LKobj'] = None
         
+        obj['requires_grad'] = requires_grad
         obj['dtype'] = dtype
         obj['device'] = device
-        obj['requires_grad'] = requires_grad
 
         self.obj = obj
         return self.obj

@@ -436,6 +436,8 @@ class MRTS(nn.Module):
             - **Xu** : (n, d) tensor of unique knots used
             - **nconst** : normalization constants for each basis function
             - **BBBH** : (optional) projection matrix times Phi
+            - **dtype** : data type used in computation
+            - **device** : device used in computation
         """
         # setup device
         if device is None:
@@ -570,8 +572,9 @@ class MRTS(nn.Module):
         obj["nconst"] = result.get("nconst", None)
         obj["BBBH"] = result.get("BBBH", None)
         
-        obj['dtype'] = self.dtype
-        obj['device'] = self.device
+        obj["calculate_with_spherical"] = calculate_with_spherical
+        obj["dtype"] = self.dtype
+        obj["device"] = self.device
 
         if x is None:
             self.obj = obj
@@ -614,7 +617,43 @@ class MRTS(nn.Module):
         device: Optional[Union[torch.device, str]]=None
     ) -> torch.Tensor:
         """
+        Predict outputs using a trained MRTS (Multi-Resolution Thin-Plate Spline) model.
 
+        Parameters
+        ----------
+        obj : dict of torch.Tensor, optional
+            A dictionary containing model parameters and precomputed objects.
+            If None, `self.obj` will be used (must have been set by a previous `forward` call).
+            Keys commonly include:
+                - 'M', 's', 'w', 'V', etc.
+        newx : torch.Tensor, optional
+            New input coordinates at which predictions are desired.
+            If None, the method returns the internal object dictionary `obj` instead of predictions.
+        calculate_with_spherical : bool, optional
+            Whether to calculate the TPS (Thin-Plate Spline) using spherical coordinates.
+            Defaults to False. If True, the TPS is calculated on the sphere.
+        dtype : torch.dtype, default=torch.float64
+            The data type for computations. If different from the object's dtype, tensors will be converted.
+        device : torch.device or str, optional
+            The device on which computations will be performed (CPU or GPU). 
+            If None, will use the device stored in `obj` or `self.device`.
+
+        Returns
+        -------
+        torch.Tensor
+            Predicted values at `newx` based on the MRTS model. 
+            If `newx` is None, returns the internal object dictionary `obj`.
+
+        Raises
+        ------
+        ValueError
+            If neither `obj` is provided nor `self.obj` exists (i.e., `forward` has not been called).
+
+        Notes
+        -----
+        - The method automatically handles conversion of tensor types and device placement.
+        - Logs warnings when default values are used or when parameters have incompatible types.
+        - Calls `predict_mrts` from `autoFRK.utils.predictor` to perform the actual prediction computation.
         """
         if obj is None and not hasattr(self, "obj"):
             error_msg = f'No input "obj" is provided and `MRTS.forward` has not been called before `MRTS.predict`.'

@@ -204,8 +204,8 @@ class AutoFRK(nn.Module):
             self.dtype = dtype
 
         # method check
-        if method not in ["fast", "fast_faiss", "EM"]:
-            error_msg = f"The specified method '{method}' is not supported. Available methods are 'fast', 'fast_faiss', and 'EM'."
+        if method not in ["fast", "fast_sklearn", "fast_faiss", "EM"]:
+            error_msg = f'The specified method "{method}" is not supported. Available methods are "fast", "fast_sklearn", "fast_faiss", and "EM".'
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
 
@@ -228,7 +228,10 @@ class AutoFRK(nn.Module):
             data.requires_grad_(requires_grad=True)
             info_msg = f"(Experimental) Gradient tracking has been enabled for autoFRK."
             LOGGER.info(info_msg)
-        # method
+            if method in ["fast_sklearn", "fast_faiss"]:
+                warn_msg = f'(Experimental) Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
+                LOGGER.warning(warn_msg)
+                method = "fast"
 
         data = data - mu
         Fk = {}

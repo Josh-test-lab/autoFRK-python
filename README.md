@@ -155,18 +155,21 @@ print("Prediction standard errors:", pred.get('se'))
 ## Experimental Features
 
 - Spherical coordinate basis function computation
-- Gradient tracking (torch's `requires_grad_()`).
+- Gradient tracking (torch's `requires_grad_()`)
 
 
 ## Authors
 
-- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en) — *Original Paper Author*  
-- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang") — *Original Paper Author*  
-- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang") — *R Package Author*  
-- [Yao-Chih Hsu](https://github.com/Josh-test-lab/) — *Python Package Author*  
-- [Yi-Xuan Xie](https://github.com/yixuan-dev) — *Python Package Tester*  
-- [Xuan-Chun Wang](https://github.com/wangxc1117) — *Python Package Tester*
+- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en) — *Original Paper Author*
+- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang") — *Original Paper Author*
+- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang") — *R Package Author*
+- [Yao-Chih Hsu](https://github.com/Josh-test-lab/) — *Python Package Author*
 
+## Contributors
+
+- [Hao-Yun Huang](https://scholar.google.com/citations?user=AaydI0gAAAAJ&hl=zh-TW) — *Spherical Coordinate Thin Plate Spline Provider*
+- [Yi-Xuan Xie](https://github.com/yixuan-dev) — *Python Package Tester*
+- [Xuan-Chun Wang](https://github.com/wangxc1117) — *Python Package Tester*
 
 ## License
 

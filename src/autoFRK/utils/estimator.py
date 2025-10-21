@@ -216,7 +216,7 @@ def indeMLE(
                            dtype        = dtype,
                            device       = device
                            )
-            if out['v'] is not None:
+            if out.get('v', None) is not None:
                 out['s'] = out['v'] if sigma == 0 else sigma
                 out.pop("v", None)
             if wSave:

@@ -1,0 +1,7 @@
+digraph {
+	graph [size="12,12"]
+	node [align=left fontname=monospace fontsize=10 height=0.2 ranksep=0.1 shape=box style=filled]
+	2185418090016 [label="
+ (70, 2)" fillcolor=darkolivegreen1]
+	dpi=300
+}

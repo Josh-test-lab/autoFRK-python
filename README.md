@@ -233,6 +233,11 @@ print("Prediction standard errors:", pred.get('se'))
 
 ## Release Notes
 
+### v1.1.1
+
+- Fixed a `ValueError` caused by missing `v` in the model object when using the "EM" method.
+- Updated additional functions to fully support `requires_grad`.
+
 ### v1.1.0
 
 - Added `dtype` and `device` parameters to `AutoFRK.predict()` and `MRTS.predict()`.

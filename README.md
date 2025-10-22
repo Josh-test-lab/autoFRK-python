@@ -196,7 +196,7 @@ print("Prediction standard errors:", pred.get('se'))
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Yao-Chih Hsu (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.0.0, 
+  Yao-Chih Hsu (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
   <https://github.com/Josh-test-lab/autoFRK-python>.
 ```
 
@@ -207,7 +207,7 @@ print("Prediction standard errors:", pred.get('se'))
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.0.0},
+    note = {Python package version 1.1.1},
     url = {https://github.com/Josh-test-lab/autoFRK-python},
   }
 ```

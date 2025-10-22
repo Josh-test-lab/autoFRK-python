@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: autoFRK
-Version: 1.1.0
+Version: 1.1.1
 Summary: autoFRK: Automatic Fixed Rank Kriging. The Python version with PyTorch
 Author: ShengLi Tzeng, Hsin-Cheng Huang, Wen-Ting Wang, Yao-Chih Hsu
 Maintainer: Yao-Chih Hsu
@@ -227,7 +227,7 @@ print("Prediction standard errors:", pred.get('se'))
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Yao-Chih Hsu (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.0.0, 
+  Yao-Chih Hsu (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
   <https://github.com/Josh-test-lab/autoFRK-python>.
 ```
 
@@ -238,7 +238,7 @@ print("Prediction standard errors:", pred.get('se'))
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.0.0},
+    note = {Python package version 1.1.1},
     url = {https://github.com/Josh-test-lab/autoFRK-python},
   }
 ```
@@ -263,6 +263,11 @@ print("Prediction standard errors:", pred.get('se'))
 ```
 
 ## Release Notes
+
+### v1.1.1
+
+- Fixed a `ValueError` caused by missing `v` in the model object when using the "EM" method.
+- Updated additional functions to fully support `requires_grad`.
 
 ### v1.1.0
 

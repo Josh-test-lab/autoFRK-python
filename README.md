@@ -111,6 +111,8 @@ print(pred.get('se'))            # Standard errors
 `AutoFRK.forward()` supports various parameters:
 | Parameter                  | Description                         | Default                         |
 | -------------------------- | ----------------------------------- | ------------------------------- |
+| `Data` | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th column. | (Required) |
+| `loc` | *n* by *d* matrix of coordinates corresponding to *n* locations. | (Required) |
 | `mu`                       |                                     |                                 |
 | `D`                        |                                     |                                 |
 | `G`                        |                                     |                                 |
@@ -120,7 +122,7 @@ print(pred.get('se'))            # Standard errors
 | `maxK`                     |                                     |                                 |
 | `method`                   |                                     |                                 |
 | `n_neighbor`               |                                     |                                 |
-| `calculate_with_spherical` |                                     |                                 |
+| `maxknot` |                                     |                                 |
 
 `AutoFRK.predict()` supports various parameters:
 | Parameter                  | Description                         | Default                         |

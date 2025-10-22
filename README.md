@@ -2,7 +2,7 @@
 
 [![PyPI Version](https://img.shields.io/pypi/v/autoFRK.svg)](https://pypi.org/project/autoFRK/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-darkgreen.svg)](https://github.com/Josh-test-lab/autoFRK-python/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/pypi/dm/autoFRK.svg)](https://pypi.org/project/autoFRK/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/autofrk?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/autofrk)
 [![GitHub stars](https://img.shields.io/github/stars/Josh-test-lab/autoFRK-python.svg?style=social)](https://github.com/Josh-test-lab/autoFRK-python/stargazers)
 
 - **Repository:** [https://github.com/Josh-test-lab/autoFRK-python](https://github.com/Josh-test-lab/autoFRK-python)

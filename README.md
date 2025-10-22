@@ -109,27 +109,62 @@ print(pred.get('se'))            # Standard errors
 - `AutoFRK`
 
 `AutoFRK.forward()` supports various parameters:
-
 | Parameter                  | Description                         | Default                         |
 | -------------------------- | ----------------------------------- | ------------------------------- |
-| `mu`                       | Mean value (scalar or tensor)       | 0.0                             |
-| `D`                        | Measurement error covariance        | None (identity matrix used)     |
-| `G`                        | Basis function matrix (optional)    | None (TPS basis auto-generated) |
-| `finescale`                | Include fine-scale process η[t]     | False                           |
-| `maxit`                    | Maximum iterations                  | 50                              |
-| `tolerance`                | Convergence tolerance               | 1e-6                            |
-| `maxK`                     | Maximum number of basis functions   | Auto-set based on n             |
-| `method`                   | Model estimation method             | "fast"                          |
-| `n_neighbor`               | Number of neighbors for fast method | 3                               |
-| `calculate_with_spherical` | Use spherical distance calculation  | False                           |
+| `mu`                       |                                     |                                 |
+| `D`                        |                                     |                                 |
+| `G`                        |                                     |                                 |
+| `finescale`                |                                     |                                 |
+| `maxit`                    |                                     |                                 |
+| `tolerance`                |                                     |                                 |
+| `maxK`                     |                                     |                                 |
+| `method`                   |                                     |                                 |
+| `n_neighbor`               |                                     |                                 |
+| `calculate_with_spherical` |                                     |                                 |
 
 `AutoFRK.predict()` supports various parameters:
+| Parameter                  | Description                         | Default                         |
+| -------------------------- | ----------------------------------- | ------------------------------- |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
 
 - `MRTS`
 
 `MRTS.forward()` supports various parameters:
+| Parameter                  | Description                         | Default                         |
+| -------------------------- | ----------------------------------- | ------------------------------- |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
 
 `MRTS.predict()` supports various parameters:
+| Parameter                  | Description                         | Default                         |
+| -------------------------- | ----------------------------------- | ------------------------------- |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
+|                            |                                     |                                 |
 
 ## Example Code
 

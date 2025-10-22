@@ -109,64 +109,64 @@ print(pred.get('se'))            # Standard errors
 - `AutoFRK`
 
 `AutoFRK.forward()` supports various parameters:
-| Parameter                  | Description                         | Default                         |
-| -------------------------- | ----------------------------------- | ------------------------------- |
-| `Data` | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th column. | (Required) |
-| `loc` | *n* by *d* matrix of coordinates corresponding to *n* locations. | (Required) |
-| `mu`                       |                                     |                                 |
-| `D`                        |                                     |                                 |
-| `G`                        |                                     |                                 |
-| `finescale`                |                                     |                                 |
-| `maxit`                    |                                     |                                 |
-| `tolerance`                |                                     |                                 |
-| `maxK`                     |                                     |                                 |
-| `method`                   |                                     |                                 |
-| `n_neighbor`               |                                     |                                 |
-| `maxknot` |                                     |                                 |
+| Parameter    | Description                                                           | Default    |
+| ------------ | --------------------------------------------------------------------- | ---------- |
+| `Data`       | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th column. | (Required) |
+| `loc`        | *n* by *d* matrix of coordinates corresponding to *n* locations.      | (Required) |
+| `mu`         |                                                                       |            |
+| `D`          |                                                                       |            |
+| `G`          |                                                                       |            |
+| `finescale`  |                                                                       |            |
+| `maxit`      |                                                                       |            |
+| `tolerance`  |                                                                       |            |
+| `maxK`       |                                                                       |            |
+| `method`     |                                                                       |            |
+| `n_neighbor` |                                                                       |            |
+| `maxknot`    |                                                                       |            |
 
 `AutoFRK.predict()` supports various parameters:
-| Parameter                  | Description                         | Default                         |
-| -------------------------- | ----------------------------------- | ------------------------------- |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
 
 - `MRTS`
 
 `MRTS.forward()` supports various parameters:
-| Parameter                  | Description                         | Default                         |
-| -------------------------- | ----------------------------------- | ------------------------------- |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
 
 `MRTS.predict()` supports various parameters:
-| Parameter                  | Description                         | Default                         |
-| -------------------------- | ----------------------------------- | ------------------------------- |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
-|                            |                                     |                                 |
+| Parameter | Description | Default |
+| --------- | ----------- | ------- |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
+|           |             |         |
 
 ## Example Code
 
@@ -288,6 +288,8 @@ from autoFRK import MRTS
 ### v1.1.1
 
 - Fixed a `ValueError` caused by missing `v` in the model object when using the "EM" method.
+- Fixed a bug about absent indices in `EM0miss` function when using method "EM" with missing data.
+- Fixed a bug in `EM0miss` function that cannot find some variables when using method "EM" with missing data.
 - Updated additional functions to fully support `requires_grad`.
 
 ### v1.1.0

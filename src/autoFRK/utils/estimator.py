@@ -499,8 +499,8 @@ def EM0miss(
         lQ = DfromLK["lambda"] * DfromLK["Q"]
 
     for tt in range(TT):
+        obs_idx = O[:, tt].bool()
         if DfromLK is not None:
-            obs_idx = O[:, tt].bool()
             iDt = None
             if obs_idx.sum() == O.shape[0]:
                 wXiG = wwX @ torch.linalg.inv(DfromLK["G"])
@@ -572,7 +572,10 @@ def EM0miss(
         sumPtt = torch.zeros((ncol_Fk, ncol_Fk), dtype=dtype, device=device)
         s1 = torch.zeros(TT, dtype=dtype, device=device)
 
-        for tt in range(TT):            
+        for tt in range(TT):
+            iDBt = db[tt]["iDBt"]
+            zt = db[tt]["zt"]
+            BiDBt = db[tt]["BiDBt"]
             ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(mat     = Ptt1,
                                                                     dtype   = dtype,
                                                                     device  = device
@@ -668,7 +671,7 @@ def EM0miss(
             "pick": pick
         }
         out["missing"] = {
-            "miss": 1 - O, 
+            "miss": ~O, 
             "maxit": maxit, 
             "avgtol": avgtol
         }
@@ -683,7 +686,7 @@ def EM0miss(
             "V": new["M"] - (etatt @ etatt.T) / TT
         }
         out["missing"] = {
-            "miss": 1 - O, 
+            "miss": ~O,
             "maxit": maxit, 
             "avgtol": avgtol
         }

@@ -36,7 +36,7 @@ X <- grids[obs, ]
 
 ```{r}
 # Fit the model
-fit <- autoFRK(data = zt, loc = X)
+fit <- autoFRK(data = zt, loc = X, method = "EM")
 PRED <- predict(fit)
 
 # MSE

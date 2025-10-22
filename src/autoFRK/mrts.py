@@ -378,11 +378,7 @@ class MRTS(nn.Module):
             set_logger_level(LOGGER, logger_level)
 
         # setup device
-        caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
-        use_logger = caller in ("__main__", "ipykernel_launcher")
-        self.device = setup_device(device = device,
-                                   logger = use_logger
-                                   )
+        self.device = device
 
         # dtype check
         if not isinstance(dtype, torch.dtype):
@@ -441,7 +437,12 @@ class MRTS(nn.Module):
         """
         # setup device
         if device is None:
-            device = self.device
+            caller = inspect.stack()[1].frame.f_globals.get("__name__", "")
+            use_logger = caller in ("__main__", "ipykernel_launcher")
+            device = setup_device(device = self.device,
+                                  logger = use_logger
+                                  )
+            self.device = device
         else:
             # setup device
             caller = inspect.stack()[1].frame.f_globals.get("__name__", "")

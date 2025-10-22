@@ -287,9 +287,10 @@ from autoFRK import MRTS
 
 ### v1.1.1
 
-- Fixed a `ValueError` caused by missing `v` in the model object when using the "EM" method.
-- Fixed a bug about absent indices in `EM0miss` function when using method "EM" with missing data.
-- Fixed a bug in `EM0miss` function that cannot find some variables when using method "EM" with missing data.
+- Fixed a `ValueError` caused by a missing `v` in the model object when using the "EM" method.
+- Fixed an issue with absent indices in the `EM0miss` function when using the "EM" method with missing data.
+- Fixed a bug in the `EM0miss` function where some variables could not be found when handling missing data with the "EM" method.
+- Improved the handling of `device` selection to reduce redundant checks and repeated triggers.
 - Updated additional functions to fully support `requires_grad`.
 
 ### v1.1.0

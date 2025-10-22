@@ -89,9 +89,7 @@ class AutoFRK(nn.Module):
             set_logger_level(LOGGER, logger_level)
 
         # setup device
-        self.device = setup_device(device = device,
-                                   logger = True
-                                   )
+        self.device = device
 
         # dtype check
         if not isinstance(dtype, torch.dtype):
@@ -188,7 +186,9 @@ class AutoFRK(nn.Module):
         """
         # setup device
         if device is None:
-            device = self.device
+            device = setup_device(device = self.device,
+                                  logger = True
+                                  )
         else:
             device = setup_device(device = device,
                                   logger = True

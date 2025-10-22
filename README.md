@@ -107,6 +107,7 @@ print(pred.get('se'))            # Standard errors
 ## Settings
 
 - `AutoFRK`
+
 `AutoFRK.forward()` supports various parameters:
 
 | Parameter                  | Description                         | Default                         |

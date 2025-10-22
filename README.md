@@ -59,33 +59,32 @@ model = AutoFRK(dtype=torch.float64, device="cpu")
 ### 2. Model Fitting
 
 ```python
-# Assume `data` is (n, T) observations and `loc` is (n, d) spatial coordinates
+# Assume `data` is (n, T) observations (NA allowed) and `loc` is (n, d) spatial coordinates  corresponding to n locations
 data = torch.randn(100, 1)  # Example data
 loc = torch.rand(100, 2)    # Example 2D coordinates
 
-result = model.forward(
+model_object = model.forward(
     data=data,
     loc=loc,
     maxit=50,
     tolerance=1e-6,
     method="fast",          # "fast" or "EM"
-    n_neighbor=3,
-    maxK=50,
-    calculate_with_spherical=False
+    n_neighbor=3
 )
 
 print(result.keys())
-# ['M', 's', 'negloglik', 'w', 'V', 'G', 'LKobj', 'calculate_with_spherical']
+# ['M', 's', 'negloglik', 'w', 'V', 'G', 'LKobj']
 ```
 
 `forward()` returns a dictionary including:
 
-- **M**: Covariance matrix of random effects
-- **s**: Measurement error variance
-- **negloglik**: Final negative log-likelihood
-- **w**: Estimated random effects for each time point
-- **V**: Prediction error covariance of `w`
-- **G**: Basis function matrix used
+- **M**: ML estimate of *M*.
+- **s**: Estimate for the scale parameter of measurement errors.
+- **negloglik**: Negative log-likelihood.
+- **w**: *K* by *T* matrix with *w[t]* as the *t*-th column.
+- **V**: *K* by *K* matrix of the prediction error covariance matrix of *w[t]*.
+- **G**: User specified basis function matrix or an automatically generated object from `MRTS`.
+- **LKobj**: Not used yet.
 
 ### 3. Predicting New Data
 
@@ -105,9 +104,10 @@ print(pred.get('se'))            # Standard errors
 
 `predict()` can optionally return standard errors (`se_report=True`). If `obj` is not provided, the most recent `forward()` result is used.
 
-## Advanced Settings
+## Settings
 
-`forward()` supports various parameters:
+- `AutoFRK`
+`AutoFRK.forward()` supports various parameters:
 
 | Parameter                  | Description                         | Default                         |
 | -------------------------- | ----------------------------------- | ------------------------------- |
@@ -122,8 +122,17 @@ print(pred.get('se'))            # Standard errors
 | `n_neighbor`               | Number of neighbors for fast method | 3                               |
 | `calculate_with_spherical` | Use spherical distance calculation  | False                           |
 
+`AutoFRK.predict()` supports various parameters:
+
+- `MRTS`
+
+`MRTS.forward()` supports various parameters:
+
+`MRTS.predict()` supports various parameters:
+
 ## Example Code
 
+- `AutoFRK`
 ```python
 import torch
 from autoFRK import AutoFRK
@@ -139,23 +148,29 @@ model = AutoFRK(device="cpu")
 # Fit model
 res = model.forward(
     data=data,
-    loc=loc,
-    maxit=100,
-    method="fast"
+    loc=loc
 )
 
 # Predict new data
 newloc = torch.rand(10, 2)
-pred = model.predict(obj=res, newloc=newloc, se_report=True)
+pred = model.predict(
+    newloc=newloc
+)
 
 print("Predicted values:", pred['pred.value'])
-print("Prediction standard errors:", pred.get('se'))
+```
+
+- `MRTS`
+```python
+import torch
+from autoFRK import MRTS
+
 ```
 
 ## Experimental Features
 
 - Spherical coordinate basis function computation
-- Gradient tracking (torch's `requires_grad_()`)
+- Gradient tracking (using torch's `requires_grad_()`)
 
 
 ## Authors
@@ -179,7 +194,6 @@ print("Prediction standard errors:", pred.get('se'))
 
 ## Development and Contribution
 
-- Built with PyTorch, supporting GPU acceleration
 - Report bugs or request features on [GitHub issues](https://github.com/Josh-test-lab/autoFRK-python/issues)
 
 
@@ -196,30 +210,30 @@ print("Prediction standard errors:", pred.get('se'))
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Yao-Chih Hsu (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
-  <https://github.com/Josh-test-lab/autoFRK-python>.
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
+  <https://pypi.org/project/autoFRK/>.
 ```
 
-- A BibTeX entry for LaTeX users is:
+- A BibTeX entry for LaTeX users to cite the Python package is:
 
 ```
   @Manual{,
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
-    author = {Yao-Chih Hsu},
+    author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
     note = {Python package version 1.1.1},
-    url = {https://github.com/Josh-test-lab/autoFRK-python},
+    url = {https://pypi.org/project/autoFRK/},
   }
 ```
 
-- To cite the original R package `autoFRK`:
+- To cite the R package `autoFRK` in publications use:
 
 ```
   Tzeng S, Huang H, Wang W, Nychka D, Gillespie C (2021). _autoFRK: Automatic Fixed Rank Kriging_. R package version 1.4.3,
   <https://CRAN.R-project.org/package=autoFRK>.
 ```
 
-- A BibTeX entry for the original R package is:
+- A BibTeX entry for LaTeX users to cite the R package is:
 
 ```
   @Manual{,

@@ -236,6 +236,14 @@ class AutoFRK(nn.Module):
         # reshape data
         if data.ndim == 1:
             data = data.reshape(-1, 1)
+        if loc.ndim == 1:
+            loc = loc.reshape(-1, 1)
+
+        # check data and loc shape
+        if data.shape[0] != loc.shape[0]:
+            error_msg = f'Shape mismatch between "data" and "loc": data has {data.shape[0]} rows, loc has {loc.shape[0]} rows'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
 
         # requires_grad check
         if requires_grad is True:

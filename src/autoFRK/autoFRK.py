@@ -105,16 +105,16 @@ class AutoFRK(nn.Module):
         mu: Union[float, torch.Tensor]=0.0, 
         D: torch.Tensor=None, 
         G: torch.Tensor=None,
-        finescale: bool=False, 
-        maxit: int=50, 
-        tolerance: float=1e-6,
         maxK: int=None, 
         Kseq: torch.Tensor=None, 
+        maxknot: int=5000,
         method: str="fast", 
         n_neighbor: int=3, 
-        maxknot: int=5000,
+        maxit: int=50, 
+        tolerance: float=1e-6,
         requires_grad: bool=False,
         calculate_with_spherical: bool=False,
+        finescale: bool=False, 
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
@@ -136,18 +136,12 @@ class AutoFRK(nn.Module):
             (n, n) covariance matrix of measurement errors. If None, identity is used.
         G : torch.Tensor, optional
             (n, K) matrix of basis functions evaluated at `loc`. If None, basis functions
-            are automatically generated using thin-plate spline (TPS) bases.
-        finescale : bool, optional
-            Whether to include an approximate stationary fine-scale process η[t].
-            When True, only the diagonal elements of D are used. Default is False.
-        maxit : int, optional
-            Maximum number of iterations for optimization. Default is 50.
-        tolerance : float, optional
-            Convergence tolerance for iterative optimization. Default is 1e-6.
         maxK : int, optional
             Maximum number of basis functions to consider. Default is `10 * sqrt(n)` if n > 100, else n.
         Kseq : torch.Tensor, optional
             Sequence of candidate numbers of basis functions to test. Default is None.
+        maxknot : int, optional
+            Maximum number of knots for multi-resolution TPS basis generation. Default is 5000.
         method : str, optional
             Method for estimation. Supported values:
             - `"fast"`: approximate imputation using nearest neighbors by PyTorch module (default)
@@ -156,13 +150,19 @@ class AutoFRK(nn.Module):
             - `"EM"`: expectation–maximization
         n_neighbor : int, optional
             Number of neighbors used for "fast" imputation. Default is 3.
-        maxknot : int, optional
-            Maximum number of knots for multi-resolution TPS basis generation. Default is 5000.
+        maxit : int, optional
+            Maximum number of iterations for optimization. Default is 50.
+        tolerance : float, optional
+            Convergence tolerance for iterative optimization. Default is 1e-6.
         requires_grad : bool, optional
             If True, enables gradient computation for `data` tensor. Default is False.
         calculate_with_spherical : bool, optional
             If True, calculates thin-plate spline distances using spherical coordinates.
             Useful for global (longitude/latitude) datasets. Default is False.
+            are automatically generated using thin-plate spline (TPS) bases.
+        finescale : bool, optional
+            Whether to include an approximate stationary fine-scale process η[t].
+            When True, only the diagonal elements of D are used. Default is False.
         dtype : torch.dtype, optional
             Data type used in computations (e.g., `torch.float64`). Default is `torch.float64`.
         device : torch.device or str, optional
@@ -213,6 +213,20 @@ class AutoFRK(nn.Module):
 
         # convert all major parameters
         mu = to_tensor(mu, dtype=dtype, device=device)
+        if mu.ndim == 0:
+            pass
+        elif mu.ndim == 1:
+            mu = mu.unsqueeze(1)
+        elif mu.ndim == 2 and mu.shape[1] == 1:
+            pass
+        else:
+            error_msg = f'Invalid shape for "mu": expected scalar or (n,) tensor, got {mu.shape}'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+        if mu.ndim != 0 and data.shape[0] != mu.shape[0]:
+            error_msg = f'Shape mismatch between "data" and "mu": data has {data.shape[0]} rows, mu has {mu.shape[0]} rows'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
         D = to_tensor(D, dtype=dtype, device=device) if D is not None else None
         G = to_tensor(G, dtype=dtype, device=device) if G is not None else None
         Kseq = to_tensor(Kseq, dtype=dtype, device=device) if Kseq is not None else None
@@ -456,6 +470,26 @@ class AutoFRK(nn.Module):
                             dtype   = self.dtype,
                             device  = self.device
                             )
+        obsData = to_tensor(obsData, dtype=dtype, device=device) if obsData is not None else None
+        obsloc = to_tensor(obsloc, dtype=dtype, device=device) if obsloc is not None else None
+        mu_obs = to_tensor(mu_obs, dtype=dtype, device=device)
+        newloc = to_tensor(newloc, dtype=dtype, device=device) if newloc is not None else None
+        basis = to_tensor(basis, dtype=dtype, device=device) if basis is not None else None
+        mu_new = to_tensor(mu_new, dtype=dtype, device=device)
+        if mu_new.ndim == 0:
+            pass
+        elif mu_new.ndim == 1:
+            mu_new = mu_new.unsqueeze(1)
+        elif mu_new.ndim == 2 and mu_new.shape[1] == 1:
+            pass
+        else:
+            error_msg = f'Invalid shape for "mu_new": expected scalar or (n,) tensor, got {mu_new.shape}'
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
+
+        # convert data and locations
+        data = to_tensor(data, dtype=dtype, device=device)
+        loc = to_tensor(loc, dtype=dtype, device=device)
             
         return predict_FRK(obj                      = obj,
                            obsData                  = obsData,

@@ -292,7 +292,7 @@ from autoFRK import MRTS
 2025-10-23
 - Removed dependencies on `faiss` and `scikit-learn`.
 - Added a validation check to ensure that `data` and `loc` have the same number of rows.
-
+- Other bug fixed.
 
 ### v1.1.1
 2025-10-23
@@ -320,6 +320,14 @@ from autoFRK import MRTS
   [https://github.com/Josh-test-lab/autoFRK-python](https://github.com/Josh-test-lab/autoFRK-python)
 - R Repository: 
   [https://github.com/egpivo/autoFRK](https://github.com/egpivo/autoFRK)
+
+
+## To Do
+- [ ] Update `MRTS` examples in README
+- [ ] Check all examples in README
+- [ ] Check all Arguments in README
+- [ ] Rewrite all discriptions in functions
+- [ ] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
 
 ---
 If you like this project, don't forget to give it a star [here](https://github.com/Josh-test-lab/autoFRK-python).

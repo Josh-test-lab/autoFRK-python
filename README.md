@@ -301,3 +301,7 @@ from autoFRK import MRTS
 ### v1.0.0
 
 - Ported R package `autoFRK` to Python.
+
+
+---
+If you like this project, don't forget to give it a star [here](https://github.com/Josh-test-lab/autoFRK-python)

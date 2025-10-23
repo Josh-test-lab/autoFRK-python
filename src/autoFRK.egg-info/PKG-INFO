@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: autoFRK
-Version: 1.1.1
+Version: 1.1.2
 Summary: autoFRK: Automatic Fixed Rank Kriging. The Python version with PyTorch
 Author: ShengLi Tzeng, Hsin-Cheng Huang, Wen-Ting Wang, Yao-Chih Hsu
 Maintainer: Yao-Chih Hsu
@@ -19,14 +19,10 @@ Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy>=1.23
-Requires-Dist: pandas>=2.0
+Requires-Dist: pandas>=1.6
 Requires-Dist: torch>=2.0
 Requires-Dist: scipy>=1.10
-Requires-Dist: faiss-cpu>=1.7.4
-Requires-Dist: scikit-learn>=1.3
 Requires-Dist: colorlog>=6.7
-Provides-Extra: gpu
-Requires-Dist: faiss-gpu>=1.7.4; extra == "gpu"
 Dynamic: license-file
 
 # autoFRK-python
@@ -282,7 +278,7 @@ from autoFRK import MRTS
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.2, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -293,7 +289,7 @@ from autoFRK import MRTS
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.1.1},
+    note = {Python package version 1.1.2},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```
@@ -319,8 +315,12 @@ from autoFRK import MRTS
 
 ## Release Notes
 
-### v1.1.1
+### v1.1.2
+20251023
+- Remove dependences for `faiss` and `scikit-learn`.
 
+### v1.1.1
+20251023
 - Fixed a `ValueError` caused by a missing `v` in the model object when using the "EM" method.
 - Fixed an issue with absent indices in the `EM0miss` function when using the "EM" method with missing data.
 - Fixed a bug in the `EM0miss` function where some variables could not be found when handling missing data with the "EM" method.
@@ -330,14 +330,14 @@ from autoFRK import MRTS
 - Update README.
 
 ### v1.1.0
-
+20251021
 - Added `dtype` and `device` parameters to `AutoFRK.predict()` and `MRTS.predict()`.
 - Added `logger_level` parameter to `AutoFRK.__init__()` and `MRTS.__init__()` (default: 20). Options include `NOTSET`(0), `DEBUG`(10), `INFO`(20), `WARNING`(30), `ERROR`(40), `CRITICAL`(50).
 - Enhanced automatic device selection, including MPS support.
 - Fixed device assignment issue when `device` is not specified, preventing redundant parameter transfers.
 
 ### v1.0.0
-
+20251019
 - Ported R package `autoFRK` to Python.
 
 ## Repositories

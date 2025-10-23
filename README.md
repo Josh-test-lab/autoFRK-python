@@ -251,7 +251,7 @@ from autoFRK import MRTS
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.1, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.2, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -262,7 +262,7 @@ from autoFRK import MRTS
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.1.1},
+    note = {Python package version 1.1.2},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```

@@ -288,6 +288,10 @@ from autoFRK import MRTS
 
 ## Release Notes
 
+### v1.1.2
+20251023
+- Remove dependences for `faiss` and `scikit-learn`.
+
 ### v1.1.1
 20251023
 - Fixed a `ValueError` caused by a missing `v` in the model object when using the "EM" method.

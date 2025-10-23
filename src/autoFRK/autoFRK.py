@@ -145,8 +145,6 @@ class AutoFRK(nn.Module):
         method : str, optional
             Method for estimation. Supported values:
             - `"fast"`: approximate imputation using nearest neighbors by PyTorch module (default)
-            - `"fast_sklearn"`: approximate imputation using scikit-learn module for nearest neighbors
-            - `"fast_faiss"`: approximate imputation using Faiss module for nearest neighbors
             - `"EM"`: expectation–maximization
         n_neighbor : int, optional
             Number of neighbors used for "fast" imputation. Default is 3.
@@ -206,8 +204,8 @@ class AutoFRK(nn.Module):
             self.dtype = dtype
 
         # method check
-        if method not in ["fast", "fast_sklearn", "fast_faiss", "EM"]:
-            error_msg = f'The specified method "{method}" is not supported. Available methods are "fast", "fast_sklearn", "fast_faiss", and "EM".'
+        if method not in ["fast", "EM"]:
+            error_msg = f'The specified method "{method}" is not supported. Available methods are "fast" and "EM".'
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
 
@@ -244,10 +242,11 @@ class AutoFRK(nn.Module):
             data.requires_grad_(requires_grad=True)
             info_msg = f"Gradient tracking has been enabled for autoFRK."
             LOGGER.info(info_msg)
-            if method in ["fast_sklearn", "fast_faiss"]:
-                warn_msg = f' Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
-                LOGGER.warning(warn_msg)
-                method = "fast"
+            # methods quited to use
+            #if method in ["fast_sklearn", "fast_faiss"]:
+            #    warn_msg = f' Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
+            #    LOGGER.warning(warn_msg)
+            #    method = "fast"
 
         data = data - mu
         Fk = {}

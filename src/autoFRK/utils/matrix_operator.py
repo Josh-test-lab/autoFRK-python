@@ -243,21 +243,24 @@ def decomposeSymmetricMatrix(
         - First element: torch.Tensor of shape (k,) containing the largest k eigenvalues.
         - Second element: torch.Tensor of shape (n, k) containing the corresponding eigenvectors.
     """
-    n = M.shape[0]
+    # n = M.shape[0]
     
-    if n > 1000:
-        M_np = M.cpu().numpy()
-        if ncv is None:
-            ncv = max(2 * k + 1, 20)
-        lambda_, gamma = eigsh(M_np, k=k, which='LA', ncv=ncv)
-        lambda_ = torch.from_numpy(lambda_).to(dtype=dtype, device=device)
-        gamma = torch.from_numpy(gamma).to(dtype=dtype, device=device)
-        idx = lambda_.argsort(descending=True)
-        lambda_ = lambda_[idx]
-        gamma = gamma[:, idx]
-    else:
-        eigenvalues, eigenvectors = torch.linalg.eigh(M)
-        lambda_ = eigenvalues[-k:].flip(0)
-        gamma = eigenvectors[:, -k:].flip(1)
+    # if n > 1000:
+    #     M_np = M.cpu().numpy()
+    #     if ncv is None:
+    #         ncv = max(2 * k + 1, 20)
+    #     lambda_, gamma = eigsh(M_np, k=k, which='LA', ncv=ncv)
+    #     lambda_ = torch.from_numpy(lambda_).to(dtype=dtype, device=device)
+    #     gamma = torch.from_numpy(gamma).to(dtype=dtype, device=device)
+    #     idx = lambda_.argsort(descending=True)
+    #     lambda_ = lambda_[idx]
+    #     gamma = gamma[:, idx]
+    # else:
+    #     eigenvalues, eigenvectors = torch.linalg.eigh(M)
+    #     lambda_ = eigenvalues[-k:].flip(0)
+    #     gamma = eigenvectors[:, -k:].flip(1)
+    eigenvalues, eigenvectors = torch.linalg.eigh(M)
+    lambda_ = eigenvalues[-k:].flip(0)
+    gamma = eigenvectors[:, -k:].flip(1)
 
     return lambda_, gamma

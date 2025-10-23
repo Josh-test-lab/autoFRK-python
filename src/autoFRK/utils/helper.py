@@ -9,9 +9,7 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 # import modules
 import torch
 import numpy as np
-import faiss
 from typing import Dict, Union
-from sklearn.neighbors import NearestNeighbors
 from autoFRK.utils.logger import LOGGER
 from autoFRK.utils.utils import to_tensor
 from autoFRK.utils.matrix_operator import getInverseSquareRootMatrix, invCz
@@ -65,6 +63,8 @@ def fast_mode_knn_faiss(
         Data tensor with missing values imputed, same shape and dtype/device
         as the input.
     """
+    import faiss
+
     dtype=data.dtype
     device=data.device
 
@@ -137,6 +137,8 @@ def fast_mode_knn_sklearn(
         Data tensor with missing values imputed, same shape and dtype/device
         as the input.
     """
+    from sklearn.neighbors import NearestNeighbors
+
     dtype = data.dtype
     device = data.device
 
@@ -262,8 +264,6 @@ def selectBasis(
     method : str, optional
         Method for estimation. Options:
             - "fast": approximate KNN imputation using PyTorch (default)
-            - "fast_sklearn": approximate KNN using scikit-learn
-            - "fast_faiss": approximate KNN using Faiss
             - "EM": expectation-maximization
     num_neighbors : int, optional
         Number of neighbors for KNN imputation. Default is 3.
@@ -386,16 +386,17 @@ def selectBasis(
                                            loc        = loc, 
                                            n_neighbor = num_neighbors
                                            )
-            elif method == "fast_sklearn":
-                data = fast_mode_knn_sklearn(data       = data,
-                                             loc        = loc, 
-                                             n_neighbor = num_neighbors
-                                             )
-            elif method == "fast_faiss":  # have OpenMP issue
-                data = fast_mode_knn_faiss(data         = data,
-                                           loc          = loc, 
-                                           n_neighbor   = num_neighbors
-                                           )
+            # methods quited to use
+            #elif method == "fast_sklearn":
+            #    data = fast_mode_knn_sklearn(data       = data,
+            #                                 loc        = loc, 
+            #                                 n_neighbor = num_neighbors
+            #                                 )
+            #elif method == "fast_faiss":  # have OpenMP issue
+            #    data = fast_mode_knn_faiss(data         = data,
+            #                               loc          = loc, 
+            #                               n_neighbor   = num_neighbors
+            #                               )
         if DfromLK is None:
             iD = torch.linalg.solve(D, torch.eye(D.shape[0], dtype=dtype, device=device))
             iDFk = iD @ Fk["MRTS"][pick, :]

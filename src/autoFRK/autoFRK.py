@@ -493,10 +493,6 @@ class AutoFRK(nn.Module):
             error_msg = f'Invalid shape for "mu_new": expected scalar or (n,) tensor, got {mu_new.shape}'
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
-
-        # convert data and locations
-        data = to_tensor(data, dtype=dtype, device=device)
-        loc = to_tensor(loc, dtype=dtype, device=device)
             
         return predict_FRK(obj                      = obj,
                            obsData                  = obsData,

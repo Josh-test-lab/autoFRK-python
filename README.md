@@ -289,11 +289,13 @@ from autoFRK import MRTS
 ## Release Notes
 
 ### v1.1.2
-20251023
-- Remove dependences for `faiss` and `scikit-learn`.
+2025-10-23
+- Removed dependencies on `faiss` and `scikit-learn`.
+- Added a validation check to ensure that `data` and `loc` have the same number of rows.
+
 
 ### v1.1.1
-20251023
+2025-10-23
 - Fixed a `ValueError` caused by a missing `v` in the model object when using the "EM" method.
 - Fixed an issue with absent indices in the `EM0miss` function when using the "EM" method with missing data.
 - Fixed a bug in the `EM0miss` function where some variables could not be found when handling missing data with the "EM" method.
@@ -303,14 +305,14 @@ from autoFRK import MRTS
 - Update README.
 
 ### v1.1.0
-20251021
+2025-10-21
 - Added `dtype` and `device` parameters to `AutoFRK.predict()` and `MRTS.predict()`.
 - Added `logger_level` parameter to `AutoFRK.__init__()` and `MRTS.__init__()` (default: 20). Options include `NOTSET`(0), `DEBUG`(10), `INFO`(20), `WARNING`(30), `ERROR`(40), `CRITICAL`(50).
 - Enhanced automatic device selection, including MPS support.
 - Fixed device assignment issue when `device` is not specified, preventing redundant parameter transfers.
 
 ### v1.0.0
-20251019
+2025-10-19
 - Ported R package `autoFRK` to Python.
 
 ## Repositories

@@ -1,12 +1,13 @@
 """
 Title: Setup device of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141019
+Version: 1141024
 Description: This file is to set up and check the computation device for the autoFRK-Python project.
 Reference: None
 """
 
 # import modules
+import gc
 import torch
 from typing import Optional, Union, Any
 from autoFRK.utils.logger import LOGGER
@@ -146,3 +147,33 @@ def check_device(
         return detected_device
 
     return detected_device
+
+def garbage_cleaner() -> None:
+    """
+    Universal garbage cleaner for all supported PyTorch devices.
+    Performs:
+        - Python garbage collection
+        - GPU/MPS/XLA cache clearing (if available)
+    """
+    # Force Python-level garbage collection
+    _ = gc.collect()
+
+    # CUDA cleanup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+
+    # Apple Silicon (MPS) cleanup
+    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        try:
+            torch.mps.empty_cache()
+        except Exception:
+            pass
+
+    # TPU cleanup (torch_xla)
+    try:
+        import torch_xla.core.xla_model as xm
+        xm.mark_step()
+        xm.wait_device_ops()
+    except Exception:
+        pass

@@ -15,6 +15,7 @@ from .autoFRK import AutoFRK
 from .mrts import MRTS
 from .utils.predictor import predict_FRK, predict_mrts
 from .utils.utils import to_tensor, p
+from .utils.device import garbage_cleaner
 
 # export key classes and functions
-__all__ = ["AutoFRK", "MRTS", "predict_FRK", "predict_mrts", "to_tensor", "p"]
+__all__ = ["AutoFRK", "MRTS", "predict_FRK", "predict_mrts", "to_tensor", "p", "garbage_cleaner"]

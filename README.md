@@ -291,6 +291,7 @@ from autoFRK import MRTS
 2025-10-23
 - Removed dependencies on `faiss` and `scikit-learn`.
 - Added a validation check to ensure that `data` and `loc` have the same number of rows.
+- Moved `cleanup_memory()` from `.utils` to `garbage_cleaner()` in `.device`, and enhanced the garbage cleaning functionality.
 - Other bug fixed.
 
 ### v1.1.1

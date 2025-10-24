@@ -16,7 +16,6 @@ import os
 import platform
 import torch
 import pandas as pd
-import gc
 from typing import Dict, Union, Any, List
 from autoFRK.utils.logger import LOGGER
 
@@ -96,14 +95,6 @@ def clear_all():
     for name, val in list(globals().items()):
         if isinstance(val, (int, float, str, list, dict, bool, torch.Tensor)):
             del globals()[name]
-
-def cleanup_memory():
-    """  
-    Force garbage collection and clear PyTorch CUDA memory cache.  
-    """ 
-    gc.collect()
-    torch.cuda.empty_cache()
-cm = cleanup_memory
 
 def p(
     obj: Any

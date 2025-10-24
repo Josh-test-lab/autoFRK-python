@@ -8,10 +8,10 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 
 # import modules
 import torch
-import gc
 from typing import Optional, Dict, Union
 from autoFRK.utils.logger import LOGGER
 from autoFRK.utils.utils import to_tensor
+from autoFRK.utils.device import garbage_cleaner
 from autoFRK.utils.matrix_operator import isDiagonal, convertToPositiveDefinite, computeProjectionMatrix
 from autoFRK.utils.helper import computeNegativeLikelihood, logDeterminant, computeLikelihood, invCz
 
@@ -541,8 +541,7 @@ def EM0miss(
                   }
 
     del iDt, Bt, iDBt, zt, BiDBt
-    _ = gc.collect()
-    torch.cuda.empty_cache()
+    garbage_cleaner()
 
     dif = float("inf")
     cnt = 0

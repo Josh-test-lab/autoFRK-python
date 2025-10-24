@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from typing import Optional, Union
 from .utils.logger import LOGGER, set_logger_level
-from .utils.device import setup_device
+from .utils.device import setup_device, garbage_cleaner
 from .utils.utils import to_tensor
 from .utils.helper import fast_mode_knn_torch, fast_mode_knn_sklearn, fast_mode_knn_faiss, selectBasis
 from .utils.estimator import indeMLE
@@ -372,8 +372,9 @@ class AutoFRK(nn.Module):
         obj['requires_grad'] = requires_grad
         obj['dtype'] = dtype
         obj['device'] = device
-
         self.obj = obj
+
+        garbage_cleaner()
         return self.obj
     
     def predict(

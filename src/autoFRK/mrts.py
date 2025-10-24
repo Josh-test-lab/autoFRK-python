@@ -111,14 +111,14 @@ def predictThinPlateMatrix(
 
 # using in createThinPlateMatrix, predictThinPlateMatrix
 # check = none
-def thinPlateSplines(
+def tps_rectangular(
     dist: torch.Tensor,
     d: int,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> torch.Tensor:
     """
-    Evaluate the thin-plate spline (TPS) radial basis function for given distances.
+    Evaluate the thin-plate spline (TPS) radial basis function for given distances in rectangular coordinates.
 
     The TPS kernel depends on the dimension of the input points. This function
     supports 1D, 2D, and 3D points in rectangular (Euclidean) coordinates.

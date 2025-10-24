@@ -32,6 +32,30 @@ zt <- yt[obs, ] + matrix(rnorm(ns * nt), ns, nt) * sqrt(s)
 X <- grids[obs, ]
 ```
 
+## Random missing
+
+```{r}
+set.seed(0)
+zt_missing <- zt
+missing_rate <- 0.1 # do not set over 0.2, it may
+# cause singular matrix problem
+for (i in 1:ns) {
+  miss_index <- sample(1:nt, size = round(nt * missing_rate))
+  zt_missing[i, miss_index] <- NA
+}
+
+# check thees is no all row or column missing
+all_row_missing <- which(apply(zt, 1, function(x) all(is.na(x))))
+all_col_missing <- which(apply(zt, 2, function(x) all(is.na(x))))
+if (length(all_row_missing) > 0 | length(all_col_missing) > 0) {
+  stop("There are rows or columns with all missing values. Please regenerate the data.")
+}
+
+# export the zt_missing
+export_path <- paste0(getwd(), "/test datasets/matrixfortest/")
+write.csv(zt_missing, paste0(export_path, "matrixForTest_data_missing.csv"), row.names = FALSE)
+```
+
 ## Test on known locations
 
 ```{r}
@@ -45,28 +69,30 @@ res <- PRED$pred.value - zt
 squ_res <- res^2
 cat("MSE(ALL TIME):", mean(squ_res))
 
+mse_each_time <- apply(squ_res, 2, function(x) mean(x))
+export_path <- paste0(getwd(), "/test datasets/mseForCompare/")
+write.csv(mse_each_time, paste0(export_path, "mse_each_time_known_locs.csv"), row.names = FALSE)
+
 for (i in 1:nt) {
-  temp <- mean(squ_res[, i])
-  cat(paste("\nMSE(TIME", i, ") =", round(temp, 4)))
+  cat(paste("\nMSE(TIME", i, ") =", round(mse_each_time[i], 4)))
 }
 
 for (i in 1:nt) {
-  # mse
-  temp <- mean(squ_res[, i])
-  plot(PRED$pred.value[, i],
+  plot(
     zt[, i],
-    main = paste("MSE(TIME", i, ") =", round(temp, 4)),
-    xlab = "Predicted",
-    ylab = "Observed"
+    PRED$pred.value[, i],
+    main = paste("MSE(TIME", i, ") =", round(mse_each_time[i], 4)),
+    xlab = "Observed",
+    ylab = "Predicted"
   )
   abline(0, 1)
 }
 ```
 
 ## Test on unknown locations
+
 ```{r}
 ### Split data into train and test
-
 test_index <- 71:100
 
 train_data <- zt[1:70, ]
@@ -76,31 +102,109 @@ test_data  <- zt[test_index, ]
 test_loc   <- X[test_index, ]
 
 ### Fit the model on training data
-
 fit <- autoFRK(data = train_data, loc = train_loc)
 pred <- predict(fit, newloc = test_loc)
 
-# MSE
+# MSPE(ALL TIME)
 options(digits = 15)
 res <- pred$pred.value - test_data
 squ_res <- res^2
 cat("MSPE(ALL TIME):", mean(squ_res))
 
+# MSPE(TIME i)
+mspe_each_time <- apply(squ_res, 2, function(x) mean(x))
+export_path <- paste0(getwd(), "/test datasets/mseForCompare/")
+write.csv(mspe_each_time, paste0(export_path, "mspe_each_time_unknown_locs.csv"), row.names = FALSE)
+
 for (i in 1:nt) {
-  temp <- mean(squ_res[, i])
-  cat(paste("\nMSPE(TIME", i, ") =", temp))
+  cat(paste("\nMSPE(TIME", i, ") =", mspe_each_time[i]))
 }
 
 for (i in 1:nt) {
-  # mse
-  temp <- mean(squ_res[, i])
-  plot(pred$pred.value[, i],
+  plot(
     test_data[, i],
-    main = paste("MSPE(TIME", i, ") =", round(temp, 4)),
-    xlab = "Predicted",
-    ylab = "Observed"
+    pred$pred.value[, i],
+    main = paste("MSPE(TIME", i, ") =", round(mspe_each_time[i], 4)),
+    xlab = "True values",
+    ylab = "Predicted"
   )
   abline(0, 1)
+}
+```
+
+## Test on missing data (EM)
+
+```{r}
+# Fit the model and compute CPU time
+cpu_time <- system.time({
+fit <- autoFRK(data = zt_missing, loc = X, method = "EM")
+PRED <- predict(fit)
+})
+print(cpu_time)
+
+# MSE(ALL TIME) not including missing values
+options(digits = 15)
+res <- PRED$pred.value - zt_missing
+squ_res <- res^2
+cat("MSE(ALL TIME):", mean(squ_res, na.rm = TRUE))
+mse_each_time <- apply(squ_res, 2, function(x) mean(x, na.rm = TRUE))
+
+# MSE(TIME i) not including missing values
+for (i in 1:nt) {
+  # mse
+  cat(paste("\nMSE(TIME", i, ") =", round(mse_each_time[i], 4)))
+}
+
+# Plot results
+for (i in 1:nt) {
+  plot(
+    zt_missing[, i],
+    PRED$pred.value[, i],
+    main = paste("MSE(TIME", i, ") =", round(mse_each_time[i], 4)),
+    xlab = "Observed",
+    ylab = "Predicted"
+  )
+  abline(0, 1)
+}
+
+# Compute mse including missing values
+res_full <- PRED$pred.value - zt
+cat("MSE including missing values", mean(res_full^2))
+mse_each_time_full <- apply(res_full, 2, function(x) mean(x^2))
+
+# export the mse_each_time_full
+export_path <- paste0(getwd(), "/test datasets/mseForCompare/")
+write.csv(mse_each_time_full, paste0(export_path, "mse_each_time_em.csv"), row.names = FALSE)
+
+# MSE(TIME i) including missing values
+for (i in 1:nt) {
+  # mse
+  cat(paste("\nMSE including missing values (TIME", i, ") =", round(mse_each_time_full[i], 4)))
+}
+
+# Plot results with color coding for missing data
+for (i in 1:nt) {
+  # Create color vector: green for non-missing, red for missing
+  point_colors <- ifelse(is.na(zt_missing[, i]), "red", "green")
+  
+  # Plot with colored points
+  plot(
+    zt[, i],
+    PRED$pred.value[, i] ,
+    col = point_colors,
+    pch = 16,  # solid circle
+    main = paste("MSE(TIME", i, ") =", round(mse_each_time_full[i], 4)),
+    xlab = "Observed",
+    ylab = "Predicted"
+  )
+  abline(0, 1)
+  
+  # Add legend
+  legend("topleft", 
+         legend = c("Non-missing", "Missing"), 
+         col = c("green", "red"), 
+         pch = 16,
+         bty = "n")
 }
 ```
 

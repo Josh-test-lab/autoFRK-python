@@ -17,7 +17,7 @@
 - Implemented in PyTorch, supporting CPU and GPU (requires PyTorch with CUDA support for GPU)
 
 
-## ## Main Functions
+## Main Functions
 - `AutoFRK`
   
   Automatic Fixed Rank Kriging.
@@ -115,61 +115,61 @@ print(pred.get('se'))            # Standard errors
 - `AutoFRK`
 
 `AutoFRK.forward()` supports various parameters:
-| Parameter                    | Description                                                                                                                                                                                       | Type                      | Default           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------------- |
-| `data`                     | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th column.                                                                                                                     | `torch.Tensor`          | (Required)        |
-| `loc`                      | *n* by *d* matrix of coordinates corresponding to *n* locations.                                                                                                                            | `torch.Tensor`          | (Required)        |
-| `mu`                       | *n*-vector or scalar for µ.                                                                                                                                                                    | `float \| torch.Tensor`  | 0                 |
-| `D`                        | *n* by *n* matrix (preferably sparse) for the covariance matrix of the measurement errors up to a constant scale.                                                                             | `torch.Tensor`          | Identity matrix   |
-| `G`                        | *n* by *K* matrix of basis function values with each column being a basis function taken values at `loc`. Automatically determined if `None`.                                             | `torch.Tensor`          | `None`          |
-| `maxK`                     | Maximum number of basis functions considered. Default is `None`, which means 10 · √*n* (for *n* > 100) or *n* (for *n* ≤ 100).                                                      | `int`                   | `None`          |
-| `Kseq`                     | User-specified vector of numbers of basis functions considered. Default is `None`, which is determined from `maxK`. 
-| `maxknot`                  | Maximum number of knots used in generating basis functions.                                                                          | `torch.Tensor`          | `None`          |
-| `method`                   | `"fast"` or `"EM"`; `"fast"` fills missing data using *k*-nearest-neighbor imputation, while `"EM"` handles missing data via the EM algorithm.                                          | `str`                   | `"fast"`        |
-| `n_neighbor`               | Number of neighbors used in the `"fast"` imputation method.                                                                                                                                     | `int`                   | 3                 |                                                                                                                                     | `int`                   | 5000              |
-| `maxit`                    | Maximum number of iterations used in the `"EM"` imputation method.                                                                                                                                                                                                          | `int`                   | 50                |
-| `tolerance`                | Precision tolerance for convergence check used in the `"EM"` imputation method.                                                                                                                                                        | `float`                 | 1e-6              |
-| `requires_grad`            | If `True`, enables gradient computation for `data` tensor.                                                                                                                                    | `bool`                  | `False`         |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                                  | `bool`                  | `False`         |
+| Parameter                  | Description                                                                                                                                                                          | Type                    | Default         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | --------------- |
+| `data`                     | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th column.                                                                                                                | `torch.Tensor`          | (Required)      |
+| `loc`                      | *n* by *d* matrix of coordinates corresponding to *n* locations.                                                                                                                     | `torch.Tensor`          | (Required)      |
+| `mu`                       | *n*-vector or scalar for µ.                                                                                                                                                          | `float \| torch.Tensor` | 0               |
+| `D`                        | *n* by *n* matrix (preferably sparse) for the covariance matrix of the measurement errors up to a constant scale.                                                                    | `torch.Tensor`          | Identity matrix |
+| `G`                        | *n* by *K* matrix of basis function values with each column being a basis function taken values at `loc`. Automatically determined if `None`.                                        | `torch.Tensor`          | `None`          |
+| `maxK`                     | Maximum number of basis functions considered. Default is `None`, which means 10 · √*n* (for *n* > 100) or *n* (for *n* ≤ 100).                                                       | `int`                   | `None`          |
+| `Kseq`                     | User-specified vector of numbers of basis functions considered. Default is `None`, which is determined from `maxK`.                                                                  |
+| `maxknot`                  | Maximum number of knots used in generating basis functions.                                                                                                                          | `torch.Tensor`          | `None`          |
+| `method`                   | `"fast"` or `"EM"`; `"fast"` fills missing data using *k*-nearest-neighbor imputation, while `"EM"` handles missing data via the EM algorithm.                                       | `str`                   | `"fast"`        |
+| `n_neighbor`               | Number of neighbors used in the `"fast"` imputation method.                                                                                                                          | `int`                   | 3               |  | `int` | 5000 |
+| `maxit`                    | Maximum number of iterations used in the `"EM"` imputation method.                                                                                                                   | `int`                   | 50              |
+| `tolerance`                | Precision tolerance for convergence check used in the `"EM"` imputation method.                                                                                                      | `float`                 | 1e-6            |
+| `requires_grad`            | If `True`, enables gradient computation for `data` tensor.                                                                                                                           | `bool`                  | `False`         |
+| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                       | `bool`                  | `False`         |
 | `finescale`                | Logical; if `True`, an (approximate) stationary finer-scale process *η[t]* will be included based on the **LatticeKrig** package. Only the diagonals of `D` are used. (Not used yet) | `bool`                  | `FALSE`         |
-| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                                          | `torch.dtype`           | `torch.float64` |
-| `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                                      | `torch.device \| str` | `None`          |
+| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                               | `torch.dtype`           | `torch.float64` |
+| `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                           | `torch.device \| str`   | `None`          |
 
 `AutoFRK.predict()` supports various parameters:
-| Parameter     | Description                                                                                                                                                                                                         | Type                          | Default   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------- |
-| `obj`       | A model object obtained from `AutoFRK`. If `None`, the model object produced by the `forward` method will be used.                                                                                            | `dict \| None`                      | `None`  |
-| `obsData`   | A vector with observed data used for prediction. Default is `None`, which uses the `data` input from `obj`.                                                                                                   | `torch.Tensor \| None`       | `None`  |
-| `obsloc`    | A matrix with rows being coordinates of observation locations for `obsData`. Only objects using `mrts` basis functions can have `obsloc` different from the `loc` input of `object`. Default is `None`. | `torch.Tensor \| None`       | `None`  |
-| `mu_obs`    | A vector or scalar for the deterministic mean values at `obsloc`.                                                                                                                                                 | `float` \| `torch.Tensor` | 0         |
-| `newloc`    | A matrix with rows being coordinates of new locations for prediction. Default is `None`, which gives prediction at the locations of the observed data.                                                            | `torch.Tensor \| None`       | `None`  |
-| `basis`     | A matrix with each column being a basis function taken values at `newloc`. Can be omitted if `object` was fitted using default `MRTS` basis functions.                                                        | `torch.Tensor \| None`       | `None`  |
-| `mu_new`    | A vector or scalar for the deterministic mean values at `newloc`.                                                                                                                                                 | `float` \| `torch.Tensor` | 0         |
-| `se_report` | Logical; if `True`, the standard error of prediction is reported.                                                                                                                                                 | `bool`                      | `False` |
-| `dtype`                    | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                                                                                                     | `torch.dtype`           | `torch.float64` |
-| `device`                   | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available.                                                                                                        | `torch.device \| str` | `None`          |
+| Parameter   | Description                                                                                                                                                                                             | Type                      | Default         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------- |
+| `obj`       | A model object obtained from `AutoFRK`. If `None`, the model object produced by the `forward` method will be used.                                                                                      | `dict \| None`            | `None`          |
+| `obsData`   | A vector with observed data used for prediction. Default is `None`, which uses the `data` input from `obj`.                                                                                             | `torch.Tensor \| None`    | `None`          |
+| `obsloc`    | A matrix with rows being coordinates of observation locations for `obsData`. Only objects using `mrts` basis functions can have `obsloc` different from the `loc` input of `object`. Default is `None`. | `torch.Tensor \| None`    | `None`          |
+| `mu_obs`    | A vector or scalar for the deterministic mean values at `obsloc`.                                                                                                                                       | `float` \| `torch.Tensor` | 0               |
+| `newloc`    | A matrix with rows being coordinates of new locations for prediction. Default is `None`, which gives prediction at the locations of the observed data.                                                  | `torch.Tensor \| None`    | `None`          |
+| `basis`     | A matrix with each column being a basis function taken values at `newloc`. Can be omitted if `object` was fitted using default `MRTS` basis functions.                                                  | `torch.Tensor \| None`    | `None`          |
+| `mu_new`    | A vector or scalar for the deterministic mean values at `newloc`.                                                                                                                                       | `float` \| `torch.Tensor` | 0               |
+| `se_report` | Logical; if `True`, the standard error of prediction is reported.                                                                                                                                       | `bool`                    | `False`         |
+| `dtype`     | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                                                           | `torch.dtype`             | `torch.float64` |
+| `device`    | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available.                                  | `torch.device \| str`     | `None`          |
 
 - `MRTS`
 
 `MRTS.forward()` supports various parameters:
-| Parameter                    | Description                                                                                                                                                                                            | Type                     | Default           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ----------------- |
-| `knot`                     | *m* by *d* matrix (*d* ≤ 3) for *m* locations of *d*-dimensional knots as in ordinary splines. Missing values are not allowed.                                                              | `torch.Tensor`         | (Required)        |
-| `k`                        | The number (≤*m*) of basis functions.                                                                                                                                                               | `int`                  | `None`          |
+| Parameter                  | Description                                                                                                                                                                              | Type                   | Default         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------- |
+| `knot`                     | *m* by *d* matrix (*d* ≤ 3) for *m* locations of *d*-dimensional knots as in ordinary splines. Missing values are not allowed.                                                           | `torch.Tensor`         | (Required)      |
+| `k`                        | The number (≤*m*) of basis functions.                                                                                                                                                    | `int`                  | `None`          |
 | `x`                        | *n* by *d* matrix of coordinates corresponding to *n* locations where the values of basis functions are to be evaluated. Default is `None`, which uses the *m* by *d* matrix in  `knot`. | `torch.Tensor \| None` | `None`          |
-| `maxknot`                  | Maximum number of knots to be used in generating basis functions. If `maxknot` <*m*, a deterministic subset selection of `knot`s will be used. To use all `knot`s, set `maxknot` ≥ *m*.  | `int`                  | 5000              |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                                           | `bool`                 | `False`         |
-| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                                          | `torch.dtype`           | `torch.float64` |
-| `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                                      | `torch.device \| str` | `None`          |
+| `maxknot`                  | Maximum number of knots to be used in generating basis functions. If `maxknot` <*m*, a deterministic subset selection of `knot`s will be used. To use all `knot`s, set `maxknot` ≥ *m*.  | `int`                  | 5000            |
+| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                           | `bool`                 | `False`         |
+| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                                   | `torch.dtype`          | `torch.float64` |
+| `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                               | `torch.device \| str`  | `None`          |
 
 `MRTS.predict()` supports various parameters:
-| Parameter                    | Description                                                                                                                                                                                            | Type                     | Default           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ----------------- |
-| `obj`                      |A model object obtained from `MRTS`. If `None`, the model object produced by the `forward` method will be used.                                                           | `dict \| None`   | `None`          |
-| `newx`                     | *n* by *d* matrix of coordinates corresponding to *n* locations where prediction is desired.         | `torch.Tensor \| None`              | `None`          |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates. The default `None` uses the method specified in `forward`.                  | `bool \| None`                       | `None`          |
-| `dtype`                    | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                                                                                                     | `torch.dtype`           | `torch.float64` |
-| `device`                   | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available.                                                                                                        | `torch.device \| str` | `None`          |
+| Parameter                  | Description                                                                                                                                                            | Type                   | Default         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------- |
+| `obj`                      | A model object obtained from `MRTS`. If `None`, the model object produced by the `forward` method will be used.                                                        | `dict \| None`         | `None`          |
+| `newx`                     | *n* by *d* matrix of coordinates corresponding to *n* locations where prediction is desired.                                                                           | `torch.Tensor \| None` | `None`          |
+| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates. The default `None` uses the method specified in `forward`.                              | `bool \| None`         | `None`          |
+| `dtype`                    | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                          | `torch.dtype`          | `torch.float64` |
+| `device`                   | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available. | `torch.device \| str`  | `None`          |
 
 ## Example Code
 
@@ -207,12 +207,6 @@ import torch
 from autoFRK import MRTS
 
 ```
-
-## Experimental Features
-
-- Spherical coordinate basis function computation
-- Gradient tracking (using torch's `requires_grad_()`)
-
 
 ## Authors
 
@@ -286,6 +280,11 @@ from autoFRK import MRTS
   }
 ```
 
+## Experimental Features
+
+- Spherical coordinate basis function computation
+- Gradient tracking (using torch's `requires_grad_()`)
+
 ## Release Notes
 
 ### v1.1.2
@@ -328,6 +327,7 @@ from autoFRK import MRTS
 - [ ] Check all Arguments in README
 - [ ] Rewrite all discriptions in functions
 - [ ] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
+- [ ] Move some `README` chapters to files
 
 ---
 If you like this project, don't forget to give it a star [here](https://github.com/Josh-test-lab/autoFRK-python).

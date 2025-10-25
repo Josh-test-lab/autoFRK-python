@@ -1,7 +1,7 @@
 """
 Title: Predictor of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141018
+Version: 1141025
 Description: This file contain prediction-related functions for the autoFRK-Python project.
 Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
@@ -13,7 +13,7 @@ from autoFRK.utils.utils import to_tensor
 from autoFRK.utils.logger import LOGGER
 from autoFRK.utils.device import check_device
 from autoFRK.utils.matrix_operator import invCz, decomposeSymmetricMatrix
-from autoFRK.mrts import createThinPlateMatrix, predictThinPlateMatrix
+from autoFRK.mrts import create_rectangular_tps_matrix, predict_rectangular_tps_matrix
 
 # predictor of autoFRK
 # check = none
@@ -26,7 +26,7 @@ def predict_FRK(
     basis: torch.Tensor = None,
     mu_new: Union[float, torch.Tensor] = 0,
     se_report: bool = False,
-    calculate_with_spherical: bool = False,
+    tps_method: str | int | None = None,
     dtype: torch.dtype=torch.float64,
     device: Optional[Union[torch.device, str]] = 'cpu'
 ) -> Dict[str, Union[torch.Tensor, None]]:
@@ -55,8 +55,13 @@ def predict_FRK(
         Deterministic mean values at `newloc`. Default is 0.
     se_report : bool, optional
         If True, returns standard errors of predictions. Default is False.
-    calculate_with_spherical : bool, optional
-        If True, use spherical coordinates in prediction. Default is False.
+    tps_method : str, int or None, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is None.
+        Options:
+            - None: Auto detect by `forward` method.
+            - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast" (or 1): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
+            - "spherical" (or 2): Compute TPS directly in spherical coordinates.
     dtype : torch.dtype, optional
         Desired torch dtype for computation (default: torch.float64).
     device : torch.device or str, optional
@@ -73,6 +78,32 @@ def predict_FRK(
                     dtype   = dtype,
                     device  = device
                     )
+    
+    # check tps_method
+    if tps_method is None:
+        if obj.get('tps_method', None) is not None:
+            tps_method = obj['tps_method']
+        else:
+            error_msg = f'Could not find the parameter "tps_method". Please specify a valid method ("rectangular", "spherical_fast" or "spherical").'
+            LOGGER.error(error_msg)
+            ValueError(error_msg)
+    if not isinstance(tps_method, str):
+        tps_method = int(tps_method)
+    if tps_method == 0 or tps_method == "rectangular":
+        tps_method = "rectangular"
+    elif tps_method == 1 or tps_method == "spherical_fast":
+        tps_method = "spherical_fast"
+    elif tps_method == 2 or tps_method == "spherical":
+        tps_method = "spherical"
+    else:
+        error_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical".'
+        LOGGER.error(error_msg)
+        ValueError(error_msg)
+
+    # check device
+    device = check_device(obj   = obj,
+                          device= device
+                          )
 
     if basis is None:
         if newloc is None:
@@ -81,23 +112,17 @@ def predict_FRK(
                 LOGGER.error(error_msg)
                 raise ValueError(error_msg)
             basis = obj["G"]["MRTS"]
-            device = check_device(obj   = obj,
-                                  device= device
-                                  )
 
         else:
             newloc = to_tensor(obj      = newloc,
                                dtype    = dtype,
                                device   = device
                                )
-            device = check_device(obj   = obj,
-                                  device= device
-                                  )
-            basis = predict_mrts(obj                        = obj["G"],
-                                 newx                       = newloc,
-                                 calculate_with_spherical   = calculate_with_spherical,
-                                 dtype                      = dtype,
-                                 device                     = device
+            basis = predict_MRTS(obj        = obj["G"],
+                                 newx       = newloc,
+                                 tps_method = tps_method,
+                                 dtype      = dtype,
+                                 device     = device
                                  )
 
     if basis.ndim == 1:
@@ -133,7 +158,6 @@ def predict_FRK(
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
 
-    
     LKobj = obj.get("LKobj", None)
     pinfo = obj.get("pinfo", {})
     miss = obj.get("missing", None)
@@ -174,11 +198,11 @@ def predict_FRK(
                 G = obj["G"]["MRTS"][pick]
             else:
                 De = torch.eye(len(pick), dtype=dtype, device=device)
-                G = predict_mrts(obj                        = obj["G"],
-                                 newx                       = obsloc[pick],
-                                 calculate_with_spherical   = calculate_with_spherical,
-                                 dtype                      = dtype,
-                                 device                     = device
+                G = predict_MRTS(obj        = obj["G"],
+                                 newx       = obsloc[pick],
+                                 tps_method = tps_method,
+                                 dtype      = dtype,
+                                 device     = device
                                  )
 
             M = obj["M"]
@@ -282,7 +306,7 @@ def predict_FRK(
                 De = pinfo["D"][pick][:, pick]
                 G = obj["G"][pick, :]
             else:
-                G = predict_mrts(obj["G"], newx=obsloc[pick, :])
+                G = predict_MRTS(obj["G"], newx=obsloc[pick, :])
 
             M = obj["M"]
             eigenvalues, eigenvectors = torch.linalg.eigh(M)
@@ -330,10 +354,10 @@ def predict_FRK(
 
 # predictor of autoFRK
 # check = none
-def predict_mrts(
+def predict_MRTS(
     obj: dict,
     newx: Optional[torch.Tensor] = None,
-    calculate_with_spherical: bool = False,
+    tps_method: str = "rectangular",
     dtype: torch.dtype=torch.float64,
     device: Union[str, torch.device] = 'cpu'
 ) -> torch.Tensor:
@@ -354,8 +378,11 @@ def predict_mrts(
     newx : torch.Tensor, optional
         (n × d) tensor of coordinates of new locations.
         If None, returns `obj['MRTS']`.
-    calculate_with_spherical : bool, optional
-        Whether to use spherical coordinates in the evaluation. Default is False.
+    tps_method : str, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is "rectangular".
+        Options:
+            - "rectangular": Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast": Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
     dtype : torch.dtype, optional
         Desired torch dtype for computation (default: torch.float64).
     device : torch.device or str, optional
@@ -370,42 +397,59 @@ def predict_mrts(
         return obj["MRTS"]
 
     Xu = obj["Xu"]
-    n = Xu.shape[0]
-    xobs_diag = torch.diag(torch.sqrt(torch.tensor(n / (n - 1), dtype=dtype, device=device)) / Xu.std(dim=0, unbiased=True))
-    ndims = Xu.shape[1]
     k = obj["MRTS"].shape[1]
-    x0 = newx
-    kstar = k - ndims - 1
+    if tps_method in ("rectangular", "spherical_fast"):
+        n = Xu.shape[0]
+        xobs_diag = torch.diag(torch.sqrt(torch.tensor(n / (n - 1), dtype=dtype, device=device)) / Xu.std(dim=0, unbiased=True))
+        ndims = Xu.shape[1]
+        x0 = newx
+        kstar = k - ndims - 1
 
-    shift = Xu.mean(dim=0)
-    nconst = obj["nconst"].reshape(1, -1)
-    X2 = torch.cat(
-        [
-            torch.ones((x0.shape[0], 1), dtype=dtype, device=device),
-            (x0 - shift) / nconst
-        ],
-        dim=1
-    )
+        shift = Xu.mean(dim=0)
+        nconst = obj["nconst"].reshape(1, -1)
+        X2 = torch.cat(
+            [
+                torch.ones((x0.shape[0], 1), dtype=dtype, device=device),
+                (x0 - shift) / nconst
+            ],
+            dim=1
+        )
 
-    if kstar > 0:
-        X1 = predictMrtsWithBasis(s                         = Xu,
-                                  xobs_diag                 = xobs_diag,
-                                  s_new                     = x0,
-                                  BBBH                      = obj["BBBH"],
-                                  UZ                        = obj["UZ"],
-                                  nconst                    = obj["nconst"],
-                                  k                         = k,
-                                  calculate_with_spherical  = calculate_with_spherical,
-                                  dtype                     = dtype,
-                                  device                    = device
-                                  )["X1"]
+        if kstar > 0:
+            X1 = predictMrtsWithBasis(s         = Xu,
+                                      xobs_diag = xobs_diag,
+                                      s_new     = x0,
+                                      BBBH      = obj["BBBH"],
+                                      UZ        = obj["UZ"],
+                                      nconst    = obj["nconst"],
+                                      k         = k,
+                                      tps_method= tps_method,
+                                      dtype     = dtype,
+                                      device    = device
+                                      )["X1"]
+            
+            X1 = X1[:, :kstar]
+            return torch.cat([X2, X1], dim=1)
+        else:
+            return X2
         
-        X1 = X1[:, :kstar]
-        return torch.cat([X2, X1], dim=1)
-    else:
-        return X2
+    elif tps_method == "spherical":
+        from autoFRK.mrts import compute_mrts_spherical
+        res = compute_mrts_spherical(knot     = Xu,
+                                     k        = k,
+                                     X        = newx,
+                                     dtype    = dtype,
+                                     device   = device,
+                                     )
+        return res 
 
-# using in predict_mrts
+    else:
+        error_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical".'
+        LOGGER.error(error_msg)
+        ValueError(error_msg)
+
+
+# using in predict_MRTS
 # check = none
 def predictMrtsWithBasis(
     s: torch.Tensor,
@@ -415,7 +459,7 @@ def predictMrtsWithBasis(
     UZ: torch.Tensor,
     nconst: torch.Tensor,
     k: int,
-    calculate_with_spherical: bool = False,
+    tps_method: str = "rectangular",
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str]='cpu'
 ) -> Dict[str, torch.Tensor]:
@@ -441,8 +485,11 @@ def predictMrtsWithBasis(
         Column mean vector, shape (d + 1, ).
     k : int
         Rank (number of basis functions used).
-    calculate_with_spherical : bool, optional
-        Whether to use spherical coordinates in the evaluation. Default is False.
+    tps_method : str, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is "rectangular".
+        Options:
+            - "rectangular": Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast": Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
     dtype : torch.dtype, optional
         Desired torch dtype for computation (default: torch.float64).
     device : torch.device or str, optional
@@ -460,12 +507,12 @@ def predictMrtsWithBasis(
     """
     n, d = s.shape
     n2 = s_new.shape[0]
-    Phi_new = predictThinPlateMatrix(s_new                      = s_new,
-                                     s                          = s,
-                                     calculate_with_spherical   = calculate_with_spherical,
-                                     dtype                      = dtype,
-                                     device                     = device
-                                     )
+    Phi_new = predict_rectangular_tps_matrix(s_new      = s_new,
+                                             s          = s,
+                                             tps_method = tps_method,
+                                             dtype      = dtype,
+                                             device     = device
+                                             )
 
     X1 = Phi_new @ UZ[:n, :k]
     B = torch.ones((n2, d + 1), dtype=dtype, device=device)
@@ -479,13 +526,14 @@ def predictMrtsWithBasis(
             }
 
 # using in MRTS.forward
+# predictMrts
 # check = none
-def predictMrts(
+def predict_mrts_rectangular(
     s: torch.Tensor,
     xobs_diag: torch.Tensor,
     s_new: torch.Tensor,
     k: int,
-    calculate_with_spherical: bool = False,
+    tps_method: str = "rectangular",
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = "cpu"
 ) -> Dict[str, torch.Tensor]:
@@ -505,8 +553,11 @@ def predictMrts(
         New location matrix for prediction, shape (n2, d).
     k : int
         Rank (number of basis functions).
-    calculate_with_spherical : bool, optional
-        Whether to use spherical coordinates in the evaluation. Default is False.
+    tps_method : str, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is "rectangular".
+        Options:
+            - "rectangular": Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast": Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
     dtype : torch.dtype, optional
         Desired torch dtype for computation (default: torch.float64).
     device : torch.device or str, optional
@@ -526,11 +577,11 @@ def predictMrts(
     n2 = s_new.shape[0]
 
     # Update B, BBB, lambda, gamma
-    Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s                           = s,
-                                                            k                           = k,
-                                                            calculate_with_spherical    = calculate_with_spherical,
-                                                            dtype                       = dtype,
-                                                            device                      = device
+    Phi, B, BBB, lambda_, gamma = updateMrtsBasisComponents(s           = s,
+                                                            k           = k,
+                                                            tps_method  = tps_method,
+                                                            dtype       = dtype,
+                                                            device      = device
                                                             )
     
     # Update X, nconst
@@ -554,12 +605,12 @@ def predictMrts(
                                    )
 
     # Create thin plate splines, Phi_new by new positions `s_new`
-    Phi_new = predictThinPlateMatrix(s_new                      = s_new,
-                                     s                          = s,
-                                     calculate_with_spherical   = calculate_with_spherical,
-                                     dtype                      = dtype,
-                                     device                     = device
-                                     )
+    Phi_new = predict_rectangular_tps_matrix(s_new      = s_new,
+                                             s          = s,
+                                             tps_method = tps_method,
+                                             dtype      = dtype,
+                                             device     = device
+                                             )
     
     X1 = Phi_new @ UZ[:n, :k]
     B_new = torch.ones((n2, d + 1), dtype=dtype, device=device)
@@ -577,7 +628,7 @@ def predictMrts(
 def updateMrtsBasisComponents(
     s: torch.Tensor,
     k: int,
-    calculate_with_spherical: bool=False,
+    tps_method: str = "rectangular",
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = "cpu"
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -590,8 +641,11 @@ def updateMrtsBasisComponents(
         Location matrix of shape (n, d), where n is the number of locations and d the dimension.
     k : int
         Number of leading eigenvalues/eigenvectors to compute (1 <= k <= n-1).
-    calculate_with_spherical : bool, optional
-        Whether to compute Phi using spherical coordinates. Default is False.
+    tps_method : str, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is "rectangular".
+        Options:
+            - "rectangular": Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast": Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
     dtype : torch.dtype, optional
         Desired torch dtype for computation (default: torch.float64).
     device : torch.device or str, optional
@@ -609,11 +663,11 @@ def updateMrtsBasisComponents(
     n, d = s.shape
 
     # Create thin plate splines Phi
-    Phi = createThinPlateMatrix(s                       = s,
-                                calculate_with_spherical= calculate_with_spherical,
-                                dtype                   = dtype,
-                                device                  = device
-                                )
+    Phi = create_rectangular_tps_matrix(s           = s,
+                                        tps_method  = tps_method,
+                                        dtype       = dtype,
+                                        device      = device
+                                        )
     
     B = torch.ones((n, d + 1), dtype=dtype, device=device)
     B[:, -d:] = s

@@ -1,7 +1,7 @@
 """
 Title: Automatic Fixed Rank Kriging
 Author: Yao-Chih Hsu
-Version: 1141019
+Version: 1141025
 Description: `autoFRK` is an R package to mitigate the intensive computation for modeling regularly/irregularly located spatial data using a class of basis functions with multi-resolution features and ordered in terms of their resolutions, and this project is to implement the `autoFRK` in Python.
 Reference: Resolution Adaptive Fixed Rank Kringing by ShengLi Tzeng & Hsin-Cheng Huang
 """
@@ -113,7 +113,7 @@ class AutoFRK(nn.Module):
         maxit: int=50, 
         tolerance: float=1e-6,
         requires_grad: bool=False,
-        calculate_with_spherical: bool=False,
+        tps_method: str | int="rectangular",
         finescale: bool=False, 
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
@@ -154,10 +154,12 @@ class AutoFRK(nn.Module):
             Convergence tolerance for iterative optimization. Default is 1e-6.
         requires_grad : bool, optional
             If True, enables gradient computation for `data` tensor. Default is False.
-        calculate_with_spherical : bool, optional
-            If True, calculates thin-plate spline distances using spherical coordinates.
-            Useful for global (longitude/latitude) datasets. Default is False.
-            are automatically generated using thin-plate spline (TPS) bases.
+        tps_method : str or int, optional
+            Specifies the method used to compute thin-plate splines (TPS). Default is "rectangular".
+            Options:
+                - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
+                - "spherical" (or 1): Compute TPS directly in spherical coordinates.
+                - "spherical_fast" (or 2): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
         finescale : bool, optional
             Whether to include an approximate stationary fine-scale process η[t].
             When True, only the diagonal elements of D are used. Default is False.
@@ -177,7 +179,7 @@ class AutoFRK(nn.Module):
             - **V** (`torch.Tensor`): (K, K) covariance matrix of prediction errors for `w[t]`.
             - **G** (`dict`): basis function matrix used in fitting.
             - **LKobj** (`dict`): results from LatticeKrig-style fine-scale modeling (if enabled).
-            - **calculate_with_spherical** (`bool`): whether spherical distance calculation was used.
+            - **tps_method** (`str`): specifies the method used to compute thin-plate splines (TPS).
             - **requires_grad** (`bool`): whether gradient computation was enabled.
             - **dtype** (`torch.dtype`): data type used in computations.
             - **device** (`torch.device`): computation device used.
@@ -256,26 +258,43 @@ class AutoFRK(nn.Module):
             #    LOGGER.warning(warn_msg)
             #    method = "fast"
 
+        # check tps_method
+        if not isinstance(tps_method, str):
+            tps_method = int(tps_method)
+        if tps_method == 0 or tps_method == "rectangular":
+            tps_method = "rectangular"
+            LOGGER.info(f'Calculate TPS with rectangular.')
+        elif tps_method == 1 or tps_method == "spherical":
+            tps_method = "spherical"
+            LOGGER.info(f'Calculate TPS with spherical.')
+        elif tps_method == 2 or tps_method == "spherical_fast":
+            tps_method = "spherical_fast"
+            LOGGER.info(f'Calculate TPS with spherical_fast.')
+        else:
+            warn_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical", using default "rectangular" method instead.'
+            LOGGER.warning(warn_msg)
+        self.tps_method = tps_method
+
         data = data - mu
         Fk = {}
         if G is not None:
             Fk["MRTS"] = G
         else:
-            Fk = selectBasis(data                       = data, 
-                             loc                        = loc,
-                             D                          = D, 
-                             maxit                      = maxit, 
-                             avgtol                     = tolerance,
-                             max_rank                   = maxK, 
-                             sequence_rank              = Kseq, 
-                             method                     = method, 
-                             num_neighbors              = n_neighbor,
-                             max_knot                   = maxknot, 
-                             DfromLK                    = None,
-                             Fk                         = None,
-                             calculate_with_spherical   = calculate_with_spherical,
-                             dtype                      = dtype,
-                             device                     = device
+            Fk = selectBasis(data           = data, 
+                             loc            = loc,
+                             D              = D, 
+                             maxit          = maxit, 
+                             avgtol         = tolerance,
+                             max_rank       = maxK, 
+                             sequence_rank  = Kseq, 
+                             method         = method, 
+                             num_neighbors  = n_neighbor,
+                             max_knot       = maxknot, 
+                             DfromLK        = None,
+                             Fk             = None,
+                             tps_method     = tps_method,
+                             dtype          = dtype,
+                             device         = device
                              )
         
         K = Fk["MRTS"].shape[1]
@@ -283,16 +302,6 @@ class AutoFRK(nn.Module):
             data = fast_mode_knn_torch(data       = data,
                                        loc        = loc, 
                                        n_neighbor = n_neighbor
-                                       )
-        elif method == "fast_sklearn":
-            data = fast_mode_knn_sklearn(data       = data,
-                                         loc        = loc, 
-                                         n_neighbor = n_neighbor
-                                         )
-        elif method == "fast_faiss":  # have OpenMP issue
-            data = fast_mode_knn_faiss(data         = data,
-                                       loc          = loc, 
-                                       n_neighbor   = n_neighbor
                                        )
         data = to_tensor(data, dtype=dtype, device=device)
         
@@ -351,7 +360,7 @@ class AutoFRK(nn.Module):
                           )
         
         obj['G'] = Fk
-        obj['calculate_with_spherical'] = calculate_with_spherical
+        obj['tps_method'] = self.tps_method
         
         if finescale:
             """
@@ -387,6 +396,7 @@ class AutoFRK(nn.Module):
         basis: torch.Tensor = None,
         mu_new: Union[float, torch.Tensor] = 0,
         se_report: bool = False,
+        tps_method: str | int | None = None,
         dtype: torch.dtype=torch.float64,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
@@ -417,6 +427,18 @@ class AutoFRK(nn.Module):
             Deterministic mean values at `newloc`. Default is 0.
         se_report : bool, optional
             If True, standard errors of the predictions are returned. Default is False.
+        tps_method : str, int or None, optional
+            Specifies the method used to compute thin-plate splines (TPS). Default is None.
+            Options:
+                - None: Auto detect by `forward` method.
+                - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
+                - "spherical" (or 1): Compute TPS directly in spherical coordinates.
+                - "spherical_fast" (or 2): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
+        dtype : torch.dtype, default=torch.float64
+            The data type for computations. If different from the object's dtype, tensors will be converted.
+        device : torch.device or str, optional
+            The device on which computations will be performed (CPU or GPU). 
+            If None, will use the device stored in `obj` or `self.device`.
 
         Returns
         -------
@@ -494,18 +516,44 @@ class AutoFRK(nn.Module):
             error_msg = f'Invalid shape for "mu_new": expected scalar or (n,) tensor, got {mu_new.shape}'
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
+
+        # check tps_method
+        if tps_method is None:
+            if obj.get('tps_method', None) is not None:
+                tps_method = obj['tps_method']
+            elif hasattr(self, "tps_method"):
+                warn_msg = f'No input "tps_method" is provided, use the default value `"rectangular"` for MRTS.predict.'
+                LOGGER.warning(warn_msg)
+                tps_method = "rectangular"
+            else:
+                error_msg = f'Could not find the parameter "tps_method". Please specify a valid method ("rectangular", "spherical_fast" or "spherical").'
+                LOGGER.error(error_msg)
+                ValueError(error_msg)
+        if not isinstance(tps_method, str):
+            tps_method = int(tps_method)
+        if tps_method == 0 or tps_method == "rectangular":
+            tps_method = "rectangular"
+        elif tps_method == 1 or tps_method == "spherical":
+            tps_method = "spherical"
+        elif tps_method == 2 or tps_method == "spherical_fast":
+            tps_method = "spherical_fast"
+        else:
+            error_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical".'
+            LOGGER.error(error_msg)
+            ValueError(error_msg)
+        self.tps_method = tps_method
             
-        return predict_FRK(obj                      = obj,
-                           obsData                  = obsData,
-                           obsloc                   = obsloc,
-                           mu_obs                   = mu_obs,
-                           newloc                   = newloc,
-                           basis                    = basis,
-                           mu_new                   = mu_new,
-                           se_report                = se_report,
-                           calculate_with_spherical = obj['calculate_with_spherical'],
-                           dtype                    = self.dtype,
-                           device                   = self.device
+        return predict_FRK(obj          = obj,
+                           obsData      = obsData,
+                           obsloc       = obsloc,
+                           mu_obs       = mu_obs,
+                           newloc       = newloc,
+                           basis        = basis,
+                           mu_new       = mu_new,
+                           se_report    = se_report,
+                           tps_method   = tps_method,
+                           dtype        = self.dtype,
+                           device       = self.device
                            )
 
 # main program

@@ -1,7 +1,7 @@
 """
 Title: Some helpful functions of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141018
+Version: 1141025
 Description: This file contains some helper functions used in the autoFRK-Python project.
 Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
@@ -9,7 +9,8 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 # import modules
 import torch
 import numpy as np
-from typing import Dict, Union
+from scipy.integrate import quad
+from typing import Callable, Dict, Union
 from autoFRK.utils.logger import LOGGER
 from autoFRK.utils.utils import to_tensor
 from autoFRK.utils.matrix_operator import getInverseSquareRootMatrix, invCz
@@ -232,7 +233,7 @@ def selectBasis(
     max_knot: int = 5000,
     DfromLK: dict = None,
     Fk: dict = None,
-    calculate_with_spherical: bool = False,
+    tps_method: str = "rectangular",
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = 'cpu'
 ) -> Dict[str, torch.Tensor]:
@@ -273,8 +274,12 @@ def selectBasis(
         Precomputed fine-scale components for LatticeKrig-style modeling.
     Fk : dict, optional
         Precomputed basis function values. If None, computed internally.
-    calculate_with_spherical : bool, optional
-        If True, TPS distances are computed using spherical coordinates. Default is False.
+    tps_method : str, optional
+        Specifies the method used to compute thin-plate splines (TPS). Default is None.
+        Options:
+            - "rectangular": Compute TPS in Euclidean (rectangular) coordinates.
+            - "spherical_fast": Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
+            - "spherical": Compute TPS directly in spherical coordinates.
     dtype : torch.dtype, optional
         Data type for computations. Default is torch.float64.
     device : torch.device or str, optional
@@ -352,13 +357,13 @@ def selectBasis(
         mrts = MRTS(dtype   = dtype,
                     device  = device
                     )
-        Fk = mrts.forward(knot                      = knot,
-                          k                         = max(K),
-                          x                         = loc,
-                          maxknot                   = max_knot,
-                          calculate_with_spherical  = calculate_with_spherical,
-                          dtype                     = dtype,
-                          device                    = device
+        Fk = mrts.forward(knot      = knot,
+                          k         = max(K),
+                          x         = loc,
+                          maxknot   = max_knot,
+                          tps_method= tps_method,
+                          dtype     = dtype,
+                          device    = device
                           )
 
     AIC_list = to_tensor([float('inf')] * len(K), dtype=dtype, device=device)
@@ -926,3 +931,111 @@ def logDeterminant(
         Log-determinant of the input matrix.
     """
     return torch.logdet(mat.abs())
+
+# usinig in tps_spherical
+# check = ok
+def build_integral_table(
+    func: Callable[[float], float],
+    a: float = 0.0,
+    b: float = 1.0,
+    num_steps: int = 10000,
+    eps: float = 1e-12,
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Dict[str, torch.Tensor]:
+    """
+    Precompute a numerical integration lookup table for a given 1D function.
+
+    This function evaluates the cumulative integral of `func` from `a` to each
+    point in [a, b], using numerical quadrature and returns sampled points and
+    their corresponding integral values as tensors. The result can be used for
+    fast interpolation-based integral lookup in later computations.
+
+    Parameters
+    ----------
+    func : Callable[[float], float], optional
+        Function to integrate. Just like `lambda t: np.log1p(-t) / t`.
+    a : float, optional
+        Lower limit of the integration interval. Default is 0.0.
+    b : float, optional
+        Upper limit of the integration interval. Default is 1.0.
+    num_steps : int, optional
+        Number of discrete points to sample between `a` and `b`. Default is 10000.
+    eps : float, optional
+        Small value to avoid numerical singularities at the integration bounds.
+        Default is 1e-12.
+    dtype : torch.dtype, optional
+        Data type of the output tensors. Default is `torch.float64`.
+    device : Union[torch.device, str], optional
+        Device on which to store the tensors. Default is `"cpu"`.
+
+    Returns
+    -------
+    dict of torch.Tensor
+        Dictionary containing:
+        - "x" : Sampled x-values as a 1D tensor of shape (num_steps,).
+        - "y" : Corresponding integrated values of shape (num_steps,).
+    """
+    x = np.linspace(a + eps, b - eps, num_steps)
+    y = np.zeros_like(x)
+    for i, xi in enumerate(x):
+        y[i], _ = quad(func, a, xi, epsabs=eps)
+    x = torch.tensor(x, dtype=dtype, device=device)
+    y = torch.tensor(y, dtype=dtype, device=device)
+
+    return {
+        "x": x,
+        "y": y
+    }
+
+# usinig in tps_spherical
+# check = ok
+def integral_interpolator(
+    upper: torch.Tensor,
+    lower: torch.Tensor,
+    integral_table: dict,
+    eps: float = 1e-12
+) -> torch.Tensor:
+    """
+    Compute the definite integral between `lower` and `upper` bounds using a precomputed integral table.
+
+    The function interpolates integral values from a lookup table generated by
+    :func:`integral_table` to efficiently approximate the integral of a function
+    between two tensor-valued limits.
+
+    Parameters
+    ----------
+    upper : torch.Tensor
+        Tensor of upper integration limits. Must lie within the range of the
+        table's x-values.
+    lower : torch.Tensor
+        Tensor of lower integration limits. Must have the same shape as `upper`.
+    integral_table : dict
+        Dictionary containing precomputed tensors "x" and "y" as returned
+        by :func:`integral_table`.
+    eps : float, optional
+        Small numerical offset to prevent boundary overflow in interpolation.
+        Default is 1e-12.
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of definite integral values, corresponding to the area between
+        each pair of lower and upper limits.
+    """
+    x = integral_table['x']
+    y = integral_table['y']
+    num_steps = x.numel()
+
+    def interp(
+        val: torch.Tensor
+    ) -> torch.Tensor:
+        idx_float = torch.clamp((val - x[0]) / (x[-1] - x[0]) * (num_steps - 1), 0, num_steps - 2 - eps)
+        y_lower = y[idx_float.floor().long()]
+        y_upper = y[idx_float.floor().long() + 1]
+        t = idx_float - idx_float.floor()
+        return y_lower + t * (y_upper - y_lower)
+
+    integral_upper = interp(upper)
+    integral_lower = interp(lower)
+    return integral_upper - integral_lower

@@ -1,7 +1,7 @@
 """
 Title: Setup device of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141024
+Version: 1141025
 Description: This file is to set up and check the computation device for the autoFRK-Python project.
 Reference: None
 """

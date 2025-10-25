@@ -287,12 +287,15 @@ from autoFRK import MRTS
 
 ## Release Notes
 
-### v1.1.2
-2025-10-23
+### v1.2.0
+2025-10-25
+- Improved TPS prediction method for spherical coordinates.
+- Removed `calculate_with_spherical` parameter and introduced `tps_method` parameter to select the TPS basis function generation method. Available options: `"rectangular"`, `"spherical_fast"`, `"spherical"`.
+- Renamed several functions for clarity.
 - Removed dependencies on `faiss` and `scikit-learn`.
 - Added a validation check to ensure that `data` and `loc` have the same number of rows.
-- Moved `cleanup_memory()` from `.utils` to `garbage_cleaner()` in `.device`, and enhanced the garbage cleaning functionality.
-- Other bug fixed.
+- Moved `cleanup_memory()` from `.utils` to `garbage_cleaner()` in `.device` and enhanced garbage collection functionality.
+- Other bug fixes and minor improvements.
 
 ### v1.1.1
 2025-10-23

@@ -330,7 +330,7 @@ from autoFRK import MRTS
 - [ ] Check all examples in README
 - [ ] Check all Arguments in README
 - [ ] Rewrite all discriptions in functions
-- [ ] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
+- [X] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
 - [ ] Move some `README` chapters to files
 
 ---

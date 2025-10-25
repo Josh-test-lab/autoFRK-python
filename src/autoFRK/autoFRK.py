@@ -303,8 +303,7 @@ class AutoFRK(nn.Module):
                                        loc        = loc, 
                                        n_neighbor = n_neighbor
                                        )
-        data = to_tensor(data, dtype=dtype, device=device)
-        
+            
         if not finescale:
             obj = indeMLE(data      = data,
                           Fk        = Fk["MRTS"][:, :K],

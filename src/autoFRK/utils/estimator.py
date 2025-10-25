@@ -392,7 +392,7 @@ def cMLEimat(
     invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s + v)
     iDZ = invD[:, None] * data
 
-    right = L @ (torch.linalg.inv(torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
+    right = L @ (torch.linalg.pinv(torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
 
     INVtZ = iDZ - invD[:, None] * right
     etatt = M @ Fk.T @ INVtZ

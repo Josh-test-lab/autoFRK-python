@@ -1,7 +1,7 @@
 """
 Title: __init__ file of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141019
+Version: 1141025
 Description: This is the initialization file for the autoFRK-Python package, and it imports key classes and functions to be accessible at the package level.
 Reference: None
 License:

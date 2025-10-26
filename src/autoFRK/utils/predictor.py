@@ -9,11 +9,11 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 # import modules
 import torch
 from typing import Optional, Union, Dict, Tuple
-from autoFRK.utils.utils import to_tensor
-from autoFRK.utils.logger import LOGGER
-from autoFRK.utils.device import check_device
-from autoFRK.utils.matrix_operator import invCz, decomposeSymmetricMatrix
-from autoFRK.mrts import create_rectangular_tps_matrix, predict_rectangular_tps_matrix
+from ..utils.utils import to_tensor
+from ..utils.logger import LOGGER
+from ..utils.device import check_device
+from ..utils.matrix_operator import invCz, decomposeSymmetricMatrix
+from ..mrts import create_rectangular_tps_matrix, predict_rectangular_tps_matrix
 
 # predictor of autoFRK
 # check = none
@@ -434,7 +434,7 @@ def predict_MRTS(
             return X2
         
     elif tps_method == "spherical":
-        from autoFRK.mrts import compute_mrts_spherical
+        from ..mrts import compute_mrts_spherical
         res = compute_mrts_spherical(knot     = Xu,
                                      k        = k,
                                      X        = newx,

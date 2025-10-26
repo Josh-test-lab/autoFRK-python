@@ -9,11 +9,11 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 # import modules
 import torch
 from typing import Optional, Dict, Union
-from autoFRK.utils.logger import LOGGER
-from autoFRK.utils.utils import to_tensor
-from autoFRK.utils.device import garbage_cleaner
-from autoFRK.utils.matrix_operator import isDiagonal, convertToPositiveDefinite, computeProjectionMatrix
-from autoFRK.utils.helper import computeNegativeLikelihood, logDeterminant, computeLikelihood, invCz
+from ..utils.logger import LOGGER
+from ..utils.utils import to_tensor
+from ..utils.device import garbage_cleaner
+from ..utils.matrix_operator import isDiagonal, convertToPositiveDefinite, computeProjectionMatrix
+from ..utils.helper import computeNegativeLikelihood, logDeterminant, computeLikelihood, invCz
 
 # compute negative log likelihood for autoFRK, using in selectBasis
 # check = ok

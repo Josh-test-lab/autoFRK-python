@@ -18,7 +18,7 @@ from .utils.estimator import indeMLE
 from .utils.predictor import predict_FRK
 
 # class AutoFRK
-class AutoFRK(nn.Module):
+class AutoFRK():
     """
     Automatic Fixed Rank Kriging (autoFRK)
 
@@ -59,8 +59,8 @@ class AutoFRK(nn.Module):
     """
     def __init__(
         self,
-        logger_level: int | str= 20,
-        dtype: torch.dtype=torch.float64,
+        logger_level: int | str=20,
+        dtype: torch.dtype | None=None,
         device: Optional[Union[torch.device, str]]=None
         ):
         """
@@ -77,8 +77,8 @@ class AutoFRK(nn.Module):
             - `logging.WARNING` or 30     : Warning messages, indicate potential issues
             - `logging.ERROR`  or 40       : Error messages, something went wrong
             - `logging.CRITICAL` or 50    : Severe errors, program may not continue
-        dtype : torch.dtype, optional
-            Data type for all internal tensors (default: torch.float64).
+        dtype : torch.dtype or None, optional
+            Data type for all internal tensors (default: None, auto detected).
         device : torch.device or str, optional
             Computation device ("cpu" or "cuda"). Automatically detected if None.
         """
@@ -92,7 +92,7 @@ class AutoFRK(nn.Module):
         self.device = device
 
         # dtype check
-        if not isinstance(dtype, torch.dtype):
+        if dtype is not None and not isinstance(dtype, torch.dtype):
             error_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}"
             LOGGER.error(error_msg)
             raise TypeError(error_msg)
@@ -115,7 +115,7 @@ class AutoFRK(nn.Module):
         requires_grad: bool=False,
         tps_method: str | int="rectangular",
         finescale: bool=False, 
-        dtype: torch.dtype=torch.float64,
+        dtype: torch.dtype | None=None,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
         """
@@ -145,7 +145,7 @@ class AutoFRK(nn.Module):
         method : str, optional
             Method for estimation. Supported values:
             - `"fast"`: approximate imputation using nearest neighbors by PyTorch module (default)
-            - `"EM"`: expectation–maximization
+            - `"EM"`: expectation-maximization
         n_neighbor : int, optional
             Number of neighbors used for "fast" imputation. Default is 3.
         maxit : int, optional
@@ -163,8 +163,8 @@ class AutoFRK(nn.Module):
         finescale : bool, optional
             Whether to include an approximate stationary fine-scale process η[t].
             When True, only the diagonal elements of D are used. Default is False.
-        dtype : torch.dtype, optional
-            Data type used in computations (e.g., `torch.float64`). Default is `torch.float64`.
+        dtype : torch.dtype or None, optional
+            Data type used in computations (e.g., `torch.float64`). Default is None (auto detected).
         device : torch.device or str, optional
             Target computation device ("cpu" or "cuda"). If None, automatically selected.
 
@@ -197,13 +197,19 @@ class AutoFRK(nn.Module):
 
         # dtype check
         if dtype is None:
-            dtype = self.dtype
+            if self.dtype is not None:
+                dtype = self.dtype
+            elif isinstance(data, torch.Tensor):
+                dtype = data.dtype
+            else:
+                warn_msg = f"Parameter \"dtype\" was not set, Please input a `torch.dtype` instance or a Tensor with dtype. Use default `torch.float64`."
+                LOGGER.warning(warn_msg)
+                dtype = torch.float64
         elif not isinstance(dtype, torch.dtype):
-            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            warn_msg = f"Invalid dtype: expected a `torch.dtype` instance, got `{type(dtype).__name__}`, use default `torch.float64`."
             LOGGER.warning(warn_msg)
-            dtype = self.dtype
-        else:
-            self.dtype = dtype
+            dtype = torch.float64
+        self.dtype = dtype
 
         # method check
         if method not in ["fast", "EM"]:
@@ -263,16 +269,14 @@ class AutoFRK(nn.Module):
             tps_method = int(tps_method)
         if tps_method == 0 or tps_method == "rectangular":
             tps_method = "rectangular"
-            LOGGER.info(f'Calculate TPS with rectangular.')
         elif tps_method == 1 or tps_method == "spherical":
             tps_method = "spherical"
-            LOGGER.info(f'Calculate TPS with spherical.')
         elif tps_method == 2 or tps_method == "spherical_fast":
             tps_method = "spherical_fast"
-            LOGGER.info(f'Calculate TPS with spherical_fast.')
         else:
             warn_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical", using default "rectangular" method instead.'
             LOGGER.warning(warn_msg)
+        LOGGER.info(f'Calculate TPS with {tps_method}.')
         self.tps_method = tps_method
 
         data = data - mu
@@ -396,7 +400,7 @@ class AutoFRK(nn.Module):
         mu_new: Union[float, torch.Tensor] = 0,
         se_report: bool = False,
         tps_method: str | int | None = None,
-        dtype: torch.dtype=torch.float64,
+        dtype: torch.dtype | None = None,
         device: Optional[Union[torch.device, str]]=None
     ) -> dict:
         """
@@ -433,8 +437,8 @@ class AutoFRK(nn.Module):
                 - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
                 - "spherical" (or 1): Compute TPS directly in spherical coordinates.
                 - "spherical_fast" (or 2): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
-        dtype : torch.dtype, default=torch.float64
-            The data type for computations. If different from the object's dtype, tensors will be converted.
+        dtype : torch.dtype or None
+            The data type for computations. If different from the object's dtype, tensors will be converted. Default is None (auto detected).
         device : torch.device or str, optional
             The device on which computations will be performed (CPU or GPU). 
             If None, will use the device stored in `obj` or `self.device`.
@@ -477,18 +481,20 @@ class AutoFRK(nn.Module):
         # check dtype
         obj['dtype'] = obj.get('dtype', None)
         if dtype is None:
-            if obj['dtype'] is not None:
+            if obj['dtype'] is not None and isinstance(obj['dtype'], torch.dtype):
                 dtype = obj['dtype']
-            else:
+            elif self.dtype is not None and isinstance(self.dtype, torch.dtype):
                 dtype = self.dtype
-        elif dtype == obj['dtype']:
-            dtype = obj['dtype']
-        elif dtype == self.dtype:
-            dtype = self.dtype
+            else:
+                warn_msg = f"Parameter \"dtype\" was not set, Please input a `torch.dtype` instance or a Tensor with dtype. Use default `torch.float64`."
+                LOGGER.warning(warn_msg)
+                dtype = torch.float64
+        elif dtype == obj['dtype'] or dtype == self.dtype:
+            pass
         elif not isinstance(dtype, torch.dtype):
-            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            warn_msg = f"Invalid dtype: expected a `torch.dtype` instance, got `{type(dtype).__name__}`, use default `torch.float64`."
             LOGGER.warning(warn_msg)
-            dtype = obj['dtype']
+            dtype = torch.float64
         else:
             change_tensor = True
         self.dtype = dtype

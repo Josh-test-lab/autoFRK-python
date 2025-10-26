@@ -10,7 +10,7 @@ Reference: None
 import gc
 import torch
 from typing import Optional, Union, Any
-from autoFRK.utils.logger import LOGGER
+from ..utils.logger import LOGGER
 
 # setup device
 def setup_device(

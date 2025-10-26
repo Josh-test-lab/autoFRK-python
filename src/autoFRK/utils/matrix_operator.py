@@ -1,7 +1,7 @@
 """
 Title: Matrix operator utilities for autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141017
+Version: 1141026
 Description: This file provides functions for matrix operations used in the autoFRK-Python Project.
 Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/autoFRK
 """
@@ -10,7 +10,7 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 import torch
 from typing import Dict, Union, Tuple
 from scipy.sparse.linalg import eigsh
-from autoFRK.utils.utils import to_tensor
+from ..utils.utils import to_tensor
 
 # using in selectBasis, computeProjectionMatrix
 # check = ok

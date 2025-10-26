@@ -12,10 +12,10 @@ import numpy as np
 from typing import Optional, Dict, Union
 from sklearn.neighbors import NearestNeighbors
 from scipy.optimize import minimize_scalar
-from autoFRK.utils.utils import to_tensor
-from autoFRK.utils.helper import logDeterminant
-from autoFRK.utils.matrix_operator import getInverseSquareRootMatrix
-from autoFRK.utils.estimator import cMLE
+from ..utils.utils import to_tensor
+from ..utils.helper import logDeterminant
+from ..utils.matrix_operator import getInverseSquareRootMatrix
+from ..utils.estimator import cMLE
 
 # using in autoFRK
 # check = none

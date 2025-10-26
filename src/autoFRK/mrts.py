@@ -61,8 +61,8 @@ def create_rectangular_tps_matrix(
                               tps_method= tps_method
                               )
     
-    if tps_method == "spherical_fast":
-        d = 3
+    # if tps_method == "spherical_fast":
+    #     d = 3
 
     L = tps_rectangular(dist   = dist,
                         d      = d,
@@ -116,14 +116,14 @@ def predict_rectangular_tps_matrix(
                               tps_method= tps_method,
                               )
     
-    if tps_method == "spherical_fast":
-        d = 3
+    # if tps_method == "spherical_fast":
+    #     d = 3
 
     L = tps_rectangular(dist   = dist,
-                         d      = d,
-                         dtype  = dtype,
-                         device = device
-                         )
+                        d      = d,
+                        dtype  = dtype,
+                        device = device
+                        )
             
     return L
 
@@ -254,7 +254,7 @@ def calculate_distance(
         chord_len = torch.linalg.norm(diff, dim=2)
 
         radius = 1.0  # Earth's radius in kilometers is 6371.0
-        dist = radius * 2 * torch.asin(torch.clamp(chord_len / 2, max=1.0))
+        dist = (radius * 2 * torch.asin(torch.clamp(chord_len / 2, max=1.0))).T
 
         return dist
     
@@ -420,16 +420,16 @@ def tps_spherical(
     lon1: torch.Tensor,
     lat2: torch.Tensor | None = None,
     lon2: torch.Tensor | None = None,
-    use_table: bool = False,
+    use_table: bool = True,
     dtype: torch.dtype = torch.float64,
     device: Union[torch.device, str] = "cpu"
 ) -> torch.Tensor:
     """
-    Compute thin-plate spline–like spherical kernel values between geographic coordinates.
+    Compute thin-plate spline-like spherical kernel values between geographic coordinates.
 
     This function evaluates a smooth radial basis function (RBF) kernel adapted 
     for points on a sphere, based on great-circle (geodesic) distances between 
-    two sets of latitude–longitude coordinates.
+    two sets of latitude-longitude coordinates.
 
     It unifies the behavior of the legacy spherical kernel functions (`Kf` and `K`)
     by supporting both elementwise and full kernel matrix computations.
@@ -519,10 +519,15 @@ def tps_spherical(
                                              )
 
     else:
-        x_base = torch.linspace(0.0 + 1e-10, 1.0 - 1e-10, num_steps, dtype=dtype, device=device)
-        x_vals = lower + (upper - lower).unsqueeze(0) * x_base.view(-1, 1, 1)
-        y_vals = torch.log1p(- x_vals) / x_vals
-        res_integral = torch.trapz(y_vals, x_base, dim=0)
+        try:
+            x_base = torch.linspace(0.0 + 1e-10, 1.0 - 1e-10, num_steps, dtype=dtype, device=device)
+            x_vals = lower + (upper - lower).unsqueeze(0) * x_base.view(-1, 1, 1)
+            y_vals = torch.log1p(- x_vals) / x_vals
+            res_integral = torch.trapz(y_vals, x_base, dim=0)
+        except RuntimeError as e:
+            error_msg = f'Integration failed on TPS method "spherical" due to {e}'
+            LOGGER.error(error_msg)
+            raise RuntimeError(e)
 
     res = 1.0 - pi ** 2 / 6.0 - res_integral
     res[mask] = 1.0 - pi ** 2 / 6.0
@@ -554,7 +559,7 @@ class MRTS(nn.Module):
     def __init__(
         self,
         logger_level: int | str= 20,
-        dtype: torch.dtype=torch.float64,
+        dtype: torch.dtype | None=None,
         device: Optional[Union[torch.device, str]]=None
     ):
         """
@@ -571,8 +576,8 @@ class MRTS(nn.Module):
             - `logging.WARNING` or 30     : Warning messages, indicate potential issues
             - `logging.ERROR`  or 40       : Error messages, something went wrong
             - `logging.CRITICAL` or 50    : Severe errors, program may not continue
-        dtype : torch.dtype, optional
-            Tensor data type for computation. Default is torch.float64.
+        dtype : torch.dtype or None, optional
+            Tensor data type for computation. Default is None (auto detected).
         device : torch.device or str, optional
             Target device for computation ("cpu" or "cuda"). Default is "cpu".
             
@@ -591,7 +596,7 @@ class MRTS(nn.Module):
         self.device = device
 
         # dtype check
-        if not isinstance(dtype, torch.dtype):
+        if dtype is not None and not isinstance(dtype, torch.dtype):
             error_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}"
             LOGGER.error(error_msg)
             raise TypeError(error_msg)
@@ -604,7 +609,7 @@ class MRTS(nn.Module):
         x: torch.Tensor=None,
         maxknot: int=5000,
         tps_method: str | int="rectangular",
-        dtype: torch.dtype=torch.float64,
+        dtype: torch.dtype | None=None,
         device: Optional[Union[torch.device, str]]=None
     ) -> Dict[str, torch.Tensor]:
         """
@@ -632,8 +637,8 @@ class MRTS(nn.Module):
                 - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
                 - "spherical" (or 1): Compute TPS directly in spherical coordinates.
                 - "spherical_fast" (or 2): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
-        dtype : torch.dtype, optional
-            Tensor data type for computation. Default is torch.float64.
+        dtype : torch.dtype or None, optional
+            Tensor data type for computation. Default is None (auto detected).
         device : torch.device or str, optional
             Device for computation ("cpu" or "cuda"). Default is "cpu".
 
@@ -666,15 +671,21 @@ class MRTS(nn.Module):
                                   )
             self.device = device
 
-        # check dtype
+        # dtype check
         if dtype is None:
-            dtype = self.dtype
+            if self.dtype is not None:
+                dtype = self.dtype
+            elif isinstance(knot, torch.Tensor):
+                dtype = knot.dtype
+            else:
+                warn_msg = f"Parameter \"dtype\" was not set, Please input a `torch.dtype` instance or a Tensor with dtype. Use default `torch.float64`."
+                LOGGER.warning(warn_msg)
+                dtype = torch.float64
         elif not isinstance(dtype, torch.dtype):
-            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            warn_msg = f"Invalid dtype: expected a `torch.dtype` instance, got `{type(dtype).__name__}`, use default `torch.float64`."
             LOGGER.warning(warn_msg)
-            dtype = self.dtype
-        else:
-            self.dtype = dtype
+            dtype = torch.float64
+        self.dtype = dtype
 
         # convert all major parameters
         xobs = to_tensor(obj   = knot,
@@ -691,19 +702,15 @@ class MRTS(nn.Module):
             tps_method = int(tps_method)
         if tps_method == 0 or tps_method == "rectangular":
             tps_method = "rectangular"
-            if use_logger:
-                LOGGER.info(f'Calculate TPS with rectangular.')
         elif tps_method == 1 or tps_method == "spherical":
             tps_method = "spherical"
-            if use_logger:
-                LOGGER.info(f'Calculate TPS with spherical.')
         elif tps_method == 2 or tps_method == "spherical_fast":
             tps_method = "spherical_fast"
-            if use_logger:
-                LOGGER.info(f'Calculate TPS with spherical_fast.')
         else:
             warn_msg = f'Invalid tps_method "{tps_method}", it should be one of "rectangular", "spherical_fast", or "spherical", using default "rectangular" method instead.'
             LOGGER.warning(warn_msg)
+        if use_logger:
+                LOGGER.info(f'Calculate TPS with {tps_method}.')
         if tps_method == "spherical" and (xobs.ndim != 2 or xobs.shape[1] != 2):
             warn_msg = f'TPS method "spherical" requires the input locations "knot" to be a 2D matrix with shape (N, 2), but got shape {tuple(xobs.shape)}. Using default tps mothod "rectangular" instead.'
             LOGGER.warning(warn_msg)
@@ -855,11 +862,11 @@ class MRTS(nn.Module):
 
     def predict(
         self,
-        obj: Dict[str, torch.Tensor]=None,
+        obj: Dict[str, torch.Tensor] = None,
         newx: Union[torch.Tensor, None] = None,
         tps_method: str | int | None = None,
-        dtype: torch.dtype=torch.float64,
-        device: Optional[Union[torch.device, str]]=None
+        dtype: torch.dtype | None = None,
+        device: Optional[Union[torch.device, str]] = None
     ) -> torch.Tensor:
         """
         Predict outputs using a trained MRTS (Multi-Resolution Thin-Plate Spline) model.
@@ -881,8 +888,8 @@ class MRTS(nn.Module):
                 - "rectangular" (or 0): Compute TPS in Euclidean (rectangular) coordinates.
                 - "spherical" (or 1): Compute TPS directly in spherical coordinates.
                 - "spherical_fast" (or 2): Use spherical coordinates but apply the rectangular TPS formulation for faster computation.
-        dtype : torch.dtype, default=torch.float64
-            The data type for computations. If different from the object's dtype, tensors will be converted.
+        dtype : torch.dtype or None
+            The data type for computations. If different from the object's dtype, tensors will be converted. Default is None (auto detected).
         device : torch.device or str, optional
             The device on which computations will be performed (CPU or GPU). 
             If None, will use the device stored in `obj` or `self.device`.
@@ -937,18 +944,20 @@ class MRTS(nn.Module):
         # check dtype
         obj['dtype'] = obj.get('dtype', None)
         if dtype is None:
-            if obj['dtype'] is not None:
+            if obj['dtype'] is not None and isinstance(obj['dtype'], torch.dtype):
                 dtype = obj['dtype']
-            else:
+            elif self.dtype is not None and isinstance(self.dtype, torch.dtype):
                 dtype = self.dtype
-        elif dtype == obj['dtype']:
-            dtype = obj['dtype']
-        elif dtype == self.dtype:
-            dtype = self.dtype
+            else:
+                warn_msg = f"Parameter \"dtype\" was not set, Please input a `torch.dtype` instance or a Tensor with dtype. Use default `torch.float64`."
+                LOGGER.warning(warn_msg)
+                dtype = torch.float64
+        elif dtype == obj['dtype'] or dtype == self.dtype:
+            pass
         elif not isinstance(dtype, torch.dtype):
-            warn_msg = f"Invalid dtype: expected a torch.dtype instance, got {type(dtype).__name__}, use default {self.dtype}"
+            warn_msg = f"Invalid dtype: expected a `torch.dtype` instance, got `{type(dtype).__name__}`, use default `torch.float64`."
             LOGGER.warning(warn_msg)
-            dtype = obj['dtype']
+            dtype = torch.float64
         else:
             change_tensor = True
         self.dtype = dtype
@@ -989,7 +998,7 @@ class MRTS(nn.Module):
             ValueError(error_msg)
         self.tps_method = tps_method
 
-        from autoFRK.utils.predictor import predict_MRTS
+        from .utils.predictor import predict_MRTS
         return predict_MRTS(obj         = obj,
                             newx        = newx,
                             tps_method  = self.tps_method,

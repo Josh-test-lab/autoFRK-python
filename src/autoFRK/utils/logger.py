@@ -1,7 +1,7 @@
 """
 Title: Setup Logger of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141019
+Version: 1141026
 Description: Check and setup logger for autoFRK-Python Project.
 Reference: References from the SSSDS4 model by Wen-Ting Wang from https://github.com/egpivo/SSSD_CP/
 """
@@ -81,7 +81,8 @@ def set_logger_level(
         raise TypeError("Logging level must be a str or int")
 
     logger.setLevel(numeric_level)
-
+    for handler in logger.handlers:
+        handler.setLevel(numeric_level)
 
 # setup logger
 LOGGER = setup_logger()

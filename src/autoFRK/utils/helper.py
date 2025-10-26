@@ -11,9 +11,9 @@ import torch
 import numpy as np
 from scipy.integrate import quad
 from typing import Callable, Dict, Union
-from autoFRK.utils.logger import LOGGER
-from autoFRK.utils.utils import to_tensor
-from autoFRK.utils.matrix_operator import getInverseSquareRootMatrix, invCz
+from ..utils.logger import LOGGER
+from ..utils.utils import to_tensor
+from ..utils.matrix_operator import getInverseSquareRootMatrix, invCz
 
 # convert dense tensor to sparse matrix, using in indeMLE
 # python 不需要，在 R 中僅作為節省記憶體的角色
@@ -295,7 +295,7 @@ def selectBasis(
         - **nconst** : normalization constants for each basis function
         - **BBBH** : (optional) projection matrix times Phi
     """
-    from autoFRK.utils.estimator import indeMLE, cMLE
+    from ..utils.estimator import indeMLE, cMLE
 
     not_all_nan = ~torch.isnan(data).all(dim=0)
     data = data[:, not_all_nan]
@@ -303,15 +303,15 @@ def selectBasis(
 
     na_rows = torch.isnan(data).all(dim=1)
     pick = torch.arange(data.shape[0], dtype=torch.int64, device=device)
-    if na_rows.any():
-        data = data[~na_rows]
-        loc = loc[~na_rows]
-        D = D[~na_rows][:, ~na_rows]
-        pick = pick[~na_rows]
-        is_data_with_missing_values = torch.isnan(data).any()
 
     if D is None:
         D = torch.eye(data.shape[0], dtype=dtype, device=device)
+
+    if na_rows.any():
+        data = data[~na_rows]
+        D = D[~na_rows][:, ~na_rows]
+        pick = pick[~na_rows]
+        is_data_with_missing_values = torch.isnan(data).any()
 
     d = loc.shape[1]
     N = len(pick)
@@ -353,7 +353,7 @@ def selectBasis(
             K = torch.linspace(d + 1, max_rank, 30, dtype=dtype, device=device).round().to(torch.int).unique()
 
     if Fk is None:
-        from autoFRK.mrts import MRTS
+        from ..mrts import MRTS
         mrts = MRTS(dtype   = dtype,
                     device  = device
                     )

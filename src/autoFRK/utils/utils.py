@@ -17,7 +17,7 @@ import platform
 import torch
 import pandas as pd
 from typing import Dict, Union, Any, List
-from autoFRK.utils.logger import LOGGER
+from ..utils.logger import LOGGER
 
 # convert input into torch.Tensor recursively, using in autoFRK-Python Project
 # check = ok

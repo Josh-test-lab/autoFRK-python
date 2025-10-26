@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: autoFRK
-Version: 1.2.0+beta.1
+Version: 1.2.0
 Summary: autoFRK: Automatic Fixed Rank Kriging. The Python version with PyTorch
 Author: ShengLi Tzeng, Hsin-Cheng Huang, Wen-Ting Wang, Yao-Chih Hsu
 Maintainer: Yao-Chih Hsu
@@ -157,9 +157,9 @@ print(pred.get('se'))            # Standard errors
 | `maxit`                    | Maximum number of iterations used in the `"EM"` imputation method.                                                                                                                   | `int`                   | 50              |
 | `tolerance`                | Precision tolerance for convergence check used in the `"EM"` imputation method.                                                                                                      | `float`                 | 1e-6            |
 | `requires_grad`            | If `True`, enables gradient computation for `data` tensor.                                                                                                                           | `bool`                  | `False`         |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                       | `bool`                  | `False`         |
+| `tps_method` | Specifies the method used to compute thin-plate splines (TPS).<br>Options:<br>&emsp;&emsp;`"rectangular"` (or `0`) - compute TPS in Euclidean coordinates;<br>&emsp;&emsp;`"spherical"` (or `1`) - compute TPS directly on spherical coordinates;<br>&emsp;&emsp;`"spherical_fast"` (or `2`) - use spherical coordinates but apply the rectangular TPS formulation for faster computation. | `str \| int` | `"rectangular"` |
 | `finescale`                | Logical; if `True`, an (approximate) stationary finer-scale process *η[t]* will be included based on the **LatticeKrig** package. Only the diagonals of `D` are used. (Not used yet) | `bool`                  | `FALSE`         |
-| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                               | `torch.dtype`           | `torch.float64` |
+| `dtype`                    | Data type used in computations (e.g.,`torch.float64`). `None` for automatic detection.                                                                                                                              | `torch.dtype \| None`           | `None` |
 | `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                           | `torch.device \| str`   | `None`          |
 
 `AutoFRK.predict()` supports various parameters:
@@ -168,12 +168,13 @@ print(pred.get('se'))            # Standard errors
 | `obj`       | A model object obtained from `AutoFRK`. If `None`, the model object produced by the `forward` method will be used.                                                                                      | `dict \| None`            | `None`          |
 | `obsData`   | A vector with observed data used for prediction. Default is `None`, which uses the `data` input from `obj`.                                                                                             | `torch.Tensor \| None`    | `None`          |
 | `obsloc`    | A matrix with rows being coordinates of observation locations for `obsData`. Only objects using `mrts` basis functions can have `obsloc` different from the `loc` input of `object`. Default is `None`. | `torch.Tensor \| None`    | `None`          |
-| `mu_obs`    | A vector or scalar for the deterministic mean values at `obsloc`.                                                                                                                                       | `float` \| `torch.Tensor` | 0               |
+| `mu_obs`    | A vector or scalar for the deterministic mean values at `obsloc`.                                                                                                                                       | `float \| torch.Tensor` | 0               |
 | `newloc`    | A matrix with rows being coordinates of new locations for prediction. Default is `None`, which gives prediction at the locations of the observed data.                                                  | `torch.Tensor \| None`    | `None`          |
 | `basis`     | A matrix with each column being a basis function taken values at `newloc`. Can be omitted if `object` was fitted using default `MRTS` basis functions.                                                  | `torch.Tensor \| None`    | `None`          |
-| `mu_new`    | A vector or scalar for the deterministic mean values at `newloc`.                                                                                                                                       | `float` \| `torch.Tensor` | 0               |
+| `mu_new`    | A vector or scalar for the deterministic mean values at `newloc`.                                                                                                                                       | `float \| torch.Tensor` | 0               |
 | `se_report` | Logical; if `True`, the standard error of prediction is reported.                                                                                                                                       | `bool`                    | `False`         |
-| `dtype`     | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                                                           | `torch.dtype`             | `torch.float64` |
+| `tps_method` | Specifies the method used to compute thin-plate splines (TPS).<br>Options:<br>&emsp;&emsp;`None` - auto detect by `forward` method;<br>&emsp;&emsp;`"rectangular"` (or `0`) - compute TPS in Euclidean coordinates;<br>&emsp;&emsp;`"spherical"` (or `1`) - compute TPS directly on spherical coordinates;<br>&emsp;&emsp;`"spherical_fast"` (or `2`) - use spherical coordinates but apply the rectangular TPS formulation for faster computation. | `str \| int \| None` | `"rectangular"` |
+| `dtype`     | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available.                                                                                           | `torch.dtype \| None`             | `None` |
 | `device`    | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available.                                  | `torch.device \| str`     | `None`          |
 
 - `MRTS`
@@ -185,8 +186,8 @@ print(pred.get('se'))            # Standard errors
 | `k`                        | The number (≤*m*) of basis functions.                                                                                                                                                    | `int`                  | `None`          |
 | `x`                        | *n* by *d* matrix of coordinates corresponding to *n* locations where the values of basis functions are to be evaluated. Default is `None`, which uses the *m* by *d* matrix in  `knot`. | `torch.Tensor \| None` | `None`          |
 | `maxknot`                  | Maximum number of knots to be used in generating basis functions. If `maxknot` <*m*, a deterministic subset selection of `knot`s will be used. To use all `knot`s, set `maxknot` ≥ *m*.  | `int`                  | 5000            |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates.                                                                                                           | `bool`                 | `False`         |
-| `dtype`                    | Data type used in computations (e.g.,`torch.float64`).                                                                                                                                   | `torch.dtype`          | `torch.float64` |
+| `tps_method` | Specifies the method used to compute thin-plate splines (TPS).<br>Options:<br>&emsp;&emsp;`"rectangular"` (or `0`) - compute TPS in Euclidean coordinates;<br>&emsp;&emsp;`"spherical"` (or `1`) - compute TPS directly on spherical coordinates;<br>&emsp;&emsp;`"spherical_fast"` (or `2`) - use spherical coordinates but apply the rectangular TPS formulation for faster computation. | `str \| int` | `"rectangular"` |
+| `dtype`                    | Data type used in computations (e.g.,`torch.float64`). `None` for automatic detection.                                                                                                                                  | `torch.dtype \| None`          | `None` |
 | `device`                   | Target computation device ("cpu", "cuda", "mps", etc.). If `None`, automatically selected.                                                                                               | `torch.device \| str`  | `None`          |
 
 `MRTS.predict()` supports various parameters:
@@ -194,8 +195,8 @@ print(pred.get('se'))            # Standard errors
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------- |
 | `obj`                      | A model object obtained from `MRTS`. If `None`, the model object produced by the `forward` method will be used.                                                        | `dict \| None`         | `None`          |
 | `newx`                     | *n* by *d* matrix of coordinates corresponding to *n* locations where prediction is desired.                                                                           | `torch.Tensor \| None` | `None`          |
-| `calculate_with_spherical` | If `True`, calculates thin-plate spline distances using spherical coordinates. The default `None` uses the method specified in `forward`.                              | `bool \| None`         | `None`          |
-| `dtype`                    | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                          | `torch.dtype`          | `torch.float64` |
+| `tps_method` | Specifies the method used to compute thin-plate splines (TPS).<br>Options:<br>&emsp;&emsp;`None` - auto detect by `forward` method;<br>&emsp;&emsp;`"rectangular"` (or `0`) - compute TPS in Euclidean coordinates;<br>&emsp;&emsp;`"spherical"` (or `1`) - compute TPS directly on spherical coordinates;<br>&emsp;&emsp;`"spherical_fast"` (or `2`) - use spherical coordinates but apply the rectangular TPS formulation for faster computation. | `str \| int \| None` | `"rectangular"` |
+| `dtype`                    | Data type used in computations (e.g., `torch.float64`). Defaults to the dtype of the model `obj` if available                                                          | `torch.dtype \| None`          | `None` |
 | `device`                   | Target device for computations (e.g., 'cpu', 'cuda', 'mps'). If `None`, it will be selected automatically, with the device of the model `obj` used first if available. | `torch.device \| str`  | `None`          |
 
 ## Example Code
@@ -233,20 +234,40 @@ print("Predicted values:", pred['pred.value'])
 import torch
 from autoFRK import MRTS
 
+# Generate fake data
+n_knots = 50   # number of knots
+d = 2          # dimensions (2D)
+knots = torch.rand(n_knots, d)  # knot locations
+n_eval = 10
+new_x = torch.rand(n_eval, d)
+
+# Initialize MRTS model
+model = MRTS(dtype=torch.float64, device="cpu")
+
+# Compute MRTS basis functions at knots
+res = model.forward(
+    knot=knots
+)
+
+print("MRTS basis values:\n", res['MRTS'])
+
+# Predict using MRTS (optional)
+pred = model.predict(newx=new_x)
+print("Predicted MRTS values:\n", pred['MRTS'])
 ```
 
 ## Authors
 
-- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en) — *Original Paper Author*
-- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang") — *Original Paper Author*
-- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang") — *R Package Author*
-- [Yao-Chih Hsu](https://github.com/Josh-test-lab/) — *Python Package Author*
+- [ShengLi Tzeng](https://math.nsysu.edu.tw/p/405-1183-189657,c959.php?Lang=en) - *Original Paper Author*
+- [Hsin-Cheng Huang](http://www.stat.sinica.edu.tw/hchuang/ "Hsin-Cheng Huang") - *Original Paper Author*
+- [Wen-Ting Wang](https://www.linkedin.com/in/wen-ting-wang-6083a17b "Wen-Ting Wang") - *R Package Author*
+- [Yao-Chih Hsu](https://github.com/Josh-test-lab/) - *Python Package Author*
 
 ## Contributors
 
-- [Hao-Yun Huang](https://scholar.google.com/citations?user=AaydI0gAAAAJ&hl=zh-TW) — *Spherical Coordinate Thin Plate Spline Provider*
-- [Yi-Xuan Xie](https://github.com/yixuan-dev) — *Python Package Tester*
-- [Xuan-Chun Wang](https://github.com/wangxc1117) — *Python Package Tester*
+- [Hao-Yun Huang](https://scholar.google.com/citations?user=AaydI0gAAAAJ&hl=zh-TW) - *Spherical Coordinate Thin Plate Spline Provider*
+- [Yi-Xuan Xie](https://github.com/yixuan-dev) - *Python Package Tester*
+- [Xuan-Chun Wang](https://github.com/wangxc1117) - *Python Package Tester*
 
 ## License
 
@@ -272,7 +293,7 @@ from autoFRK import MRTS
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.1.2, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.0, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -283,7 +304,7 @@ from autoFRK import MRTS
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.1.2},
+    note = {Python package version 1.2.0},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```
@@ -316,13 +337,15 @@ from autoFRK import MRTS
 
 ### v1.2.0
 2025-10-25
-- Improved TPS prediction method for spherical coordinates.
-- Removed `calculate_with_spherical` parameter and introduced `tps_method` parameter to select the TPS basis function generation method. Available options: `"rectangular"`, `"spherical_fast"`, `"spherical"`.
+- Improved TPS prediction for spherical coordinates.
+- Enhanced `dtype` handling. It now automatically uses the input tensor's `dtype`; if the input is not a tensor, it defaults to `torch.float64`.
+- Replaced the `calculate_with_spherical` parameter with `tps_method` to select the TPS basis function generation method (`"rectangular"`, `"spherical_fast"`, `"spherical"`).
 - Renamed several functions for clarity.
 - Removed dependencies on `faiss` and `scikit-learn`.
-- Added a validation check to ensure that `data` and `loc` have the same number of rows.
-- Moved `cleanup_memory()` from `.utils` to `garbage_cleaner()` in `.device` and enhanced garbage collection functionality.
-- Other bug fixes and minor improvements.
+- Added validation to ensure `data` and `loc` have the same number of rows.
+- Moved `cleanup_memory()` from `.utils` to `garbage_cleaner()` in `.device` and enhanced garbage collection.
+- Fixed an issue where the `LOGGER` level could not be set.
+- Other minor bug fixes and improvements.
 
 ### v1.1.1
 2025-10-23
@@ -357,7 +380,7 @@ from autoFRK import MRTS
 - [ ] Check all examples in README
 - [ ] Check all Arguments in README
 - [ ] Rewrite all discriptions in functions
-- [ ] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
+- [X] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
 - [ ] Move some `README` chapters to files
 
 ---

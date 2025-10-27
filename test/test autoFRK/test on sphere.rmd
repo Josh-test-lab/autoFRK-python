@@ -11,7 +11,17 @@ np <- import("numpy")
 ```
 
 ```{r}
-data_path <- "../../Weather2K/weather2k.npy"
+# Set working directory to the path of the current file
+# This requires the 'rstudioapi' package
+if (!require("rstudioapi")) {
+  install.packages("rstudioapi")
+}
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+getwd()
+```
+
+```{r}
+data_path <- "../../../Weather2K/weather2k.npy"
 data <- np$load(data_path) %>% py_to_r()
 
 data <- aperm(data, c(2, 1, 3))
@@ -21,7 +31,9 @@ dim(data)
 ```{r}
 lat_lon_alt <- t(data[1:3, , 1])
 data <- data[-(1:3), , ]
-lat_lon_alt %>% head() %>% print()
+lat_lon_alt %>%
+  head() %>%
+  print()
 ```
 
 ```{r}
@@ -42,7 +54,7 @@ params <- list(
 ```
 
 ```{r}
-start_time = Sys.time()
+start_time <- Sys.time()
 model_r <- autoFRK(
   data = params$data,
   loc = params$loc,
@@ -50,15 +62,15 @@ model_r <- autoFRK(
 )
 
 pred_r <- predict(model_r)
-end_time = Sys.time()
+end_time <- Sys.time()
 ```
 
 ```{r}
-mse = mean((pred_r$pred.value - real) ** 2)
-mspe = mean((pred_r$pred.value - real) ** 2 / real)
-paste0('MSE: ', mse) %>% print()
-paste0('MSPE: ', mspe) %>% print()
-paste0('Time spend: ', end_time - start_time) %>% print()
+mse <- mean((pred_r$pred.value - real)**2)
+mspe <- mean((pred_r$pred.value - real)**2 / real)
+paste0("MSE: ", mse) %>% print()
+paste0("MSPE: ", mspe) %>% print()
+paste0("Time spend: ", end_time - start_time) %>% print()
 ```
 [1] "MSE: 226492.074387879"
 [1] "MSPE: 236.610276899608"

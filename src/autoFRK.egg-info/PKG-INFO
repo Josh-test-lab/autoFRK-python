@@ -336,7 +336,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 ## Release Notes
 
 ### v1.2.0
-2025-10-25
+2025-10-26
 - Improved TPS prediction for spherical coordinates.
 - Enhanced `dtype` handling. It now automatically uses the input tensor's `dtype`; if the input is not a tensor, it defaults to `torch.float64`.
 - Replaced the `calculate_with_spherical` parameter with `tps_method` to select the TPS basis function generation method (`"rectangular"`, `"spherical_fast"`, `"spherical"`).

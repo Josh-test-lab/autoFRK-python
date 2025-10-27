@@ -18,7 +18,7 @@ from .utils.estimator import indeMLE
 from .utils.predictor import predict_FRK
 
 # class AutoFRK
-class AutoFRK():
+class AutoFRK(nn.Module):
     """
     Automatic Fixed Rank Kriging (autoFRK)
 

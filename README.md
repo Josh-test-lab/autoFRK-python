@@ -308,6 +308,11 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 
 ## Release Notes
 
+### v1.2.1
+2025-10-28
+- Fixed an issue where `AutoFRK` was missing `nn.Module` inheritance.
+- Added `torch.set_grad_enabled(mode=requires_grad)` inside `AutoFRK.forward()` to better control gradient tracking.
+
 ### v1.2.0
 2025-10-26
 - Improved TPS prediction for spherical coordinates.

@@ -253,17 +253,6 @@ class AutoFRK(nn.Module):
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
 
-        # requires_grad check
-        if requires_grad is True:
-            data.requires_grad_(requires_grad=True)
-            info_msg = f"Gradient tracking has been enabled for autoFRK."
-            LOGGER.info(info_msg)
-            # methods quited to use
-            #if method in ["fast_sklearn", "fast_faiss"]:
-            #    warn_msg = f' Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
-            #    LOGGER.warning(warn_msg)
-            #    method = "fast"
-
         # check tps_method
         if not isinstance(tps_method, str):
             tps_method = int(tps_method)
@@ -279,89 +268,102 @@ class AutoFRK(nn.Module):
         LOGGER.info(f'Calculate TPS with {tps_method}.')
         self.tps_method = tps_method
 
-        data = data - mu
-        Fk = {}
-        if G is not None:
-            Fk["MRTS"] = G
-        else:
-            Fk = selectBasis(data           = data, 
-                             loc            = loc,
-                             D              = D, 
-                             maxit          = maxit, 
-                             avgtol         = tolerance,
-                             max_rank       = maxK, 
-                             sequence_rank  = Kseq, 
-                             method         = method, 
-                             num_neighbors  = n_neighbor,
-                             max_knot       = maxknot, 
-                             DfromLK        = None,
-                             Fk             = None,
-                             tps_method     = tps_method,
-                             dtype          = dtype,
-                             device         = device
-                             )
-        
-        K = Fk["MRTS"].shape[1]
-        if method == "fast":
-            data = fast_mode_knn_torch(data       = data,
-                                       loc        = loc, 
-                                       n_neighbor = n_neighbor
-                                       )
-            
-        if not finescale:
-            obj = indeMLE(data      = data,
-                          Fk        = Fk["MRTS"][:, :K],
-                          D         = D,
-                          maxit     = maxit,
-                          avgtol    = tolerance,
-                          wSave     = True,
-                          DfromLK   = None,
-                          vfixed    = None,
-                          verbose   = True,
-                          dtype     = dtype,
-                          device    = device
-                          )
-            
-        else:
-            """
-            In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
-            This implementation is not provided in the current context.
-            """
-            error_msg = "The part about \"method == else\" in `AutoFRK.forward()` is Not provided yet!"
-            LOGGER.error(error_msg)
-            raise NotImplementedError(error_msg)
+        # requires_grad check
+        if requires_grad:
+            data.requires_grad_(requires_grad = True)
+            info_msg = f"Gradient tracking has been enabled for autoFRK."
+            LOGGER.info(info_msg)
+            # methods quited to use
+            #if method in ["fast_sklearn", "fast_faiss"]:
+            #    warn_msg = f' Gradient tracking can only suppose methods "fast" and "EM", now switch to "fast".'
+            #    LOGGER.warning(warn_msg)
+            #    method = "fast"
 
-            # all codes here only for testing
-            nu = 1
-            nlevel = 3
-            a_wght = None  # torch.Tensor or None
-            NC = 10
+        # run code by requires_grad
+        with torch.set_grad_enabled(mode = requires_grad):
+            data = data - mu
+            Fk = {}
+            if G is not None:
+                Fk["MRTS"] = G
+            else:
+                Fk = selectBasis(data           = data, 
+                                loc            = loc,
+                                D              = D, 
+                                maxit          = maxit, 
+                                avgtol         = tolerance,
+                                max_rank       = maxK, 
+                                sequence_rank  = Kseq, 
+                                method         = method, 
+                                num_neighbors  = n_neighbor,
+                                max_knot       = maxknot, 
+                                DfromLK        = None,
+                                Fk             = None,
+                                tps_method     = tps_method,
+                                dtype          = dtype,
+                                device         = device
+                                )
             
-            LK_obj = initializeLKnFRK(data=data,
-                                      location=loc,
-                                      nlevel=nlevel,
-                                      weights=1.0 / torch.diag(D),
-                                      n_neighbor=n_neighbor,
-                                      nu=nu
-                                      )
+            K = Fk["MRTS"].shape[1]
+            if method == "fast":
+                data = fast_mode_knn_torch(data       = data,
+                                        loc        = loc, 
+                                        n_neighbor = n_neighbor
+                                        )
+                
+            if not finescale:
+                obj = indeMLE(data      = data,
+                            Fk        = Fk["MRTS"][:, :K],
+                            D         = D,
+                            maxit     = maxit,
+                            avgtol    = tolerance,
+                            wSave     = True,
+                            DfromLK   = None,
+                            vfixed    = None,
+                            verbose   = True,
+                            dtype     = dtype,
+                            device    = device
+                            )
+                
+            else:
+                """
+                In the R package `autoFRK`, this functionality is implemented using the `LatticeKrig` package.
+                This implementation is not provided in the current context.
+                """
+                error_msg = "The part about \"method == else\" in `AutoFRK.forward()` is Not provided yet!"
+                LOGGER.error(error_msg)
+                raise NotImplementedError(error_msg)
+
+                # all codes here only for testing
+                nu = 1
+                nlevel = 3
+                a_wght = None  # torch.Tensor or None
+                NC = 10
+                
+                LK_obj = initializeLKnFRK(data=data,
+                                        location=loc,
+                                        nlevel=nlevel,
+                                        weights=1.0 / torch.diag(D),
+                                        n_neighbor=n_neighbor,
+                                        nu=nu
+                                        )
+                
+                DnLK = setLKnFRKOption(LK_obj,
+                                    Fk["MRTS"][:, :K],
+                                    nc=NC,
+                                    a_wght=a_wght
+                                    )
+                DfromLK = DnLK['DfromLK']
+                LKobj = DnLK['LKobj']
+                obj = indeMLE(data=data,
+                            Fk=Fk["MRTS"][:, :K],
+                            D=D,
+                            maxit=maxit,
+                            avgtol=tolerance,
+                            wSave=True,
+                            DfromLK=DfromLK,
+                            vfixed=DnLK.get('s', None)
+                            )
             
-            DnLK = setLKnFRKOption(LK_obj,
-                                   Fk["MRTS"][:, :K],
-                                   nc=NC,
-                                   a_wght=a_wght
-                                   )
-            DfromLK = DnLK['DfromLK']
-            LKobj = DnLK['LKobj']
-            obj = indeMLE(data=data,
-                          Fk=Fk["MRTS"][:, :K],
-                          D=D,
-                          maxit=maxit,
-                          avgtol=tolerance,
-                          wSave=True,
-                          DfromLK=DfromLK,
-                          vfixed=DnLK.get('s', None)
-                          )
-        
         obj['G'] = Fk
         obj['tps_method'] = self.tps_method
         

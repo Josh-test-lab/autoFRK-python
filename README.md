@@ -266,7 +266,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.0, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.1, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -277,7 +277,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.2.0},
+    note = {Python package version 1.2.1},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```

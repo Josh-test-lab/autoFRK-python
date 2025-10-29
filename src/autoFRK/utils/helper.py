@@ -623,7 +623,13 @@ def computeNegativeLikelihood(
         LOGGER.error(err_msg)
         raise ValueError(err_msg)
 
-    eigenvalues_JSJ, eigenvectors_JSJ = torch.linalg.eigh(matrix_JSJ)
+    try:
+        eigenvalues_JSJ, eigenvectors_JSJ = torch.linalg.eigh(matrix_JSJ)
+    except torch._C._LinAlgError:
+        LOGGER.warning("Ill-conditioned matrix detected, adding diagonal regularization (1e-10)")
+        matrix_JSJ_reg = matrix_JSJ + 1e-10 * torch.eye(matrix_JSJ.shape[0], device=matrix_JSJ.device, dtype=matrix_JSJ.dtype)
+        eigenvalues_JSJ, eigenvectors_JSJ = torch.linalg.eigh(matrix_JSJ_reg)
+
     idx = torch.argsort(eigenvalues_JSJ, descending=True)
     eigenvalues_JSJ = eigenvalues_JSJ[idx][:ncol_Fk]
     eigenvectors_JSJ = eigenvectors_JSJ[:, idx][:, :ncol_Fk]

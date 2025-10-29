@@ -12,6 +12,43 @@ from typing import Dict, Union, Tuple
 from scipy.sparse.linalg import eigsh
 from ..utils.utils import to_tensor
 
+# using in predict_FRK
+# check = none
+
+def to_sparse(
+    tensor: torch.Tensor
+) -> torch.Tensor:
+    """
+    Convert a dense tensor to sparse COO tensor if it is not already sparse.
+    Supports any shape and preserves requires_grad, dtype, and device.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor
+        Input dense or sparse tensor.
+
+    Returns
+    -------
+    torch.Tensor
+        Sparse COO tensor if input was dense, otherwise the original sparse tensor.
+    """
+    if tensor.is_sparse:
+        return tensor
+
+    indices = (tensor != 0).nonzero(as_tuple=True)
+    values = tensor[indices]
+    values.requires_grad = tensor.requires_grad
+
+    sparse_tensor = torch.sparse_coo_tensor(
+        indices=torch.stack(indices),
+        values=values,
+        size=tensor.shape,
+        dtype=tensor.dtype,
+        device=tensor.device
+    )
+
+    return sparse_tensor
+
 # using in selectBasis, computeProjectionMatrix
 # check = ok
 def getInverseSquareRootMatrix(

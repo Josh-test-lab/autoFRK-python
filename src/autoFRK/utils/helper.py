@@ -371,17 +371,17 @@ def selectBasis(
 
     if method == "EM" and DfromLK is None:
         for k in range(len(K)):
-            AIC_list[k] = indeMLE(data  = data,
-                                  Fk    = Fk["MRTS"][pick, :K[k]],
-                                  D     = D,
-                                  maxit = maxit,
-                                  avgtol= avgtol,
-                                  wSave = False,
-                                  DfromLK= None,
-                                  vfixed = None,
-                                  verbose= False,
-                                  dtype  = dtype,
-                                  device = device
+            AIC_list[k] = indeMLE(data      = data,
+                                  Fk        = Fk["MRTS"][pick, :K[k]],
+                                  D         = D,
+                                  maxit     = maxit,
+                                  avgtol    = avgtol,
+                                  wSave     = False,
+                                  DfromLK   = None,
+                                  vfixed    = None,
+                                  verbose   = False,
+                                  dtype     = dtype,
+                                  device    = device
                                   )["negloglik"]
 
     else:

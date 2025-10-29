@@ -12,7 +12,7 @@ from typing import Optional, Union, Dict, Tuple
 from ..utils.utils import to_tensor
 from ..utils.logger import LOGGER
 from ..utils.device import check_device
-from ..utils.matrix_operator import invCz, decomposeSymmetricMatrix
+from ..utils.matrix_operator import invCz, decomposeSymmetricMatrix, to_sparse
 from ..mrts import create_rectangular_tps_matrix, predict_rectangular_tps_matrix
 
 # predictor of autoFRK
@@ -135,19 +135,25 @@ def predict_FRK(
     if obsloc is None:
         nobs = obj["G"]["MRTS"].shape[0]
     else:
+        if obsloc.ndim == 1:
+            obsloc = obsData.reshape(-1, 1)
         nobs = to_tensor(obj    = obsloc.shape[0],  
                          dtype  = dtype,
                          device = device
                          )
 
     if obsData is not None:
+        if obsData.ndim == 1:
+            obsData = obsData.reshape(-1, 1)
         obsData -= mu_obs
-        if obsData.numel() != nobs:
+        if obsData.shape[0] != nobs:
             error_msg = f"Dimensions of obsloc and obsData are not compatible!"
             LOGGER.error(error_msg)
             raise ValueError(error_msg)
 
     if newloc is not None:
+        if newloc.ndim == 1:
+            newloc = newloc.reshape(-1, 1)
         if basis.shape[0] != newloc.shape[0]:
             error_msg = f"Dimensions of obsloc and obsData are not compatible!"
             LOGGER.error(error_msg)
@@ -188,11 +194,16 @@ def predict_FRK(
                         GM = G @ M
                         De = D0[mask][:, mask]
                         L = G @ eigenvectors @ torch.diag(torch.sqrt(torch.clamp(eigenvalues, min=0.0)))
-                        V = M - GM.T @ invCz(obj["s"] * De, L, GM)
+                        V = M - GM.T @ invCz(R      = obj["s"] * De,
+                                             L      = L,
+                                             z      = GM,
+                                             dtype  = dtype,
+                                             device = device
+                                             ).T
                         se[:, tt] = torch.sqrt(torch.clamp(torch.sum((basis @ V) * basis, dim=1), min=0.0))
 
         if obsData is not None:
-            pick = (~torch.isnan(obsData)).nonzero(asuple=True)[0].tolist()
+            pick = (~torch.isnan(obsData)).nonzero(as_tuple=True)[0].tolist()
             if obsloc is None:
                 De = pinfo["D"][pick][:, pick]
                 G = obj["G"]["MRTS"][pick]
@@ -214,7 +225,7 @@ def predict_FRK(
                                         z       = obsData[pick],
                                         dtype   = dtype,
                                         device  = device
-                                        )
+                                        ).T
 
             if se_report:
                 V = M - GM.T @ invCz(R      = obj["s"] * De,
@@ -222,7 +233,7 @@ def predict_FRK(
                                      z      = GM,
                                      dtype  = dtype,
                                      device = device
-                                     )
+                                     ).T
                 se = torch.sqrt(torch.clamp(torch.sum(basis @ V * basis, dim=1), min=0.0)).unsqueeze(1)
                 
     else:

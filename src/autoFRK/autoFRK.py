@@ -287,42 +287,42 @@ class AutoFRK(nn.Module):
                 Fk["MRTS"] = G
             else:
                 Fk = selectBasis(data           = data, 
-                                loc            = loc,
-                                D              = D, 
-                                maxit          = maxit, 
-                                avgtol         = tolerance,
-                                max_rank       = maxK, 
-                                sequence_rank  = Kseq, 
-                                method         = method, 
-                                num_neighbors  = n_neighbor,
-                                max_knot       = maxknot, 
-                                DfromLK        = None,
-                                Fk             = None,
-                                tps_method     = tps_method,
-                                dtype          = dtype,
-                                device         = device
-                                )
+                                 loc            = loc,
+                                 D              = D, 
+                                 maxit          = maxit, 
+                                 avgtol         = tolerance,
+                                 max_rank       = maxK, 
+                                 sequence_rank  = Kseq, 
+                                 method         = method, 
+                                 num_neighbors  = n_neighbor,
+                                 max_knot       = maxknot, 
+                                 DfromLK        = None,
+                                 Fk             = None,
+                                 tps_method     = tps_method,
+                                 dtype          = dtype,
+                                 device         = device
+                                 )
             
             K = Fk["MRTS"].shape[1]
             if method == "fast":
                 data = fast_mode_knn_torch(data       = data,
-                                        loc        = loc, 
-                                        n_neighbor = n_neighbor
-                                        )
+                                           loc        = loc, 
+                                           n_neighbor = n_neighbor
+                                           )
                 
             if not finescale:
                 obj = indeMLE(data      = data,
-                            Fk        = Fk["MRTS"][:, :K],
-                            D         = D,
-                            maxit     = maxit,
-                            avgtol    = tolerance,
-                            wSave     = True,
-                            DfromLK   = None,
-                            vfixed    = None,
-                            verbose   = True,
-                            dtype     = dtype,
-                            device    = device
-                            )
+                              Fk        = Fk["MRTS"][:, :K],
+                              D         = D,
+                              maxit     = maxit,
+                              avgtol    = tolerance,
+                              wSave     = True,
+                              DfromLK   = None,
+                              vfixed    = None,
+                              verbose   = True,
+                              dtype     = dtype,
+                              device    = device
+                              )
                 
             else:
                 """
@@ -340,29 +340,29 @@ class AutoFRK(nn.Module):
                 NC = 10
                 
                 LK_obj = initializeLKnFRK(data=data,
-                                        location=loc,
-                                        nlevel=nlevel,
-                                        weights=1.0 / torch.diag(D),
-                                        n_neighbor=n_neighbor,
-                                        nu=nu
-                                        )
+                                          location=loc,
+                                          nlevel=nlevel,
+                                          weights=1.0 / torch.diag(D),
+                                          n_neighbor=n_neighbor,
+                                          nu=nu
+                                          )
                 
                 DnLK = setLKnFRKOption(LK_obj,
-                                    Fk["MRTS"][:, :K],
-                                    nc=NC,
-                                    a_wght=a_wght
-                                    )
+                                       Fk["MRTS"][:, :K],
+                                       nc=NC,
+                                       a_wght=a_wght
+                                       )
                 DfromLK = DnLK['DfromLK']
                 LKobj = DnLK['LKobj']
                 obj = indeMLE(data=data,
-                            Fk=Fk["MRTS"][:, :K],
-                            D=D,
-                            maxit=maxit,
-                            avgtol=tolerance,
-                            wSave=True,
-                            DfromLK=DfromLK,
-                            vfixed=DnLK.get('s', None)
-                            )
+                              Fk=Fk["MRTS"][:, :K],
+                              D=D,
+                              maxit=maxit,
+                              avgtol=tolerance,
+                              wSave=True,
+                              DfromLK=DfromLK,
+                              vfixed=DnLK.get('s', None)
+                              )
             
         obj['G'] = Fk
         obj['tps_method'] = self.tps_method

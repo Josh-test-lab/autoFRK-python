@@ -171,9 +171,8 @@ def tps_rectangular(
     if d == 1:
         return dist ** 3 / 12
     elif d == 2:
-        ret = torch.zeros_like(dist, dtype=dtype, device=device)
-        mask = dist != 0
-        ret[mask] = dist[mask]**2 * torch.log(dist[mask]) / (8 * torch.pi)
+        dist = torch.where(dist == 0, torch.ones_like(dist, device=device), dist)
+        ret = (dist ** 2 * torch.log(dist)) / (8 * torch.pi)
         return ret
     elif d == 3:
         return - dist / 8

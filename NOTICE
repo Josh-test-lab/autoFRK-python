@@ -1,19 +1,19 @@
 This project depends on the following open-source packages:
 
 - NumPy (BSD 3-Clause License)
-  Copyright (c) 2005-2024, NumPy Developers.
+  Copyright (c) 2005-2025, NumPy Developers.
 
 - pandas (BSD 3-Clause License)
-  Copyright (c) 2008-2024, pandas development team.
+  Copyright (c) 2008-2025, pandas development team.
 
 - PyTorch (BSD-style License)
-  Copyright (c) 2016-2024, Meta Platforms, Inc. and affiliates.
+  Copyright (c) 2016-2025, Meta Platforms, Inc. and affiliates.
 
 - SciPy (BSD 3-Clause License)
-  Copyright (c) 2001-2024, SciPy Developers.
+  Copyright (c) 2001-2025, SciPy Developers.
 
 - colorlog (MIT License)
-  Copyright (c) 2011-2024, Sam Clements and contributors.
+  Copyright (c) 2011-2025, Sam Clements and contributors.
 
 Each dependency retains its own license. Copies of these licenses are
 included in their respective distributions and can be found at:

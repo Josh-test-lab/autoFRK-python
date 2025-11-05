@@ -266,7 +266,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.1, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.2, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -277,7 +277,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.2.1},
+    note = {Python package version 1.2.2},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```
@@ -307,6 +307,10 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 - Gradient tracking (using torch's `requires_grad_()`)
 
 ## Release Notes
+
+### v1.2.2
+2025-11-05
+- Fixed an issue where `AutoFRK.forward()` method missing attributes when parameter `G` is not `None`.
 
 ### v1.2.1
 2025-10-29

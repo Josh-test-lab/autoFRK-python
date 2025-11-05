@@ -102,21 +102,21 @@ class AutoFRK(nn.Module):
         self, 
         data: torch.Tensor, 
         loc: torch.Tensor,
-        mu: Union[float, torch.Tensor]=0.0, 
-        D: torch.Tensor=None, 
-        G: torch.Tensor=None,
-        maxK: int=None, 
-        Kseq: torch.Tensor=None, 
-        maxknot: int=5000,
-        method: str="fast", 
-        n_neighbor: int=3, 
-        maxit: int=50, 
-        tolerance: float=1e-6,
-        requires_grad: bool=False,
-        tps_method: str | int="rectangular",
-        finescale: bool=False, 
-        dtype: torch.dtype | None=None,
-        device: Optional[Union[torch.device, str]]=None
+        mu: Union[float, torch.Tensor] = 0.0, 
+        D: torch.Tensor | None = None, 
+        G: dict | None = None,
+        maxK: int | None = None, 
+        Kseq: torch.Tensor | None = None, 
+        maxknot: int = 5000,
+        method: str = "fast", 
+        n_neighbor: int = 3, 
+        maxit: int = 50, 
+        tolerance: float = 1e-6,
+        requires_grad: bool = False,
+        tps_method: str | int = "rectangular",
+        finescale: bool = False, 
+        dtype: torch.dtype | None = None,
+        device: Optional[Union[torch.device, str]] = None
     ) -> dict:
         """
         `autoFRK` forward method
@@ -134,8 +134,8 @@ class AutoFRK(nn.Module):
             Mean term (scalar or (n,) tensor). Default is 0.0.
         D : torch.Tensor, optional
             (n, n) covariance matrix of measurement errors. If None, identity is used.
-        G : torch.Tensor, optional
-            (n, K) matrix of basis functions evaluated at `loc`. If None, basis functions
+        G : dict, optional
+            A dict with ['Xu'] locations information, and ['MRTS'] (n, K) matrix of basis functions evaluated at `loc`. If None, basis functions
         maxK : int, optional
             Maximum number of basis functions to consider. Default is `10 * sqrt(n)` if n > 100, else n.
         Kseq : torch.Tensor, optional
@@ -284,7 +284,7 @@ class AutoFRK(nn.Module):
             data = data - mu
             Fk = {}
             if G is not None:
-                Fk["MRTS"] = G
+                Fk = G
             else:
                 Fk = selectBasis(data           = data, 
                                  loc            = loc,

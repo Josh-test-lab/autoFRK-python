@@ -7,6 +7,7 @@ Reference: `autoFRK` R package by Wen-Ting Wang from https://github.com/egpivo/a
 """
 
 # import modules
+import inspect
 import torch
 from typing import Optional, Dict, Union
 from ..utils.logger import LOGGER
@@ -389,7 +390,12 @@ def cMLEimat(
 
     L = L[:, reduced_columns]
 
-    invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s + v)
+    s_plus_v = s + v
+    if s_plus_v == 0.0:
+        LOGGER.debug(f"s + v == 0 detected at `estimator.py` line {inspect.currentframe().f_lineno}. Replacing with {eps}.")
+        s_plus_v = 1e-12
+    s_plus_v = to_tensor(s_plus_v, dtype=dtype, device=device)
+    invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s_plus_v)
     iDZ = invD[:, None] * data
 
     right = L @ (torch.linalg.pinv(torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
@@ -399,7 +405,7 @@ def cMLEimat(
 
     GM = Fk @ M
 
-    diag_matrix = (s + v) * torch.eye(nrow_Fk, dtype=dtype, device=device)
+    diag_matrix = (s_plus_v) * torch.eye(nrow_Fk, dtype=dtype, device=device)
 
     V = M - GM.T @ invCz(R      = diag_matrix,
                          L      = L, 

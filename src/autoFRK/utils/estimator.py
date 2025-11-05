@@ -392,8 +392,8 @@ def cMLEimat(
 
     s_plus_v = s + v
     if s_plus_v == 0.0:
-        LOGGER.debug(f"s + v == 0 detected at `estimator.py` line {inspect.currentframe().f_lineno}. Replacing with {eps}.")
         s_plus_v = 1e-12
+        LOGGER.debug(f"s + v == 0 detected at `estimator.py` line {inspect.currentframe().f_lineno}. Replacing with {s_plus_v}.")
     s_plus_v = to_tensor(s_plus_v, dtype=dtype, device=device)
     invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s_plus_v)
     iDZ = invD[:, None] * data

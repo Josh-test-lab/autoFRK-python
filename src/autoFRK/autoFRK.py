@@ -235,6 +235,7 @@ class AutoFRK(nn.Module):
             raise ValueError(error_msg)
         D = to_tensor(D, dtype=dtype, device=device) if D is not None else None
         G = to_tensor(G, dtype=dtype, device=device) if G is not None else None
+        maxK = to_tensor(maxK, dtype=dtype, device=device) if maxK is not None else None
         Kseq = to_tensor(Kseq, dtype=dtype, device=device) if Kseq is not None else None
 
         # convert data and locations

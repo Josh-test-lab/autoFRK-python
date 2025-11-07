@@ -170,7 +170,7 @@ def invCz(
     K = L.shape[1]
     iR = torch.linalg.pinv(R)
     iRZ = iR @ z
-    right = L @ torch.linalg.inv(torch.eye(K, dtype=dtype ,device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ) 
+    right = L @ torch.linalg.pinv(torch.eye(K, dtype=dtype, device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ)
     result = iRZ - iR @ right
 
     return result.T

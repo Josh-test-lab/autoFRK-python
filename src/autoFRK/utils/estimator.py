@@ -193,9 +193,8 @@ def indeMLE(
             D = D[~torch.isin(torch.arange(D.shape[0], dtype=dtype, device=device), del_rows)][:, ~torch.isin(torch.arange(D.shape[1], dtype=dtype, device=device), del_rows)]
         else:
             keep_mask = ~torch.isin(torch.arange(D.shape[0], dtype=torch.int64, device=device), del_rows)
-            full_diag = torch.zeros(D.shape[0], dtype=dtype, device=device)
-            full_diag[keep_mask] = torch.diagonal(D)[keep_mask]
-            D = torch.diag(full_diag)
+            diag_vals = torch.diagonal(D)[keep_mask]
+            D = torch.diag(diag_vals)
         withNA = torch.isnan(data).any().item()
 
     N = data.shape[0]

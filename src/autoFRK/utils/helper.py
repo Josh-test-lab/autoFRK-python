@@ -327,6 +327,11 @@ def selectBasis(
                        device   = device
                        )
 
+    if sequence_rank is not None and sequence_rank.numel() == 0:
+        warn_msg = "Parameter `sequence_rank` is empty, use default value instead."
+        LOGGER.warning(warn_msg)
+        sequence_rank = None
+
     if max_rank is not None:
         max_rank = torch.round(max_rank)
     else:

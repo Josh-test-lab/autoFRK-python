@@ -20,7 +20,7 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy>=1.23
 Requires-Dist: pandas>=1.6
-Requires-Dist: torch>=2.0
+Requires-Dist: torch>=2.1
 Requires-Dist: scipy>=1.10
 Requires-Dist: colorlog>=6.7
 Dynamic: license-file

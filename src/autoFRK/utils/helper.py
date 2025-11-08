@@ -314,13 +314,13 @@ def selectBasis(
         is_data_with_missing_values = torch.isnan(data).any()
 
     d = loc.shape[1]
-    N = len(pick)
-    klim = int(min(N, np.round(10 * np.sqrt(N))))
-    if N < max_knot:
+    N = to_tensor(pick.shape[0], dtype=dtype, device=device)
+    klim = torch.minimum(N, torch.round(10 * torch.sqrt(N))).to(torch.int64)
+    if N.item() < max_knot:
         knot = loc[pick, :]
     else:
         knot = subKnot(x        = loc[pick, :],
-                       nknot    = min(max_knot, klim),
+                       nknot    = torch.minimum(to_tensor(max_knot, dtype=torch.int64, device=device), klim).item(),
                        xrng     = None,
                        nsamp    = 1,
                        dtype    = dtype,
@@ -352,7 +352,7 @@ def selectBasis(
             LOGGER.warning(warn_msg)
         K = K[K > d]
     else:
-        step = max_rank ** (1/3) * d
+        step = cbrt(max_rank, dtype=dtype,device=device) * d
         K = torch.arange(d + 1, max_rank, step, dtype=dtype, device=device).round().to(torch.int).unique()
         if len(K) > 30:
             K = torch.linspace(d + 1, max_rank, 30, dtype=dtype, device=device).round().to(torch.int).unique()
@@ -1050,3 +1050,38 @@ def integral_interpolator(
     integral_upper = interp(upper)
     integral_lower = interp(lower)
     return integral_upper - integral_lower
+
+# using in selectBasis
+# check = ok
+def cbrt(
+    x: int | float | torch.Tensor,
+    dtype: torch.dtype | None = None,
+    device: Union[torch.device, str] = "cpu"
+) -> torch.Tensor:
+    """
+    Compute the cube root of a scalar or tensor, supporting negative values.
+
+    The function computes the cube root of the input using the formula
+    ``cbrt(x) = sign(x) * |x|^(1/3)``, which ensures correct results for
+    negative inputs. This is compatible with PyTorch's autograd and
+    compilation tools.
+
+    Parameters
+    ----------
+    x : int, float, or torch.Tensor
+        Input value(s) for which to compute the cube root.
+    dtype : torch.dtype, optional
+        Desired data type of the returned tensor. If None and `x` is a tensor,
+        the dtype of `x` is used.
+    device : torch.device or str, default "cpu"
+        Device on which the returned tensor will be allocated.
+
+    Returns
+    -------
+    torch.Tensor
+        Tensor of the same shape as `x`, containing the cube root values.
+    """
+    if isinstance(x, torch.Tensor) and dtype is None:
+        dtype = x.dtype
+    x = to_tensor(x, dtype=dtype, device=device)
+    return torch.sign(x) * torch.pow(torch.abs(x), 1/3)

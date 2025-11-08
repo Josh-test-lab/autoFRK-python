@@ -23,7 +23,7 @@ maintainers = [
 dependencies = [
   "numpy>=1.23",
   "pandas>=1.6",
-  "torch>=2.0",
+  "torch>=2.1",
   "scipy>=1.10",
   "colorlog>=6.7",
 ]

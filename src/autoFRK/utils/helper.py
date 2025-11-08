@@ -358,10 +358,9 @@ def selectBasis(
             K = torch.linspace(d + 1, max_rank, 30, dtype=dtype, device=device).round().to(torch.int).unique()
 
     if Fk is None:
-        from ..mrts import MRTS
-        mrts = MRTS(dtype   = dtype,
-                    device  = device
-                    )
+        mrts = build_mrts(dtype     = dtype,
+                          device    = device
+                          )
         Fk = mrts.forward(knot      = knot,
                           k         = max(K),
                           x         = loc,
@@ -1050,6 +1049,38 @@ def integral_interpolator(
     integral_upper = interp(upper)
     integral_lower = interp(lower)
     return integral_upper - integral_lower
+
+# using in selectBasis
+# check = none
+@torch._dynamo.disable
+def build_mrts(
+    dtype: torch.dtype = torch.float64,
+    device: Union[torch.device, str] = "cpu"
+) -> Dict[str, torch.Tensor]:
+    """
+    Initialize the MRTS model safely without TorchDynamo compilation.
+
+    This function disables TorchDynamo for the initialization step to avoid
+    errors related to guard creation or device-specific issues (e.g., XLA/TPU/MPS).
+    The model is created normally, and subsequent forward computations
+    can still be compiled and have gradients tracked.
+
+    Parameters
+    ----------
+    dtype : torch.dtype, optional
+        Data type of the output tensors. Default is `torch.float64`.
+    device : Union[torch.device, str], optional
+        Device on which to store the tensors. Default is `"cpu"`.
+
+    Returns
+    -------
+    MRTS
+        An instance of MRTS initialized with the specified dtype and device.
+    """
+    from ..mrts import MRTS
+    return MRTS(dtype   = dtype,
+                device  = device
+                )
 
 # using in selectBasis
 # check = ok

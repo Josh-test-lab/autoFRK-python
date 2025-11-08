@@ -14,6 +14,7 @@ from typing import Optional, Union, Any
 from ..utils.logger import LOGGER
 
 # setup device
+@torch._dynamo.disable
 def setup_device(
     device: Optional[Union[torch.device, str]]=None,
     logger: bool=True
@@ -79,7 +80,7 @@ def detect_device() -> torch.device:
         if importlib.util.find_spec("torch_xla") is not None:
             import torch_xla.core.xla_model as xm
             device = xm.xla_device()
-        return device
+            return device
     except ImportError:
         pass
 
@@ -89,6 +90,7 @@ def detect_device() -> torch.device:
     return device
 
 # check_device
+@torch._dynamo.disable
 def check_device(
     obj: Any,
     device: Union[torch.device, str]=None
@@ -150,6 +152,7 @@ def check_device(
 
     return detected_device
 
+@torch._dynamo.disable
 def garbage_cleaner() -> None:
     """
     Universal garbage cleaner for all supported PyTorch devices.

@@ -8,6 +8,7 @@ Reference: None
 
 # import modules
 import gc
+import importlib.util
 import torch
 from typing import Optional, Union, Any
 from ..utils.logger import LOGGER
@@ -75,8 +76,9 @@ def detect_device() -> torch.device:
 
     # TPU: via torch_xla
     try:
-        import torch_xla.core.xla_model as xm
-        device = xm.xla_device()
+        if importlib.util.find_spec("torch_xla") is not None:
+            import torch_xla.core.xla_model as xm
+            device = xm.xla_device()
         return device
     except ImportError:
         pass
@@ -160,20 +162,23 @@ def garbage_cleaner() -> None:
 
     # CUDA cleanup
     if torch.cuda.is_available():
+        torch.cuda.synchronize()
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
 
     # Apple Silicon (MPS) cleanup
     if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
         try:
+            torch.mps.synchronize()
             torch.mps.empty_cache()
         except Exception:
             pass
 
     # TPU cleanup (torch_xla)
     try:
-        import torch_xla.core.xla_model as xm
-        xm.mark_step()
-        xm.wait_device_ops()
+        if importlib.util.find_spec("torch_xla") is not None:
+            import torch_xla.core.xla_model as xm
+            xm.mark_step()
+            xm.wait_device_ops()
     except Exception:
         pass

@@ -7,10 +7,12 @@ Reference: References from the SSSDS4 model by Wen-Ting Wang from https://github
 """
 
 # import modules
+import torch
 import logging
 import colorlog
 
 # logger config
+@torch._dynamo.disable
 def setup_logger() -> logging.Logger:
     """
     Set up and return a logger with colored output.
@@ -53,6 +55,7 @@ def setup_logger() -> logging.Logger:
     return logger
 
 # set logger level
+@torch._dynamo.disable
 def set_logger_level(
     logger: logging.Logger,
     level: str | int

@@ -1,7 +1,7 @@
 """
 Title: Setup device of autoFRK-Python Project
 Author: Yao-Chih Hsu
-Version: 1141025
+Version: 1141109
 Description: This file is to set up and check the computation device for the autoFRK-Python project.
 Reference: None
 """
@@ -14,7 +14,6 @@ from typing import Optional, Union, Any
 from ..utils.logger import LOGGER
 
 # setup device
-@torch._dynamo.disable
 def setup_device(
     device: Optional[Union[torch.device, str]]=None,
     logger: bool=True
@@ -90,7 +89,6 @@ def detect_device() -> torch.device:
     return device
 
 # check_device
-@torch._dynamo.disable
 def check_device(
     obj: Any,
     device: Union[torch.device, str]=None
@@ -152,7 +150,6 @@ def check_device(
 
     return detected_device
 
-@torch._dynamo.disable
 def garbage_cleaner() -> None:
     """
     Universal garbage cleaner for all supported PyTorch devices.

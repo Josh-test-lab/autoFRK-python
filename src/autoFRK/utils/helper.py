@@ -204,7 +204,7 @@ def fast_mode_knn_torch(
         known_idx = (~mask).nonzero(as_tuple=True)[0]
         unknown_idx = mask.nonzero(as_tuple=True)[0]
 
-        if 0 < len(known_idx) < n_neighbor:
+        if 0 <= len(known_idx) < n_neighbor:
             err_msg = f'Column {tt} has too few known values to impute ({len(known_idx)} < {n_neighbor}).'
             LOGGER.warning(err_msg)
             raise ValueError(err_msg)

@@ -691,6 +691,10 @@ class MRTS(nn.Module):
                          dtype = dtype,
                          device= device
                          )
+        if xobs is None or xobs.numel() == 0:
+            error_msg = "`knot` is None or empty in MRTS.forward()."
+            LOGGER.error(error_msg)
+            raise ValueError(error_msg)
         x = to_tensor(obj   = x,
                       dtype = dtype,
                       device= device

@@ -309,7 +309,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 ## Release Notes
 
 ### v1.2.2
-2025-11-05
+2025-11-10
 - Fixed an issue where `AutoFRK.forward()` method missing attributes when parameter `G` is not `None`.
 - Other minor bug fixes and improvements.
 

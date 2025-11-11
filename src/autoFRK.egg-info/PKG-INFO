@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: autoFRK
-Version: 1.2.2
+Version: 1.2.3
 Summary: autoFRK: Automatic Fixed Rank Kriging. The Python version with PyTorch
 Author: ShengLi Tzeng, Hsin-Cheng Huang, Wen-Ting Wang, Yao-Chih Hsu
 Maintainer: Yao-Chih Hsu
@@ -334,6 +334,11 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 - Gradient tracking (using torch's `requires_grad_()`)
 
 ## Release Notes
+
+### v1.2.3
+2025-11-11
+- Replaced all usages of `torch.linalg.pinv()` with `torch.cholesky_inverse(torch.linalg.cholesky())` for improved numerical stability and performance.
+- Other minor bug fixes and improvements.
 
 ### v1.2.2
 2025-11-10

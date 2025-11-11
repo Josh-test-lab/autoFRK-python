@@ -407,7 +407,10 @@ def selectBasis(
             #                               n_neighbor   = num_neighbors
             #                               )
         if DfromLK is None:
-            iD = torch.linalg.solve(D, torch.eye(D.shape[0], dtype=dtype, device=device))
+            try:
+                iD = torch.cholesky_inverse(torch.linalg.cholesky(D))
+            except RuntimeError:
+                iD = torch.linalg.solve(D, torch.eye(D.shape[0], dtype=dtype, device=device))
             iDFk = iD @ Fk["MRTS"][pick, :]
             iDZ = iD @ data
         else:

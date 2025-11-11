@@ -487,7 +487,10 @@ def EM0miss(
     ziDB = torch.full((TT, ncol_Fk), float('nan'), device=device)
     db = {}
     D = Depsilon
-    iD = torch.linalg.inv(D)
+    try:
+        iD = torch.cholesky_inverse(torch.linalg.cholesky(D))
+    except RuntimeError:
+        iD = torch.linalg.inv(D)
     diagD = isDiagonal(D)
 
     if DfromLK is not None:
@@ -508,11 +511,19 @@ def EM0miss(
         if DfromLK is not None:
             iDt = None
             if obs_idx.sum() == O.shape[0]:
-                wXiG = wwX @ torch.linalg.inv(DfromLK["G"])
+                try:
+                    G_inv = torch.cholesky_inverse(torch.linalg.cholesky(DfromLK["G"]))
+                except RuntimeError:
+                    G_inv = torch.linalg.inv(DfromLK["G"])
+                wXiG = wwX @ G_inv
             else:
                 wX_obs = DfromLK["wX"][obs_idx, :]
                 G = wX_obs.T @ wX_obs + lQ
-                wXiG = wwX[obs_idx, :] @ torch.linalg.inv(G)
+                try:
+                    G_inv = torch.cholesky_inverse(torch.linalg.cholesky(G))
+                except RuntimeError:
+                    G_inv = torch.linalg.inv(G)
+                wXiG = wwX[obs_idx, :] @ G_inv
 
             Bt = Fk[obs_idx, :]
             if Bt.ndim == 1:
@@ -526,7 +537,11 @@ def EM0miss(
 
         else:
             if not diagD:
-                iDt = torch.linalg.inv(D[obs_idx][:, obs_idx])
+                D_tmp = D[obs_idx][:, obs_idx]
+                try:
+                    iDt = torch.cholesky_inverse(torch.linalg.cholesky(D_tmp))
+                except RuntimeError:
+                    iDt = torch.linalg.inv(D_tmp)
             else:
                 iDt = iD[obs_idx][:, obs_idx]
 
@@ -580,15 +595,22 @@ def EM0miss(
             iDBt = db[tt]["iDBt"]
             zt = db[tt]["zt"]
             BiDBt = db[tt]["BiDBt"]
-            ginv_Ptt1 = torch.linalg.pinv(convertToPositiveDefinite(mat     = Ptt1,
-                                                                    dtype   = dtype,
-                                                                    device  = device
-                                                                    ))
+            Ptt1_PD = convertToPositiveDefinite(mat     = Ptt1,
+                                                dtype   = dtype,
+                                                device  = device
+                                                )
+            try:
+                ginv_Ptt1 = torch.cholesky_inverse(torch.linalg.cholesky(Ptt1_PD))
+            except RuntimeError:
+                ginv_Ptt1 = torch.linalg.pinv(Ptt1_PD)
             iP = convertToPositiveDefinite(mat      = ginv_Ptt1 + BiDBt / old["s"],
                                            dtype    = dtype,
                                            device   = device
                                            )
-            Ptt = torch.linalg.inv(iP)  # will broken under some situation  # need fix
+            try:
+                Ptt = torch.cholesky_inverse(torch.linalg.cholesky(iP))
+            except RuntimeError:
+                Ptt = torch.linalg.pinv(iP)
             Gt = (Ptt @ iDBt.T) / old["s"]
             eta = Gt @ zt
             s1kk = torch.diagonal(BiDBt @ (eta.unsqueeze(1) @ eta.unsqueeze(0) + Ptt))
@@ -654,19 +676,31 @@ def EM0miss(
         for tt in range(TT):
             obs_idx = O[:, tt].bool()
             if torch.sum(obs_idx) == O.shape[0]:
-                wXiG = wwX @ torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], dtype=dtype, device=device))
+                try:
+                    G_inv = torch.cholesky_inverse(torch.linalg.cholesky(DfromLK["G"]))
+                except RuntimeError:
+                    G_inv = torch.linalg.solve(DfromLK["G"], torch.eye(DfromLK["G"].shape[0], dtype=dtype, device=device))
+                wXiG = wwX @ G_inv
             else:
                 wX_tt = DfromLK["wX"][obs_idx]
                 G = wX_tt.T @ wX_tt + lQ
-                wXiG = wwX[obs_idx] @ torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
+                try:
+                    G_inv = torch.cholesky_inverse(torch.linalg.cholesky(G))
+                except RuntimeError:
+                    G_inv = torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
+                wXiG = wwX[obs_idx] @ G_inv
 
             dat = data[obs_idx, tt]
             Lt = L[obs_idx]
             iDL = weight[obs_idx].unsqueeze(1) * Lt - wXiG @ (wwX[obs_idx].T @ Lt)
-            itmp = torch.linalg.solve(
-                torch.eye(L.shape[1], dtype=dtype, device=device) + (Lt.T @ iDL) / out["s"],
-                torch.eye(L.shape[1], dtype=dtype, device=device)
-            )
+            tmp = torch.eye(L.shape[1], dtype=dtype, device=device) + (Lt.T @ iDL) / out["s"]
+            try:
+                itmp = torch.cholesky_inverse(torch.linalg.cholesky(tmp))
+            except RuntimeError:
+                itmp = torch.linalg.solve(
+                    tmp,
+                    torch.eye(L.shape[1], dtype=dtype, device=device)
+                )
             iiLiD = itmp @ (iDL.T / out["s"])
             wlk[:, tt] = (wXiG.T @ dat - wXiG.T @ Lt @ (iiLiD @ dat)).squeeze()
 
@@ -733,7 +767,10 @@ def cMLEsp(
         - 'w' : Latent weights (if wSave=True).
         - 'V' : Covariance of latent weights (if wSave=True).
     """
-    iD = torch.linalg.inv(Depsilon)
+    try:
+        iD = torch.cholesky_inverse(torch.linalg.cholesky(Depsilon))
+    except RuntimeError:
+        iD = torch.linalg.inv(Depsilon)
     ldetD = logDeterminant(mat = Depsilon).item()
     iDFk = iD @ Fk
     num_columns = data.shape[1]
@@ -768,10 +805,15 @@ def cMLEsp(
         s_plus_v = out["s"] + out["v"]
         invD = iD / s_plus_v
         iDZ = invD @ data
-        right0 = L @ torch.linalg.solve(
-            torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD @ L),
-            torch.eye(L.shape[1], dtype=dtype, device=device)
-        )
+        tmp = torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD @ L)
+        try:
+            tmp_inv = torch.cholesky_inverse(torch.linalg.cholesky(tmp))
+        except RuntimeError:
+            tmp_inv = torch.linalg.solve(
+                tmp,
+                torch.eye(L.shape[1], dtype=dtype, device=device)
+            )
+        right0 = L @ tmp_inv
 
         INVtZ = iDZ - invD @ right0 @ (L.T @ iDZ)
         etatt = out["M"] @ Fk.T @ INVtZ
@@ -847,7 +889,11 @@ def cMLElk(
 
     G = wX.T @ wX + lambda_ * Q
     wwX = torch.diag(torch.sqrt(weight)) @ wX
-    wXiG = wwX @ torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
+    try:
+        G_inv = torch.cholesky_inverse(torch.linalg.cholesky(G))
+    except RuntimeError:
+        G_inv = torch.linalg.solve(G, torch.eye(G.shape[0], dtype=dtype, device=device))
+    wXiG = wwX @ G_inv
     iDFk = weight.unsqueeze(1) * Fk - wXiG @ wwX.T @ Fk
 
     projection = computeProjectionMatrix(Fk1    = Fk,
@@ -889,10 +935,14 @@ def cMLElk(
         return out
 
     iDL = weight.unsqueeze(1) * L - wXiG @ (wwX.T @ L)
-    itmp = torch.linalg.solve(
-        torch.eye(L.shape[1], dtype=dtype, device=device) + (L.T @ iDL) / out["s"],
-        torch.eye(L.shape[1], dtype=dtype, device=device),
-    )
+    tmp = torch.eye(L.shape[1], dtype=dtype, device=device) + (L.T @ iDL) / out["s"]
+    try:
+        itmp = torch.cholesky_inverse(torch.linalg.cholesky(tmp))
+    except RuntimeError:
+        itmp = torch.linalg.solve(
+            tmp,
+            torch.eye(L.shape[1], dtype=dtype, device=device),
+        )
     iiLiD = itmp @ (iDL.T / out["s"])
     MFiS11 = (out["M"] @ (iDFk.T / out["s"]) - ((out["M"] @ (iDFk.T / out["s"])) @ L) @ iiLiD)
     out["w"] = MFiS11 @ data

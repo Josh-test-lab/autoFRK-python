@@ -168,9 +168,17 @@ def invCz(
         z = z.unsqueeze(1)
 
     K = L.shape[1]
-    iR = torch.linalg.pinv(R)
+    try:
+        iR = torch.cholesky_inverse(torch.linalg.cholesky(R))
+    except RuntimeError:
+        iR = torch.linalg.pinv(R)
     iRZ = iR @ z
-    right = L @ torch.linalg.pinv(torch.eye(K, dtype=dtype, device=device) + (L.T @ iR @ L)) @ (L.T @ iRZ)
+    tmp = torch.eye(K, dtype=dtype, device=device) + (L.T @ iR @ L)
+    try:
+        tmp_inv = torch.cholesky_inverse(torch.linalg.cholesky(tmp))
+    except RuntimeError:
+        tmp_inv = torch.linalg.pinv(tmp)
+    right = L @ tmp_inv @ (L.T @ iRZ)
     result = iRZ - iR @ right
 
     return result.T
@@ -244,7 +252,7 @@ def convertToPositiveDefinite(
         min_eigenvalue = torch.min(eigenvalues).item()
 
     if min_eigenvalue <= 0:
-        adjustment = abs(min_eigenvalue) + 1e-6
+        adjustment = abs(min_eigenvalue) + 1e-10
         mat = mat + torch.eye(mat.shape[0], dtype=dtype, device=device) * adjustment
 
     return mat

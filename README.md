@@ -308,6 +308,11 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 
 ## Release Notes
 
+### v1.2.3
+2025-11-11
+- Replaced all usages of `torch.linalg.pinv()` with `torch.cholesky_inverse(torch.linalg.cholesky())` for improved numerical stability and performance.
+- Other minor bug fixes and improvements.
+
 ### v1.2.2
 2025-11-10
 - Fixed an issue where `AutoFRK.forward()` method missing attributes when parameter `G` is not `None`.

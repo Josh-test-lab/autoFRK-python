@@ -336,8 +336,9 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 ## Release Notes
 
 ### v1.2.3
-2025-11-11
+2025-11-13
 - Replaced all usages of `torch.linalg.pinv()` with `torch.cholesky_inverse(torch.linalg.cholesky())` for improved numerical stability and performance.
+- Fixed an issue that caused poor predictions when the dataset’s time index exceeded 2.
 - Other minor bug fixes and improvements.
 
 ### v1.2.2

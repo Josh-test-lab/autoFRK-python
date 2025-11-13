@@ -380,10 +380,10 @@ def cMLEimat(
     L = Fk @ ((torch.diag(torch.sqrt(d_hat)) @ P.T) @ inverse_square_root_matrix).T
 
     if ncol_Fk > 2:
-        reduced_columns = torch.cat([
+        reduced_columns = torch.unique(torch.cat([
             torch.tensor([0], dtype=torch.int64, device=device),
             (d_hat[1:(ncol_Fk - 1)] > 0).nonzero(as_tuple=True)[0]
-        ])
+        ]))
     else:
         reduced_columns = torch.tensor([ncol_Fk - 1], dtype=torch.int64, device=device)
 

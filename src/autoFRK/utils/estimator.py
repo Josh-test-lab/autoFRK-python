@@ -397,7 +397,12 @@ def cMLEimat(
     invD = torch.ones(nrow_Fk, dtype=dtype, device=device) / (s_plus_v)
     iDZ = invD[:, None] * data
 
-    right = L @ (torch.linalg.pinv(torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)) @ (L.T @ iDZ))
+    tmp = torch.eye(L.shape[1], dtype=dtype, device=device) + L.T @ (invD[:, None] * L)
+    try:
+        tmp_inv = torch.cholesky_inverse(torch.linalg.cholesky(tmp))
+    except RuntimeError:
+        tmp_inv = torch.linalg.pinv(tmp)
+    right = L @ (tmp_inv @ (L.T @ iDZ))
 
     INVtZ = iDZ - invD[:, None] * right
     etatt = M @ Fk.T @ INVtZ

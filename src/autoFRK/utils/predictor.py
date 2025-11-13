@@ -136,7 +136,7 @@ def predict_FRK(
         nobs = obj["G"]["MRTS"].shape[0]
     else:
         if obsloc.ndim == 1:
-            obsloc = obsData.reshape(-1, 1)
+            obsloc = obsloc.reshape(-1, 1)
         nobs = to_tensor(obj    = obsloc.shape[0],  
                          dtype  = dtype,
                          device = device

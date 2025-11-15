@@ -37,19 +37,30 @@ lat_lon_alt %>%
 ```
 
 ```{r}
-real <- data[1, , ]
+n = 100
+
+real <- data[1, 1:n, 1:30]
+missing = real
 
 prob_nan <- 0.3
-missing <- real
+set.seed(123)
 mask <- runif(length(real)) < prob_nan
 missing[mask] <- NaN
+
+loc = lat_lon_alt[1:n, 1:2]
+```
+
+```{r}
+real <- abind::abind(real, real, along = 2)   # 沿第2維(row)合併
+missing <- abind::abind(missing, missing, along = 2)
+loc <- rbind(loc)
 ```
 
 ```{r}
 params <- list(
   data = missing,
-  loc = lat_lon_alt[, 1:2],
-  method = "fast"
+  loc = loc,
+  method = "EM"
 )
 ```
 
@@ -72,7 +83,4 @@ paste0("MSE: ", mse) %>% print()
 paste0("MSPE: ", mspe) %>% print()
 paste0("Time spend: ", end_time - start_time) %>% print()
 ```
-[1] "MSE: 226492.074387879"
-[1] "MSPE: 236.610276899608"
-[1] "Time spend: 4.15673331816991"
 

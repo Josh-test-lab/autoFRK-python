@@ -1754,21 +1754,90 @@ display: none;
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR2xpY21GeWVTaGtjR3g1Y2lsY2JteHBZbkpoY25rb1lYVjBiMFpTU3lsY2JteHBZbkpoY25rb2NtVjBhV04xYkdGMFpTbGNibTV3SUR3dElHbHRjRzl5ZENoY0ltNTFiWEI1WENJcFhHNWdZR0FpZlE9PSAtLT5cblxuYGBgclxubGlicmFyeShkcGx5cilcbmxpYnJhcnkoYXV0b0ZSSylcbmxpYnJhcnkocmV0aWN1bGF0ZSlcbm5wIDwtIGltcG9ydChcIm51bXB5XCIpXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkcGx5cilcbmxpYnJhcnkoYXV0b0ZSSylcbmxpYnJhcnkocmV0aWN1bGF0ZSlcbm5wIDwtIGltcG9ydChcIm51bXB5XCIpXG5gYGAifQ== -->
-<pre class="r"><code>library(dplyr)
-library(autoFRK)
-library(reticulate)
-np &lt;- import(&quot;numpy&quot;)</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR2xpY21GeWVTaGtjR3g1Y2lsY2JtQmdZQ0o5IC0tPlxuXG5gYGByXG5saWJyYXJ5KGRwbHlyKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkcGx5cilcbmBgYCJ9 -->
+<pre class="r"><code>library(dplyr)</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6K2m5ZGK77yaIOWll+S7tiDigJhkcGx5cuKAmSDmmK/nlKggUiDniYjmnKwgNC40LjMg5L6G5bu66YCg55qEXG7ovInlhaXlpZfku7bvvJrigJhkcGx5cuKAmVxuXG7kuIvliJfnianku7booqvpga7mlrfoh6og4oCYcGFja2FnZTpzdGF0c+KAmTpcblxuICAgIGZpbHRlciwgbGFnXG5cbuS4i+WIl+eJqeS7tuiiq+mBruaWt+iHqiDigJhwYWNrYWdlOmJhc2XigJk6XG5cbiAgICBpbnRlcnNlY3QsIHNldGRpZmYsIHNldGVxdWFsLCB1bmlvblxuIn0= -->
+<pre><code>警告： 套件 ‘dplyr’ 是用 R 版本 4.4.3 來建造的
+載入套件：‘dplyr’
+
+下列物件被遮斷自 ‘package:stats’:
+
+    filter, lag
+
+下列物件被遮斷自 ‘package:base’:
+
+    intersect, setdiff, setequal, union</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR2xpY21GeWVTaGhkWFJ2UmxKTEtWeHVZR0JnSW4wPSAtLT5cblxuYGBgclxubGlicmFyeShhdXRvRlJLKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShhdXRvRlJLKVxuYGBgIn0= -->
+<pre class="r"><code>library(autoFRK)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6LyJ5YWl6ZyA6KaB55qE5aWX5Lu277yac3BhbVxuU3BhbSB2ZXJzaW9uIDIuMTEtMCAoMjAyNC0xMC0wMykgaXMgbG9hZGVkLlxuVHlwZSAnaGVscCggU3BhbSknIG9yICdkZW1vKCBzcGFtKScgZm9yIGEgc2hvcnQgaW50cm9kdWN0aW9uIFxuYW5kIG92ZXJ2aWV3IG9mIHRoaXMgcGFja2FnZS5cbkhlbHAgZm9yIGluZGl2aWR1YWwgZnVuY3Rpb25zIGlzIGFsc28gb2J0YWluZWQgYnkgYWRkaW5nIHRoZVxuc3VmZml4ICcuc3BhbScgdG8gdGhlIGZ1bmN0aW9uIG5hbWUsIGUuZy4gJ2hlbHAoIGNob2wuc3BhbSknLlxuXG7ovInlhaXlpZfku7bvvJrigJhzcGFt4oCZXG5cbuS4i+WIl+eJqeS7tuiiq+mBruaWt+iHqiDigJhwYWNrYWdlOmJhc2XigJk6XG5cbiAgICBiYWNrc29sdmUsIGZvcndhcmRzb2x2ZVxuIn0= -->
+<pre><code>載入需要的套件：spam
+Spam version 2.11-0 (2024-10-03) is loaded.
+Type &#39;help( Spam)&#39; or &#39;demo( spam)&#39; for a short introduction 
+and overview of this package.
+Help for individual functions is also obtained by adding the
+suffix &#39;.spam&#39; to the function name, e.g. &#39;help( chol.spam)&#39;.
+
+載入套件：‘spam’
+
+下列物件被遮斷自 ‘package:base’:
+
+    backsolve, forwardsolve</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR2xpY21GeWVTaHlaWFJwWTNWc1lYUmxLVnh1WUdCZ0luMD0gLS0+XG5cbmBgYHJcbmxpYnJhcnkocmV0aWN1bGF0ZSlcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyZXRpY3VsYXRlKVxuYGBgIn0= -->
+<pre class="r"><code>library(reticulate)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6K2m5ZGK77yaIOWll+S7tiDigJhyZXRpY3VsYXRl4oCZIOaYr+eUqCBSIOeJiOacrCA0LjQuMyDkvoblu7rpgKDnmoRcbiJ9 -->
+<pre><code>警告： 套件 ‘reticulate’ 是用 R 版本 4.4.3 來建造的</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVibkFnUEMwZ2FXMXdiM0owS0Z3aWJuVnRjSGxjSWlsY2JtQmdZQ0o5IC0tPlxuXG5gYGByXG5ucCA8LSBpbXBvcnQoXCJudW1weVwiKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubnAgPC0gaW1wb3J0KFwibnVtcHlcIilcbmBgYCJ9 -->
+<pre class="r"><code>np &lt;- import(&quot;numpy&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6K2m5ZGK77yaIOWft+ihjOS4reWRveS7pCAnXCJwb2V0cnlcIiBlbnYgaW5mbyAtLXBhdGgnIOW3suacieeLgOaFiyAxXG4ifQ== -->
+<pre><code>警告： 執行中命令 &#39;&quot;poetry&quot; env info --path&#39; 已有狀態 1</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVaR0YwWVY5d1lYUm9JRHd0SUZ3aUxpNHZMaTR2VjJWaGRHaGxjakpMTDNkbFlYUm9aWEl5YXk1dWNIbGNJbHh1WkdGMFlTQThMU0J1Y0NSc2IyRmtLR1JoZEdGZmNHRjBhQ2tnSlQ0bElIQjVYM1J2WDNJb0tWeHVYRzVrWVhSaElEd3RJR0Z3WlhKdEtHUmhkR0VzSUdNb01pd2dNU3dnTXlrcFhHNWthVzBvWkdGMFlTbGNibUJnWUNKOSAtLT5cblxuYGBgclxuZGF0YV9wYXRoIDwtIFwiLi4vLi4vV2VhdGhlcjJLL3dlYXRoZXIyay5ucHlcIlxuZGF0YSA8LSBucCRsb2FkKGRhdGFfcGF0aCkgJT4lIHB5X3RvX3IoKVxuXG5kYXRhIDwtIGFwZXJtKGRhdGEsIGMoMiwgMSwgMykpXG5kaW0oZGF0YSlcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YV9wYXRoIDwtIFwiLi4vLi4vV2VhdGhlcjJLL3dlYXRoZXIyay5ucHlcIlxuZGF0YSA8LSBucCRsb2FkKGRhdGFfcGF0aCkgJT4lIHB5X3RvX3IoKVxuXG5kYXRhIDwtIGFwZXJtKGRhdGEsIGMoMiwgMSwgMykpXG5kaW0oZGF0YSlcbmBgYCJ9 -->
-<pre class="r"><code>data_path &lt;- &quot;../../Weather2K/weather2k.npy&quot;
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVJeUJUWlhRZ2QyOXlhMmx1WnlCa2FYSmxZM1J2Y25rZ2RHOGdkR2hsSUhCaGRHZ2diMllnZEdobElHTjFjbkpsYm5RZ1ptbHNaVnh1SXlCVWFHbHpJSEpsY1hWcGNtVnpJSFJvWlNBbmNuTjBkV1JwYjJGd2FTY2djR0ZqYTJGblpWeHVhV1lnS0NGeVpYRjFhWEpsS0Z3aWNuTjBkV1JwYjJGd2FWd2lLU2tnZTF4dUlDQnBibk4wWVd4c0xuQmhZMnRoWjJWektGd2ljbk4wZFdScGIyRndhVndpS1Z4dWZWeHVZR0JnSW4wPSAtLT5cblxuYGBgclxuIyBTZXQgd29ya2luZyBkaXJlY3RvcnkgdG8gdGhlIHBhdGggb2YgdGhlIGN1cnJlbnQgZmlsZVxuIyBUaGlzIHJlcXVpcmVzIHRoZSAncnN0dWRpb2FwaScgcGFja2FnZVxuaWYgKCFyZXF1aXJlKFwicnN0dWRpb2FwaVwiKSkge1xuICBpbnN0YWxsLnBhY2thZ2VzKFwicnN0dWRpb2FwaVwiKVxufVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBTZXQgd29ya2luZyBkaXJlY3RvcnkgdG8gdGhlIHBhdGggb2YgdGhlIGN1cnJlbnQgZmlsZVxuIyBUaGlzIHJlcXVpcmVzIHRoZSAncnN0dWRpb2FwaScgcGFja2FnZVxuaWYgKCFyZXF1aXJlKFwicnN0dWRpb2FwaVwiKSkge1xuICBpbnN0YWxsLnBhY2thZ2VzKFwicnN0dWRpb2FwaVwiKVxufVxuYGBgIn0= -->
+<pre class="r"><code># Set working directory to the path of the current file
+# This requires the &#39;rstudioapi&#39; package
+if (!require(&quot;rstudioapi&quot;)) {
+  install.packages(&quot;rstudioapi&quot;)
+}</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6LyJ5YWl6ZyA6KaB55qE5aWX5Lu277yacnN0dWRpb2FwaVxuIn0= -->
+<pre><code>載入需要的套件：rstudioapi</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjMlYwZDJRb1pHbHlibUZ0WlNoeWMzUjFaR2x2WVhCcE9qcG5aWFJUYjNWeVkyVkZaR2wwYjNKRGIyNTBaWGgwS0Nra2NHRjBhQ2twWEc1blpYUjNaQ2dwWEc1Z1lHQWlmUT09IC0tPlxuXG5gYGByXG5zZXR3ZChkaXJuYW1lKHJzdHVkaW9hcGk6OmdldFNvdXJjZUVkaXRvckNvbnRleHQoKSRwYXRoKSlcbmdldHdkKClcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc2V0d2QoZGlybmFtZShyc3R1ZGlvYXBpOjpnZXRTb3VyY2VFZGl0b3JDb250ZXh0KCkkcGF0aCkpXG5nZXR3ZCgpXG5gYGAifQ== -->
+<pre class="r"><code>setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+getwd()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiQzovVXNlcnMvdXNlci9EZXNrdG9wL2dpdGh1Yi9hdXRvRlJLLXB5dGhvbi90ZXN0L3Rlc3QgYXV0b0ZSS1wiXG4ifQ== -->
+<pre><code>[1] &quot;C:/Users/user/Desktop/github/autoFRK-python/test/test autoFRK&quot;</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVaR0YwWVY5d1lYUm9JRHd0SUZ3aUxpNHZMaTR2TGk0dlYyVmhkR2hsY2pKTEwzZGxZWFJvWlhJeWF5NXVjSGxjSWx4dVpHRjBZU0E4TFNCdWNDUnNiMkZrS0dSaGRHRmZjR0YwYUNrZ0pUNGxJSEI1WDNSdlgzSW9LVnh1WEc1a1lYUmhJRHd0SUdGd1pYSnRLR1JoZEdFc0lHTW9NaXdnTVN3Z015a3BYRzVrYVcwb1pHRjBZU2xjYm1CZ1lDSjkgLS0+XG5cbmBgYHJcbmRhdGFfcGF0aCA8LSBcIi4uLy4uLy4uL1dlYXRoZXIySy93ZWF0aGVyMmsubnB5XCJcbmRhdGEgPC0gbnAkbG9hZChkYXRhX3BhdGgpICU+JSBweV90b19yKClcblxuZGF0YSA8LSBhcGVybShkYXRhLCBjKDIsIDEsIDMpKVxuZGltKGRhdGEpXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGF0YV9wYXRoIDwtIFwiLi4vLi4vLi4vV2VhdGhlcjJLL3dlYXRoZXIyay5ucHlcIlxuZGF0YSA8LSBucCRsb2FkKGRhdGFfcGF0aCkgJT4lIHB5X3RvX3IoKVxuXG5kYXRhIDwtIGFwZXJtKGRhdGEsIGMoMiwgMSwgMykpXG5kaW0oZGF0YSlcbmBgYCJ9 -->
+<pre class="r"><code>data_path &lt;- &quot;../../../Weather2K/weather2k.npy&quot;
 data &lt;- np$load(data_path) %&gt;% py_to_r()
 
 data &lt;- aperm(data, c(2, 1, 3))
@@ -1782,11 +1851,13 @@ dim(data)</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR0YwWDJ4dmJsOWhiSFFnUEMwZ2RDaGtZWFJoV3pFNk15d2dMQ0F4WFNsY2JtUmhkR0VnUEMwZ1pHRjBZVnN0S0RFNk15a3NJQ3dnWFZ4dWJHRjBYMnh2Ymw5aGJIUWdKVDRsSUdobFlXUW9LU0FsUGlVZ2NISnBiblFvS1Z4dVlHQmdJbjA9IC0tPlxuXG5gYGByXG5sYXRfbG9uX2FsdCA8LSB0KGRhdGFbMTozLCAsIDFdKVxuZGF0YSA8LSBkYXRhWy0oMTozKSwgLCBdXG5sYXRfbG9uX2FsdCAlPiUgaGVhZCgpICU+JSBwcmludCgpXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGF0X2xvbl9hbHQgPC0gdChkYXRhWzE6MywgLCAxXSlcbmRhdGEgPC0gZGF0YVstKDE6MyksICwgXVxubGF0X2xvbl9hbHQgJT4lIGhlYWQoKSAlPiUgcHJpbnQoKVxuYGBgIn0= -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViR0YwWDJ4dmJsOWhiSFFnUEMwZ2RDaGtZWFJoV3pFNk15d2dMQ0F4WFNsY2JtUmhkR0VnUEMwZ1pHRjBZVnN0S0RFNk15a3NJQ3dnWFZ4dWJHRjBYMnh2Ymw5aGJIUWdKVDRsWEc0Z0lHaGxZV1FvS1NBbFBpVmNiaUFnY0hKcGJuUW9LVnh1WUdCZ0luMD0gLS0+XG5cbmBgYHJcbmxhdF9sb25fYWx0IDwtIHQoZGF0YVsxOjMsICwgMV0pXG5kYXRhIDwtIGRhdGFbLSgxOjMpLCAsIF1cbmxhdF9sb25fYWx0ICU+JVxuICBoZWFkKCkgJT4lXG4gIHByaW50KClcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGF0X2xvbl9hbHQgPC0gdChkYXRhWzE6MywgLCAxXSlcbmRhdGEgPC0gZGF0YVstKDE6MyksICwgXVxubGF0X2xvbl9hbHQgJT4lXG4gIGhlYWQoKSAlPiVcbiAgcHJpbnQoKVxuYGBgIn0= -->
 <pre class="r"><code>lat_lon_alt &lt;- t(data[1:3, , 1])
 data &lt;- data[-(1:3), , ]
-lat_lon_alt %&gt;% head() %&gt;% print()</code></pre>
+lat_lon_alt %&gt;%
+  head() %&gt;%
+  print()</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
 <!-- rnb-output-begin eyJkYXRhIjoiICAgICAgWywxXSAgIFssMl0gIFssM11cblsxLF0gNTIuOTcgMTIyLjUxIDQzOS43XG5bMixdIDUzLjQ3IDEyMi4zOCAyOTcuM1xuWzMsXSA1Mi4zNSAxMjQuNzIgMzYzLjBcbls0LF0gNTIuMDQgMTIzLjU3IDUxNS40XG5bNSxdIDUxLjY3IDEyNC4zOSA1MDIuMlxuWzYsXSA1MS43MyAxMjYuNjQgMTc0LjhcbiJ9 -->
@@ -1802,26 +1873,42 @@ lat_lon_alt %&gt;% head() %&gt;% print()</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjbVZoYkNBOExTQmtZWFJoV3pFc0lDd2dYVnh1WEc1d2NtOWlYMjVoYmlBOExTQXdMak5jYm0xcGMzTnBibWNnUEMwZ2NtVmhiRnh1YldGemF5QThMU0J5ZFc1cFppaHNaVzVuZEdnb2NtVmhiQ2twSUR3Z2NISnZZbDl1WVc1Y2JtMXBjM05wYm1kYmJXRnphMTBnUEMwZ1RtRk9YRzVnWUdBaWZRPT0gLS0+XG5cbmBgYHJcbnJlYWwgPC0gZGF0YVsxLCAsIF1cblxucHJvYl9uYW4gPC0gMC4zXG5taXNzaW5nIDwtIHJlYWxcbm1hc2sgPC0gcnVuaWYobGVuZ3RoKHJlYWwpKSA8IHByb2JfbmFuXG5taXNzaW5nW21hc2tdIDwtIE5hTlxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucmVhbCA8LSBkYXRhWzEsICwgXVxuXG5wcm9iX25hbiA8LSAwLjNcbm1pc3NpbmcgPC0gcmVhbFxubWFzayA8LSBydW5pZihsZW5ndGgocmVhbCkpIDwgcHJvYl9uYW5cbm1pc3NpbmdbbWFza10gPC0gTmFOXG5gYGAifQ== -->
-<pre class="r"><code>real &lt;- data[1, , ]
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViaUE5SURFd01GeHVYRzV5WldGc0lEd3RJR1JoZEdGYk1Td2dNVHB1TENBeE9qTXdYVnh1YldsemMybHVaeUE5SUhKbFlXeGNibHh1Y0hKdllsOXVZVzRnUEMwZ01DNHpYRzV6WlhRdWMyVmxaQ2d4TWpNcFhHNXRZWE5ySUR3dElISjFibWxtS0d4bGJtZDBhQ2h5WldGc0tTa2dQQ0J3Y205aVgyNWhibHh1YldsemMybHVaMXR0WVhOclhTQThMU0JPWVU1Y2JseHViRzlqSUQwZ2JHRjBYMnh2Ymw5aGJIUmJNVHB1TENBeE9qSmRYRzVnWUdBaWZRPT0gLS0+XG5cbmBgYHJcbm4gPSAxMDBcblxucmVhbCA8LSBkYXRhWzEsIDE6biwgMTozMF1cbm1pc3NpbmcgPSByZWFsXG5cbnByb2JfbmFuIDwtIDAuM1xuc2V0LnNlZWQoMTIzKVxubWFzayA8LSBydW5pZihsZW5ndGgocmVhbCkpIDwgcHJvYl9uYW5cbm1pc3NpbmdbbWFza10gPC0gTmFOXG5cbmxvYyA9IGxhdF9sb25fYWx0WzE6biwgMToyXVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubiA9IDEwMFxuXG5yZWFsIDwtIGRhdGFbMSwgMTpuLCAxOjMwXVxubWlzc2luZyA9IHJlYWxcblxucHJvYl9uYW4gPC0gMC4zXG5zZXQuc2VlZCgxMjMpXG5tYXNrIDwtIHJ1bmlmKGxlbmd0aChyZWFsKSkgPCBwcm9iX25hblxubWlzc2luZ1ttYXNrXSA8LSBOYU5cblxubG9jID0gbGF0X2xvbl9hbHRbMTpuLCAxOjJdXG5gYGAifQ== -->
+<pre class="r"><code>n = 100
+
+real &lt;- data[1, 1:n, 1:30]
+missing = real
 
 prob_nan &lt;- 0.3
-missing &lt;- real
+set.seed(123)
 mask &lt;- runif(length(real)) &lt; prob_nan
-missing[mask] &lt;- NaN</code></pre>
+missing[mask] &lt;- NaN
+
+loc = lat_lon_alt[1:n, 1:2]</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z5WVcxeklEd3RJR3hwYzNRb1hHNGdJR1JoZEdFZ1BTQnRhWE56YVc1bkxGeHVJQ0JzYjJNZ1BTQnNZWFJmYkc5dVgyRnNkRnNzSURFNk1sMHNYRzRnSUcxbGRHaHZaQ0E5SUZ3aVptRnpkRndpWEc0cFhHNWdZR0FpZlE9PSAtLT5cblxuYGBgclxucGFyYW1zIDwtIGxpc3QoXG4gIGRhdGEgPSBtaXNzaW5nLFxuICBsb2MgPSBsYXRfbG9uX2FsdFssIDE6Ml0sXG4gIG1ldGhvZCA9IFwiZmFzdFwiXG4pXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFyYW1zIDwtIGxpc3QoXG4gIGRhdGEgPSBtaXNzaW5nLFxuICBsb2MgPSBsYXRfbG9uX2FsdFssIDE6Ml0sXG4gIG1ldGhvZCA9IFwiZmFzdFwiXG4pXG5gYGAifQ== -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjbVZoYkNBOExTQmhZbWx1WkRvNllXSnBibVFvY21WaGJDd2djbVZoYkN3Z1lXeHZibWNnUFNBeUtTQWdJQ01nNXJLLzU2eXNNdWUyclNoeWIzY3A1WkNJNUwyMVhHNXRhWE56YVc1bklEd3RJR0ZpYVc1a09qcGhZbWx1WkNodGFYTnphVzVuTENCdGFYTnphVzVuTENCaGJHOXVaeUE5SURJcFhHNXNiMk1nUEMwZ2NtSnBibVFvYkc5aktWeHVZR0JnSW4wPSAtLT5cblxuYGBgclxucmVhbCA8LSBhYmluZDo6YWJpbmQocmVhbCwgcmVhbCwgYWxvbmcgPSAyKSAgICMg5rK/56ysMue2rShyb3cp5ZCI5L21XG5taXNzaW5nIDwtIGFiaW5kOjphYmluZChtaXNzaW5nLCBtaXNzaW5nLCBhbG9uZyA9IDIpXG5sb2MgPC0gcmJpbmQobG9jKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucmVhbCA8LSBhYmluZDo6YWJpbmQocmVhbCwgcmVhbCwgYWxvbmcgPSAyKSAgICMg5rK/56ysMue2rShyb3cp5ZCI5L21XG5taXNzaW5nIDwtIGFiaW5kOjphYmluZChtaXNzaW5nLCBtaXNzaW5nLCBhbG9uZyA9IDIpXG5sb2MgPC0gcmJpbmQobG9jKVxuYGBgIn0= -->
+<pre class="r"><code>real &lt;- abind::abind(real, real, along = 2)   # 沿第2維(row)合併
+missing &lt;- abind::abind(missing, missing, along = 2)
+loc &lt;- rbind(loc)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z5WVcxeklEd3RJR3hwYzNRb1hHNGdJR1JoZEdFZ1BTQnRhWE56YVc1bkxGeHVJQ0JzYjJNZ1BTQnNiMk1zWEc0Z0lHMWxkR2h2WkNBOUlGd2lSVTFjSWx4dUtWeHVZR0JnSW4wPSAtLT5cblxuYGBgclxucGFyYW1zIDwtIGxpc3QoXG4gIGRhdGEgPSBtaXNzaW5nLFxuICBsb2MgPSBsb2MsXG4gIG1ldGhvZCA9IFwiRU1cIlxuKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFyYW1zIDwtIGxpc3QoXG4gIGRhdGEgPSBtaXNzaW5nLFxuICBsb2MgPSBsb2MsXG4gIG1ldGhvZCA9IFwiRU1cIlxuKVxuYGBgIn0= -->
 <pre class="r"><code>params &lt;- list(
   data = missing,
-  loc = lat_lon_alt[, 1:2],
-  method = &quot;fast&quot;
+  loc = loc,
+  method = &quot;EM&quot;
 )</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
@@ -1829,56 +1916,54 @@ missing[mask] &lt;- NaN</code></pre>
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjM1JoY25SZmRHbHRaU0E5SUZONWN5NTBhVzFsS0NsY2JtMXZaR1ZzWDNJZ1BDMGdZWFYwYjBaU1N5aGNiaUFnWkdGMFlTQTlJSEJoY21GdGN5UmtZWFJoTEZ4dUlDQnNiMk1nUFNCd1lYSmhiWE1rYkc5akxGeHVJQ0J0WlhSb2IyUWdQU0J3WVhKaGJYTWtiV1YwYUc5a1hHNHBYRzVjYm5CeVpXUmZjaUE4TFNCd2NtVmthV04wS0cxdlpHVnNYM0lwWEc1bGJtUmZkR2x0WlNBOUlGTjVjeTUwYVcxbEtDbGNibUJnWUNKOSAtLT5cblxuYGBgclxuc3RhcnRfdGltZSA9IFN5cy50aW1lKClcbm1vZGVsX3IgPC0gYXV0b0ZSSyhcbiAgZGF0YSA9IHBhcmFtcyRkYXRhLFxuICBsb2MgPSBwYXJhbXMkbG9jLFxuICBtZXRob2QgPSBwYXJhbXMkbWV0aG9kXG4pXG5cbnByZWRfciA8LSBwcmVkaWN0KG1vZGVsX3IpXG5lbmRfdGltZSA9IFN5cy50aW1lKClcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3RhcnRfdGltZSA9IFN5cy50aW1lKClcbm1vZGVsX3IgPC0gYXV0b0ZSSyhcbiAgZGF0YSA9IHBhcmFtcyRkYXRhLFxuICBsb2MgPSBwYXJhbXMkbG9jLFxuICBtZXRob2QgPSBwYXJhbXMkbWV0aG9kXG4pXG5cbnByZWRfciA8LSBwcmVkaWN0KG1vZGVsX3IpXG5lbmRfdGltZSA9IFN5cy50aW1lKClcbmBgYCJ9 -->
-<pre class="r"><code>start_time = Sys.time()
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjM1JoY25SZmRHbHRaU0E4TFNCVGVYTXVkR2x0WlNncFhHNXRiMlJsYkY5eUlEd3RJR0YxZEc5R1Vrc29YRzRnSUdSaGRHRWdQU0J3WVhKaGJYTWtaR0YwWVN4Y2JpQWdiRzlqSUQwZ2NHRnlZVzF6Skd4dll5eGNiaUFnYldWMGFHOWtJRDBnY0dGeVlXMXpKRzFsZEdodlpGeHVLVnh1WUdCZ0luMD0gLS0+XG5cbmBgYHJcbnN0YXJ0X3RpbWUgPC0gU3lzLnRpbWUoKVxubW9kZWxfciA8LSBhdXRvRlJLKFxuICBkYXRhID0gcGFyYW1zJGRhdGEsXG4gIGxvYyA9IHBhcmFtcyRsb2MsXG4gIG1ldGhvZCA9IHBhcmFtcyRtZXRob2RcbilcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3RhcnRfdGltZSA8LSBTeXMudGltZSgpXG5tb2RlbF9yIDwtIGF1dG9GUksoXG4gIGRhdGEgPSBwYXJhbXMkZGF0YSxcbiAgbG9jID0gcGFyYW1zJGxvYyxcbiAgbWV0aG9kID0gcGFyYW1zJG1ldGhvZFxuKVxuYGBgIn0= -->
+<pre class="r"><code>start_time &lt;- Sys.time()
 model_r &lt;- autoFRK(
   data = params$data,
   loc = params$loc,
   method = params$method
-)
-
-pred_r &lt;- predict(model_r)
-end_time = Sys.time()</code></pre>
+)</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoi6Yyv6Kqk55m855Sf5ZyoIHNvbHZlLmRlZmF1bHQoaVAp77yaIOezu+e1seioiOeul+S4iuaYr+Wlh+eVsOeahDog5LqS5Y+N5qKd5Lu25pW4ID0gMy42MjYxM2UtMThcbiJ9 -->
+<pre><code>錯誤發生在 solve.default(iP)： 系統計算上是奇異的: 互反條件數 = 3.62613e-18</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViWE5sSUQwZ2JXVmhiaWdvY0hKbFpGOXlKSEJ5WldRdWRtRnNkV1VnTFNCeVpXRnNLU0FxS2lBeUtWeHViWE53WlNBOUlHMWxZVzRvS0hCeVpXUmZjaVJ3Y21Wa0xuWmhiSFZsSUMwZ2NtVmhiQ2tnS2lvZ01pQXZJSEpsWVd3cFhHNXdZWE4wWlRBb0owMVRSVG9nSnl3Z2JYTmxLU0FsUGlVZ2NISnBiblFvS1Z4dVlHQmdJbjA9IC0tPlxuXG5gYGByXG5tc2UgPSBtZWFuKChwcmVkX3IkcHJlZC52YWx1ZSAtIHJlYWwpICoqIDIpXG5tc3BlID0gbWVhbigocHJlZF9yJHByZWQudmFsdWUgLSByZWFsKSAqKiAyIC8gcmVhbClcbnBhc3RlMCgnTVNFOiAnLCBtc2UpICU+JSBwcmludCgpXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubXNlID0gbWVhbigocHJlZF9yJHByZWQudmFsdWUgLSByZWFsKSAqKiAyKVxubXNwZSA9IG1lYW4oKHByZWRfciRwcmVkLnZhbHVlIC0gcmVhbCkgKiogMiAvIHJlYWwpXG5wYXN0ZTAoJ01TRTogJywgbXNlKSAlPiUgcHJpbnQoKVxuYGBgIn0= -->
-<pre class="r"><code>mse = mean((pred_r$pred.value - real) ** 2)
-mspe = mean((pred_r$pred.value - real) ** 2 / real)
-paste0(&#39;MSE: &#39;, mse) %&gt;% print()</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHViWE5sSUR3dElHMWxZVzRvS0hCeVpXUmZjaVJ3Y21Wa0xuWmhiSFZsSUMwZ2NtVmhiQ2txS2pJcFhHNXRjM0JsSUR3dElHMWxZVzRvS0hCeVpXUmZjaVJ3Y21Wa0xuWmhiSFZsSUMwZ2NtVmhiQ2txS2pJZ0x5QnlaV0ZzS1Z4dWNHRnpkR1V3S0Z3aVRWTkZPaUJjSWl3Z2JYTmxLU0FsUGlVZ2NISnBiblFvS1Z4dVlHQmdJbjA9IC0tPlxuXG5gYGByXG5tc2UgPC0gbWVhbigocHJlZF9yJHByZWQudmFsdWUgLSByZWFsKSoqMilcbm1zcGUgPC0gbWVhbigocHJlZF9yJHByZWQudmFsdWUgLSByZWFsKSoqMiAvIHJlYWwpXG5wYXN0ZTAoXCJNU0U6IFwiLCBtc2UpICU+JSBwcmludCgpXG5gYGBcblxuPCEtLSBybmItc291cmNlLWVuZCAtLT5cbiJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubXNlIDwtIG1lYW4oKHByZWRfciRwcmVkLnZhbHVlIC0gcmVhbCkqKjIpXG5tc3BlIDwtIG1lYW4oKHByZWRfciRwcmVkLnZhbHVlIC0gcmVhbCkqKjIgLyByZWFsKVxucGFzdGUwKFwiTVNFOiBcIiwgbXNlKSAlPiUgcHJpbnQoKVxuYGBgIn0= -->
+<pre class="r"><code>mse &lt;- mean((pred_r$pred.value - real)**2)
+mspe &lt;- mean((pred_r$pred.value - real)**2 / real)
+paste0(&quot;MSE: &quot;, mse) %&gt;% print()</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiTVNFOiAyMjY0OTIuMDc0Mzg3ODc5XCJcbiJ9 -->
-<pre><code>[1] &quot;MSE: 226492.074387879&quot;</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiTVNFOiAwLjQzODc4MDcyNzc0NTgyNlwiXG4ifQ== -->
+<pre><code>[1] &quot;MSE: 0.438780727745826&quot;</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z6ZEdVd0tDZE5VMUJGT2lBbkxDQnRjM0JsS1NBbFBpVWdjSEpwYm5Rb0tWeHVZR0JnSW4wPSAtLT5cblxuYGBgclxucGFzdGUwKCdNU1BFOiAnLCBtc3BlKSAlPiUgcHJpbnQoKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFzdGUwKCdNU1BFOiAnLCBtc3BlKSAlPiUgcHJpbnQoKVxuYGBgIn0= -->
-<pre class="r"><code>paste0(&#39;MSPE: &#39;, mspe) %&gt;% print()</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z6ZEdVd0tGd2lUVk5RUlRvZ1hDSXNJRzF6Y0dVcElDVStKU0J3Y21sdWRDZ3BYRzVnWUdBaWZRPT0gLS0+XG5cbmBgYHJcbnBhc3RlMChcIk1TUEU6IFwiLCBtc3BlKSAlPiUgcHJpbnQoKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFzdGUwKFwiTVNQRTogXCIsIG1zcGUpICU+JSBwcmludCgpXG5gYGAifQ== -->
+<pre class="r"><code>paste0(&quot;MSPE: &quot;, mspe) %&gt;% print()</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiTVNQRTogMjM2LjYxMDI3Njg5OTYwOFwiXG4ifQ== -->
-<pre><code>[1] &quot;MSPE: 236.610276899608&quot;</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiTVNQRTogMC4wMDA0NTI3Njk4NjY1NjUzMjRcIlxuIn0= -->
+<pre><code>[1] &quot;MSPE: 0.000452769866565324&quot;</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z6ZEdVd0tDZFVhVzFsSUhOd1pXNWtPaUFuTENCbGJtUmZkR2x0WlNBdElITjBZWEowWDNScGJXVXBJQ1UrSlNCd2NtbHVkQ2dwWEc1Z1lHQWlmUT09IC0tPlxuXG5gYGByXG5wYXN0ZTAoJ1RpbWUgc3BlbmQ6ICcsIGVuZF90aW1lIC0gc3RhcnRfdGltZSkgJT4lIHByaW50KClcbmBgYFxuXG48IS0tIHJuYi1zb3VyY2UtZW5kIC0tPlxuIn0= -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFzdGUwKCdUaW1lIHNwZW5kOiAnLCBlbmRfdGltZSAtIHN0YXJ0X3RpbWUpICU+JSBwcmludCgpXG5gYGAifQ== -->
-<pre class="r"><code>paste0(&#39;Time spend: &#39;, end_time - start_time) %&gt;% print()</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiXG48IS0tIHJuYi1zb3VyY2UtYmVnaW4gZXlKa1lYUmhJam9pWUdCZ2NseHVjR0Z6ZEdVd0tGd2lWR2x0WlNCemNHVnVaRG9nWENJc0lHVnVaRjkwYVcxbElDMGdjM1JoY25SZmRHbHRaU2tnSlQ0bElIQnlhVzUwS0NsY2JtQmdZQ0o5IC0tPlxuXG5gYGByXG5wYXN0ZTAoXCJUaW1lIHNwZW5kOiBcIiwgZW5kX3RpbWUgLSBzdGFydF90aW1lKSAlPiUgcHJpbnQoKVxuYGBgXG5cbjwhLS0gcm5iLXNvdXJjZS1lbmQgLS0+XG4ifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFzdGUwKFwiVGltZSBzcGVuZDogXCIsIGVuZF90aW1lIC0gc3RhcnRfdGltZSkgJT4lIHByaW50KClcbmBgYCJ9 -->
+<pre class="r"><code>paste0(&quot;Time spend: &quot;, end_time - start_time) %&gt;% print()</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiVGltZSBzcGVuZDogNC4xNTY3MzMzMTgxNjk5MVwiXG4ifQ== -->
-<pre><code>[1] &quot;Time spend: 4.15673331816991&quot;</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiVGltZSBzcGVuZDogMC4yMzQ5MjY5MzkwMTA2MlwiXG4ifQ== -->
+<pre><code>[1] &quot;Time spend: 0.23492693901062&quot;</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>[1] “MSE: 226492.074387879” [1] “MSPE: 236.610276899608” [1] “Time
-spend: 4.15673331816991”</p>
 <!-- rnb-text-end -->
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIkF1dG9GUksiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQpgYGB7cn0NCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGF1dG9GUkspDQpsaWJyYXJ5KHJldGljdWxhdGUpDQpucCA8LSBpbXBvcnQoIm51bXB5IikNCmBgYA0KDQpgYGB7cn0NCmRhdGFfcGF0aCA8LSAiLi4vLi4vV2VhdGhlcjJLL3dlYXRoZXIyay5ucHkiDQpkYXRhIDwtIG5wJGxvYWQoZGF0YV9wYXRoKSAlPiUgcHlfdG9fcigpDQoNCmRhdGEgPC0gYXBlcm0oZGF0YSwgYygyLCAxLCAzKSkNCmRpbShkYXRhKQ0KYGBgDQoNCmBgYHtyfQ0KbGF0X2xvbl9hbHQgPC0gdChkYXRhWzE6MywgLCAxXSkNCmRhdGEgPC0gZGF0YVstKDE6MyksICwgXQ0KbGF0X2xvbl9hbHQgJT4lIGhlYWQoKSAlPiUgcHJpbnQoKQ0KYGBgDQoNCmBgYHtyfQ0KcmVhbCA8LSBkYXRhWzEsICwgXQ0KDQpwcm9iX25hbiA8LSAwLjMNCm1pc3NpbmcgPC0gcmVhbA0KbWFzayA8LSBydW5pZihsZW5ndGgocmVhbCkpIDwgcHJvYl9uYW4NCm1pc3NpbmdbbWFza10gPC0gTmFODQpgYGANCg0KYGBge3J9DQpwYXJhbXMgPC0gbGlzdCgNCiAgZGF0YSA9IG1pc3NpbmcsDQogIGxvYyA9IGxhdF9sb25fYWx0WywgMToyXSwNCiAgbWV0aG9kID0gImZhc3QiDQopDQpgYGANCg0KYGBge3J9DQpzdGFydF90aW1lID0gU3lzLnRpbWUoKQ0KbW9kZWxfciA8LSBhdXRvRlJLKA0KICBkYXRhID0gcGFyYW1zJGRhdGEsDQogIGxvYyA9IHBhcmFtcyRsb2MsDQogIG1ldGhvZCA9IHBhcmFtcyRtZXRob2QNCikNCg0KcHJlZF9yIDwtIHByZWRpY3QobW9kZWxfcikNCmVuZF90aW1lID0gU3lzLnRpbWUoKQ0KYGBgDQoNCmBgYHtyfQ0KbXNlID0gbWVhbigocHJlZF9yJHByZWQudmFsdWUgLSByZWFsKSAqKiAyKQ0KbXNwZSA9IG1lYW4oKHByZWRfciRwcmVkLnZhbHVlIC0gcmVhbCkgKiogMiAvIHJlYWwpDQpwYXN0ZTAoJ01TRTogJywgbXNlKSAlPiUgcHJpbnQoKQ0KcGFzdGUwKCdNU1BFOiAnLCBtc3BlKSAlPiUgcHJpbnQoKQ0KcGFzdGUwKCdUaW1lIHNwZW5kOiAnLCBlbmRfdGltZSAtIHN0YXJ0X3RpbWUpICU+JSBwcmludCgpDQpgYGANClsxXSAiTVNFOiAyMjY0OTIuMDc0Mzg3ODc5Ig0KWzFdICJNU1BFOiAyMzYuNjEwMjc2ODk5NjA4Ig0KWzFdICJUaW1lIHNwZW5kOiA0LjE1NjczMzMxODE2OTkxIg0KDQo=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIkF1dG9GUksiDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KDQpgYGB7cn0NCmxpYnJhcnkoZHBseXIpDQpsaWJyYXJ5KGF1dG9GUkspDQpsaWJyYXJ5KHJldGljdWxhdGUpDQpucCA8LSBpbXBvcnQoIm51bXB5IikNCmBgYA0KDQpgYGB7cn0NCiMgU2V0IHdvcmtpbmcgZGlyZWN0b3J5IHRvIHRoZSBwYXRoIG9mIHRoZSBjdXJyZW50IGZpbGUNCiMgVGhpcyByZXF1aXJlcyB0aGUgJ3JzdHVkaW9hcGknIHBhY2thZ2UNCmlmICghcmVxdWlyZSgicnN0dWRpb2FwaSIpKSB7DQogIGluc3RhbGwucGFja2FnZXMoInJzdHVkaW9hcGkiKQ0KfQ0Kc2V0d2QoZGlybmFtZShyc3R1ZGlvYXBpOjpnZXRTb3VyY2VFZGl0b3JDb250ZXh0KCkkcGF0aCkpDQpnZXR3ZCgpDQpgYGANCg0KYGBge3J9DQpkYXRhX3BhdGggPC0gIi4uLy4uLy4uL1dlYXRoZXIySy93ZWF0aGVyMmsubnB5Ig0KZGF0YSA8LSBucCRsb2FkKGRhdGFfcGF0aCkgJT4lIHB5X3RvX3IoKQ0KDQpkYXRhIDwtIGFwZXJtKGRhdGEsIGMoMiwgMSwgMykpDQpkaW0oZGF0YSkNCmBgYA0KDQpgYGB7cn0NCmxhdF9sb25fYWx0IDwtIHQoZGF0YVsxOjMsICwgMV0pDQpkYXRhIDwtIGRhdGFbLSgxOjMpLCAsIF0NCmxhdF9sb25fYWx0ICU+JQ0KICBoZWFkKCkgJT4lDQogIHByaW50KCkNCmBgYA0KDQpgYGB7cn0NCm4gPSAxMDANCg0KcmVhbCA8LSBkYXRhWzEsIDE6biwgMTozMF0NCm1pc3NpbmcgPSByZWFsDQoNCnByb2JfbmFuIDwtIDAuMw0Kc2V0LnNlZWQoMTIzKQ0KbWFzayA8LSBydW5pZihsZW5ndGgocmVhbCkpIDwgcHJvYl9uYW4NCm1pc3NpbmdbbWFza10gPC0gTmFODQoNCmxvYyA9IGxhdF9sb25fYWx0WzE6biwgMToyXQ0KYGBgDQoNCmBgYHtyfQ0KcmVhbCA8LSBhYmluZDo6YWJpbmQocmVhbCwgcmVhbCwgYWxvbmcgPSAyKSAgICMg5rK/56ysMue2rShyb3cp5ZCI5L21DQptaXNzaW5nIDwtIGFiaW5kOjphYmluZChtaXNzaW5nLCBtaXNzaW5nLCBhbG9uZyA9IDIpDQpsb2MgPC0gcmJpbmQobG9jKQ0KYGBgDQoNCmBgYHtyfQ0KcGFyYW1zIDwtIGxpc3QoDQogIGRhdGEgPSBtaXNzaW5nLA0KICBsb2MgPSBsb2MsDQogIG1ldGhvZCA9ICJFTSINCikNCmBgYA0KDQpgYGB7cn0NCnN0YXJ0X3RpbWUgPC0gU3lzLnRpbWUoKQ0KbW9kZWxfciA8LSBhdXRvRlJLKA0KICBkYXRhID0gcGFyYW1zJGRhdGEsDQogIGxvYyA9IHBhcmFtcyRsb2MsDQogIG1ldGhvZCA9IHBhcmFtcyRtZXRob2QNCikNCg0KcHJlZF9yIDwtIHByZWRpY3QobW9kZWxfcikNCmVuZF90aW1lIDwtIFN5cy50aW1lKCkNCmBgYA0KDQpgYGB7cn0NCm1zZSA8LSBtZWFuKChwcmVkX3IkcHJlZC52YWx1ZSAtIHJlYWwpKioyKQ0KbXNwZSA8LSBtZWFuKChwcmVkX3IkcHJlZC52YWx1ZSAtIHJlYWwpKioyIC8gcmVhbCkNCnBhc3RlMCgiTVNFOiAiLCBtc2UpICU+JSBwcmludCgpDQpwYXN0ZTAoIk1TUEU6ICIsIG1zcGUpICU+JSBwcmludCgpDQpwYXN0ZTAoIlRpbWUgc3BlbmQ6ICIsIGVuZF90aW1lIC0gc3RhcnRfdGltZSkgJT4lIHByaW50KCkNCmBgYA0KDQo=</div>
 
 
 

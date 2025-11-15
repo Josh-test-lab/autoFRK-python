@@ -117,7 +117,7 @@ print(pred.get('se'))            # Standard errors
 `AutoFRK.forward()` supports various parameters:
 | Parameter                  | Description                                                                                                                                                                          | Type                    | Default         |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | --------------- |
-| `data`                     | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th. It is recommended to provide an *n* by 1 vector as input. column.                                                                                                                | `torch.Tensor`          | (Required)      |
+| `data`                     | *n* by *T* data matrix (NA allowed) with *z[t]* as the *t*-th. column.                                                                                                                | `torch.Tensor`          | (Required)      |
 | `loc`                      | *n* by *d* matrix of coordinates corresponding to *n* locations.                                                                                                                     | `torch.Tensor`          | (Required)      |
 | `mu`                       | *n*-vector or scalar for µ.                                                                                                                                                          | `float \| torch.Tensor` | 0               |
 | `D`                        | *n* by *n* matrix (preferably sparse) for the covariance matrix of the measurement errors up to a constant scale.                                                                    | `torch.Tensor`          | Identity matrix |
@@ -266,7 +266,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 - To cite the Python package `autoFRK-python` in publications use:
 
 ```
-  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.2, 
+  Tzeng S, Huang H, Wang W, Hsu Y (2025). _autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch_. Python package version 1.2.3, 
   <https://pypi.org/project/autoFRK/>.
 ```
 
@@ -277,7 +277,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
     title = {autoFRK-python: Automatic Fixed Rank Kriging. The Python version with PyTorch},
     author = {ShengLi Tzeng and Hsin-Cheng Huang and Wen-Ting Wang and Yao-Chih Hsu},
     year = {2025},
-    note = {Python package version 1.2.2},
+    note = {Python package version 1.2.3},
     url = {https://pypi.org/project/autoFRK/},
   }
 ```
@@ -309,9 +309,9 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 ## Release Notes
 
 ### v1.2.3
-2025-11-13
+2025-11-15
 - Replaced all usages of `torch.linalg.pinv()` with `torch.cholesky_inverse(torch.linalg.cholesky())` for improved numerical stability and performance.
-- Fixed an issue that caused poor predictions when the dataset’s time index exceeded 2.
+- Fixed an issue that caused poor predictions when the dataset's time index exceeded 2.
 - Other minor bug fixes and improvements.
 
 ### v1.2.2
@@ -366,11 +366,7 @@ print("Predicted MRTS values:\n", pred['MRTS'])
 
 
 ## To Do
-- [ ] Update `MRTS` examples in README
-- [ ] Check all examples in README
-- [ ] Check all Arguments in README
 - [ ] Rewrite all discriptions in functions
-- [X] Rewrite `calculate_with_spherical: bool` function to `tps_method: str`
 - [ ] Move some `README` chapters to files
 
 ---
